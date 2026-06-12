@@ -3,24 +3,36 @@
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
+import {
+  LayoutDashboard, Beef, Wheat, Archive, Droplets, Landmark,
+  CreditCard, Lightbulb, TrendingUp, ShieldCheck, ShoppingBag,
+  Map, LogOut, Menu, X, Wifi, WifiOff,
+} from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { useSync } from '@/hooks/useSync'
 import type { Profile } from '@/types'
 
-type NavItem = { href: string; label: string; icon: string; module: string | null }
+type NavItem = {
+  href: string
+  label: string
+  icon: React.ElementType
+  module: string | null
+}
 
 const ALL_NAV: NavItem[] = [
-  { href: '/dashboard',     label: 'Beranda',      icon: '⬡',  module: null },           // selalu tampil
-  { href: '/ternak',        label: 'Ternak',        icon: '🐄', module: 'ternak' },
-  { href: '/pakan',         label: 'Stok / Pakan',  icon: '🌾', module: 'pakan' },
-  { href: '/simpan-pinjam', label: 'Simpan Pinjam', icon: '💰', module: 'simpan_pinjam' },
-  { href: '/pass',          label: 'Pass',          icon: '🔑', module: 'pass' },
-  { href: '/insight',       label: 'Insight AI',    icon: '📊', module: 'insight' },
-  { href: '/lens',          label: 'Lens',          icon: '📈', module: 'lens' },
-  { href: '/guard',         label: 'Guard',         icon: '🛡️', module: 'guard' },
-  { href: '/pengadaan',     label: 'Pasar',         icon: '🛒', module: 'pasar' },
-  { href: '/atlas',         label: 'Atlas',         icon: '🗺️', module: 'atlas' },        // pemkab saja
+  { href: '/dashboard',     label: 'Beranda',       icon: LayoutDashboard, module: null },
+  { href: '/ternak',        label: 'Ternak',         icon: Beef,            module: 'ternak' },
+  { href: '/pakan',         label: 'Stok / Pakan',   icon: Wheat,           module: 'pakan' },
+  { href: '/inventori',     label: 'Inventori',      icon: Archive,         module: 'inventori' },
+  { href: '/air',           label: 'Utilitas Air',   icon: Droplets,        module: 'air' },
+  { href: '/simpan-pinjam', label: 'Simpan Pinjam',  icon: Landmark,        module: 'simpan_pinjam' },
+  { href: '/pass',          label: 'Pass',           icon: CreditCard,      module: 'pass' },
+  { href: '/insight',       label: 'Insight AI',     icon: Lightbulb,       module: 'insight' },
+  { href: '/lens',          label: 'Lens',           icon: TrendingUp,      module: 'lens' },
+  { href: '/guard',         label: 'Guard',          icon: ShieldCheck,     module: 'guard' },
+  { href: '/pengadaan',     label: 'Pasar',          icon: ShoppingBag,     module: 'pasar' },
+  { href: '/atlas',         label: 'Atlas',          icon: Map,             module: 'atlas' },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -36,18 +48,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push('/login'); return }
-
-      const { data: p } = await supabase
-        .from('profiles').select('*').eq('id', user.id).single()
+      const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single()
       if (!p) return
       setProfile(p)
-
-      // Ambil modul dari koperasi
-      const { data: kop } = await supabase
-        .from('koperasi').select('nama, modules').eq('id', p.koperasi_id).single()
+      const { data: kop } = await supabase.from('koperasi').select('nama, modules').eq('id', p.koperasi_id).single()
       if (kop) {
         setKoperasiNama(kop.nama)
-        // pemkab: akses atlas + semua read-only
         if (p.role === 'pemkab') {
           setModules(['atlas', 'lens'])
         } else {
@@ -58,7 +64,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [router])
 
   const visibleNav = ALL_NAV.filter(n => {
-    if (n.module === null) return true               // Beranda selalu
+    if (n.module === null) return true
     if (n.module === 'atlas') return profile?.role === 'pemkab' || profile?.role === 'pengawas'
     return modules.includes(n.module)
   })
@@ -68,71 +74,88 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push('/login')
   }
 
-  const SidebarNav = ({ onClose }: { onClose?: () => void }) => (
-    <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
-      {koperasiNama && (
-        <p className="text-slate-600 text-xs px-3 py-1 uppercase tracking-wider">{koperasiNama}</p>
-      )}
-      {visibleNav.map((n) => (
-        <Link key={n.href} href={n.href} onClick={onClose}
-          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors
-            ${pathname === n.href
-              ? 'bg-green-700/20 text-green-400 font-medium'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
-          <span className="text-base">{n.icon}</span>
-          {n.label}
-        </Link>
-      ))}
-    </nav>
+  const SidebarContent = ({ onClose }: { onClose?: () => void }) => (
+    <>
+      <div className="p-5 border-b border-stone-100">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-amber-700 flex items-center justify-center">
+            <span className="text-white text-xs font-black">L</span>
+          </div>
+          <span className="text-amber-800 font-bold text-base tracking-tight">LUMBUNG</span>
+        </div>
+        {koperasiNama && (
+          <p className="text-stone-500 text-xs mt-2 truncate">{koperasiNama}</p>
+        )}
+        {profile && (
+          <p className="text-stone-400 text-xs truncate">{profile.nama} · {profile.role}</p>
+        )}
+      </div>
+
+      <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+        {visibleNav.map(n => {
+          const Icon = n.icon
+          const active = pathname === n.href
+          return (
+            <Link key={n.href} href={n.href} onClick={onClose}
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors
+                ${active
+                  ? 'bg-amber-50 text-amber-800 font-medium border-l-2 border-amber-700 pl-[10px]'
+                  : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'}`}>
+              <Icon size={16} className={active ? 'text-amber-700' : 'text-stone-400'} />
+              {n.label}
+            </Link>
+          )
+        })}
+      </nav>
+
+      <div className="p-3 border-t border-stone-100 space-y-1">
+        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs
+          ${isOnline && pending === 0
+            ? 'text-green-700'
+            : 'text-amber-700'}`}>
+          {isOnline
+            ? <Wifi size={13} className="text-green-600" />
+            : <WifiOff size={13} className="text-amber-600" />}
+          {!isOnline
+            ? `Offline${pending > 0 ? ` (${pending} pending)` : ''}`
+            : pending > 0 ? `Sinkronisasi... (${pending})` : 'Tersinkron'}
+        </div>
+        <button onClick={handleLogout}
+          className="w-full flex items-center gap-2 text-stone-500 hover:text-stone-900 text-xs px-3 py-2 rounded-lg hover:bg-stone-100 transition-colors">
+          <LogOut size={13} />
+          Keluar
+        </button>
+      </div>
+    </>
   )
 
   return (
-    <div className="min-h-screen bg-slate-950 flex">
+    <div className="min-h-screen bg-stone-50 flex">
       {/* Sidebar desktop */}
-      <aside className="hidden md:flex flex-col w-56 bg-slate-900 border-r border-slate-800 shrink-0">
-        <div className="p-4 border-b border-slate-800">
-          <span className="text-green-400 font-bold text-lg tracking-tight">LUMBUNG</span>
-          {profile && (
-            <p className="text-slate-500 text-xs mt-0.5 truncate">{profile.nama} · {profile.role}</p>
-          )}
-        </div>
-        <SidebarNav />
-        <div className="p-3 border-t border-slate-800 space-y-2">
-          <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs
-            ${isOnline && pending === 0
-              ? 'bg-green-900/30 text-green-400'
-              : 'bg-yellow-900/30 text-yellow-400'}`}>
-            <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-green-400' : 'bg-yellow-400'}`} />
-            {!isOnline
-              ? `Offline${pending > 0 ? ` (${pending} pending)` : ''}`
-              : pending > 0 ? `Sinkronisasi... (${pending})` : 'Tersinkron'}
-          </div>
-          <button onClick={handleLogout}
-            className="w-full text-left text-slate-500 hover:text-white text-xs px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors">
-            Keluar
-          </button>
-        </div>
+      <aside className="hidden md:flex flex-col w-56 bg-white border-r border-stone-200 shrink-0">
+        <SidebarContent />
       </aside>
 
-      {/* Mobile */}
       <div className="flex flex-col flex-1 min-w-0">
-        <header className="md:hidden flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800">
-          <div>
-            <span className="text-green-400 font-bold">LUMBUNG</span>
-            {koperasiNama && <span className="text-slate-500 text-xs ml-2">{koperasiNama}</span>}
+        {/* Mobile header */}
+        <header className="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-stone-200">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-amber-700 flex items-center justify-center">
+              <span className="text-white text-xs font-black">L</span>
+            </div>
+            <span className="text-amber-800 font-bold text-sm">LUMBUNG</span>
+            {koperasiNama && <span className="text-stone-400 text-xs ml-1">{koperasiNama}</span>}
           </div>
-          <button onClick={() => setOpen(!open)} className="text-slate-400 text-xl">☰</button>
+          <button onClick={() => setOpen(!open)} className="text-stone-600 p-1">
+            {open ? <X size={20} /> : <Menu size={20} />}
+          </button>
         </header>
 
         {open && (
-          <div className="md:hidden fixed inset-0 z-40 bg-black/60" onClick={() => setOpen(false)}>
-            <aside className="w-56 h-full bg-slate-900 border-r border-slate-800 flex flex-col"
+          <div className="md:hidden fixed inset-0 z-40 bg-black/30" onClick={() => setOpen(false)}>
+            <aside className="w-56 h-full bg-white border-r border-stone-200 flex flex-col"
               onClick={e => e.stopPropagation()}>
-              <div className="p-4 border-b border-slate-800">
-                <span className="text-green-400 font-bold">LUMBUNG</span>
-                {profile && <p className="text-slate-500 text-xs mt-0.5">{profile.nama}</p>}
-              </div>
-              <SidebarNav onClose={() => setOpen(false)} />
+              <SidebarContent onClose={() => setOpen(false)} />
             </aside>
           </div>
         )}

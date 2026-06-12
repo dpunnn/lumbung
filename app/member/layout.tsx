@@ -3,13 +3,14 @@
 import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
+import { Building2, Landmark, Coins, CreditCard, LogOut, Menu, X } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 const NAV = [
-  { href: '/member', label: 'Koperasiku', icon: '🏦' },
-  { href: '/member/pinjaman', label: 'Pinjaman', icon: '💰' },
-  { href: '/member/simpanan', label: 'Simpanan', icon: '🪙' },
-  { href: '/member/pass', label: 'Pass Saya', icon: '🔑' },
+  { href: '/member',           label: 'Koperasiku', icon: Building2 },
+  { href: '/member/pinjaman',  label: 'Pinjaman',   icon: Landmark  },
+  { href: '/member/simpanan',  label: 'Simpanan',   icon: Coins     },
+  { href: '/member/pass',      label: 'Pass Saya',  icon: CreditCard},
 ]
 
 export default function MemberLayout({ children }: { children: React.ReactNode }) {
@@ -32,54 +33,72 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
     router.push('/login')
   }
 
-  const SidebarNav = ({ onClose }: { onClose?: () => void }) => (
-    <nav className="flex-1 p-2 space-y-0.5">
-      {NAV.map(n => (
-        <Link key={n.href} href={n.href} onClick={onClose}
-          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors
-            ${pathname === n.href
-              ? 'bg-green-700/20 text-green-400 font-medium'
-              : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
-          <span>{n.icon}</span>{n.label}
-        </Link>
-      ))}
-    </nav>
+  const SidebarContent = ({ onClose }: { onClose?: () => void }) => (
+    <>
+      <div className="p-5 border-b border-stone-100">
+        <div className="flex items-center gap-2.5">
+          <div className="w-7 h-7 rounded-lg bg-amber-700 flex items-center justify-center">
+            <span className="text-white text-xs font-black">L</span>
+          </div>
+          <div>
+            <span className="text-amber-800 font-bold text-sm tracking-tight">LUMBUNG</span>
+            <p className="text-stone-500 text-xs">Portal Anggota</p>
+          </div>
+        </div>
+        {nama && <p className="text-stone-400 text-xs mt-2 truncate">{nama}</p>}
+      </div>
+
+      <nav className="flex-1 p-3 space-y-0.5">
+        {NAV.map(n => {
+          const Icon = n.icon
+          const active = pathname === n.href || pathname.startsWith(n.href + '?')
+          return (
+            <Link key={n.href} href={n.href} onClick={onClose}
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors
+                ${active
+                  ? 'bg-amber-50 text-amber-800 font-medium border-l-2 border-amber-700 pl-[10px]'
+                  : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'}`}>
+              <Icon size={16} className={active ? 'text-amber-700' : 'text-stone-400'} />
+              {n.label}
+            </Link>
+          )
+        })}
+      </nav>
+
+      <div className="p-3 border-t border-stone-100">
+        <button onClick={handleLogout}
+          className="w-full flex items-center gap-2 text-stone-500 hover:text-stone-900 text-xs px-3 py-2 rounded-lg hover:bg-stone-100 transition-colors">
+          <LogOut size={13} />
+          Keluar
+        </button>
+      </div>
+    </>
   )
 
   return (
-    <div className="min-h-screen bg-slate-950 flex">
-      {/* Sidebar desktop */}
-      <aside className="hidden md:flex flex-col w-56 bg-slate-900 border-r border-slate-800 shrink-0">
-        <div className="p-4 border-b border-slate-800">
-          <span className="text-green-400 font-bold text-lg tracking-tight">LUMBUNG</span>
-          <p className="text-xs text-green-600 mt-0.5">Portal Anggota</p>
-          {nama && <p className="text-slate-500 text-xs mt-0.5 truncate">{nama}</p>}
-        </div>
-        <SidebarNav />
-        <div className="p-3 border-t border-slate-800">
-          <button onClick={handleLogout}
-            className="w-full text-left text-slate-500 hover:text-white text-xs px-3 py-2 rounded-lg hover:bg-slate-800 transition-colors">
-            Keluar
-          </button>
-        </div>
+    <div className="min-h-screen bg-stone-50 flex">
+      <aside className="hidden md:flex flex-col w-56 bg-white border-r border-stone-200 shrink-0">
+        <SidebarContent />
       </aside>
 
-      {/* Mobile header */}
       <div className="flex flex-col flex-1 min-w-0">
-        <header className="md:hidden flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-slate-800">
-          <span className="text-green-400 font-bold">LUMBUNG</span>
-          <button onClick={() => setOpen(!open)} className="text-slate-400 text-xl">☰</button>
+        <header className="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-stone-200">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-amber-700 flex items-center justify-center">
+              <span className="text-white text-xs font-black">L</span>
+            </div>
+            <span className="text-amber-800 font-bold text-sm">LUMBUNG</span>
+          </div>
+          <button onClick={() => setOpen(!open)} className="text-stone-600 p-1">
+            {open ? <X size={20} /> : <Menu size={20} />}
+          </button>
         </header>
 
         {open && (
-          <div className="md:hidden fixed inset-0 z-40 bg-black/60" onClick={() => setOpen(false)}>
-            <aside className="w-56 h-full bg-slate-900 border-r border-slate-800 flex flex-col"
+          <div className="md:hidden fixed inset-0 z-40 bg-black/30" onClick={() => setOpen(false)}>
+            <aside className="w-56 h-full bg-white border-r border-stone-200 flex flex-col"
               onClick={e => e.stopPropagation()}>
-              <div className="p-4 border-b border-slate-800">
-                <span className="text-green-400 font-bold">LUMBUNG</span>
-                {nama && <p className="text-slate-500 text-xs mt-0.5">{nama}</p>}
-              </div>
-              <SidebarNav onClose={() => setOpen(false)} />
+              <SidebarContent onClose={() => setOpen(false)} />
             </aside>
           </div>
         )}

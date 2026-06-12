@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Pencil, X, Check } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 type Koperasi = { id: string; nama: string; fokus_usaha: string; modules: string[] }
@@ -8,6 +9,8 @@ type Koperasi = { id: string; nama: string; fokus_usaha: string; modules: string
 const ALL_MODULES = [
   { key: 'ternak', label: 'Ternak' },
   { key: 'pakan', label: 'Pakan' },
+  { key: 'inventori', label: 'Inventori' },
+  { key: 'air', label: 'Utilitas Air' },
   { key: 'simpan_pinjam', label: 'Simpan Pinjam' },
   { key: 'pass', label: 'Pass' },
   { key: 'insight', label: 'Insight AI' },
@@ -36,9 +39,7 @@ export default function AdminKoperasiPage() {
   }
 
   function toggleModule(m: string) {
-    setEditModules(prev =>
-      prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]
-    )
+    setEditModules(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])
   }
 
   async function saveModules(id: string) {
@@ -52,32 +53,32 @@ export default function AdminKoperasiPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-5">
       <div>
-        <h1 className="text-white text-xl font-semibold">Kelola Koperasi</h1>
-        <p className="text-slate-400 text-sm">Aktifkan atau nonaktifkan modul per koperasi</p>
+        <h1 className="text-stone-900 text-xl font-bold">Kelola Koperasi</h1>
+        <p className="text-stone-500 text-sm">Aktifkan atau nonaktifkan modul per koperasi</p>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {list.map(k => (
-          <div key={k.id} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
+          <div key={k.id} className="bg-white border border-stone-200 rounded-xl p-5 shadow-sm">
             <div className="flex items-start justify-between mb-3">
               <div>
-                <p className="text-white font-medium">{k.nama}</p>
-                <p className="text-slate-400 text-sm">{k.fokus_usaha}</p>
+                <p className="text-stone-900 font-semibold">{k.nama}</p>
+                <p className="text-stone-500 text-sm">{k.fokus_usaha}</p>
               </div>
               {editing !== k.id ? (
                 <button onClick={() => startEdit(k)}
-                  className="text-xs border border-slate-700 text-slate-300 hover:text-white px-3 py-1.5 rounded-lg hover:bg-slate-800 transition-colors">
-                  Edit Modul
+                  className="flex items-center gap-1.5 text-xs border border-stone-300 text-stone-600 hover:text-stone-900 px-3 py-1.5 rounded-lg hover:bg-stone-50 transition-colors">
+                  <Pencil size={12} /> Edit Modul
                 </button>
               ) : (
                 <div className="flex gap-2">
                   <button onClick={() => setEditing(null)}
-                    className="text-xs border border-slate-700 text-slate-400 px-3 py-1.5 rounded-lg hover:bg-slate-800">
-                    Batal
+                    className="flex items-center gap-1 text-xs border border-stone-300 text-stone-500 px-3 py-1.5 rounded-lg hover:bg-stone-50 transition-colors">
+                    <X size={12} /> Batal
                   </button>
                   <button onClick={() => saveModules(k.id)} disabled={saving}
-                    className="text-xs bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg">
-                    {saving ? 'Menyimpan...' : 'Simpan'}
+                    className="flex items-center gap-1 text-xs bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg transition-colors">
+                    <Check size={12} /> {saving ? 'Menyimpan...' : 'Simpan'}
                   </button>
                 </div>
               )}
@@ -87,10 +88,10 @@ export default function AdminKoperasiPage() {
               <div className="flex flex-wrap gap-2">
                 {ALL_MODULES.map(m => (
                   <button key={m.key} onClick={() => toggleModule(m.key)}
-                    className={`text-xs px-3 py-1.5 rounded-full border transition-colors
+                    className={`text-xs px-3 py-1.5 rounded-full border transition-colors font-medium
                       ${editModules.includes(m.key)
-                        ? 'bg-green-700 text-white border-green-600'
-                        : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500'}`}>
+                        ? 'bg-amber-700 text-white border-amber-700'
+                        : 'bg-white text-stone-600 border-stone-300 hover:border-stone-400'}`}>
                     {m.label}
                   </button>
                 ))}
@@ -98,9 +99,9 @@ export default function AdminKoperasiPage() {
             ) : (
               <div className="flex flex-wrap gap-1.5">
                 {k.modules.length === 0
-                  ? <span className="text-slate-600 text-xs">Tidak ada modul aktif</span>
+                  ? <span className="text-stone-400 text-xs">Tidak ada modul aktif</span>
                   : k.modules.map(m => (
-                      <span key={m} className="bg-green-900/30 text-green-400 border border-green-800 text-xs px-2 py-0.5 rounded-full">
+                      <span key={m} className="bg-amber-50 text-amber-700 border border-amber-200 text-xs px-2.5 py-0.5 rounded-full font-medium">
                         {ALL_MODULES.find(x => x.key === m)?.label ?? m}
                       </span>
                     ))

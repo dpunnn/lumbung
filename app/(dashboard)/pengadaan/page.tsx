@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Plus, ShoppingBag, AlertTriangle, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
 type Koperasi = { id: string; nama: string }
@@ -28,18 +29,22 @@ type Pengadaan = {
   koperasi: Koperasi
 }
 
+const inputCls = 'w-full bg-white border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500 transition-colors'
+
+const STATUS_COLOR: Record<string, string> = {
+  draft:   'bg-stone-100 text-stone-600 border-stone-200',
+  aktif:   'bg-green-50 text-green-700 border-green-200',
+  selesai: 'bg-blue-50 text-blue-700 border-blue-200',
+}
+
 export default function PengadaanPage() {
   const [tab, setTab] = useState<'daftar' | 'buat'>('daftar')
   const [data, setData] = useState<Pengadaan[]>([])
-  const [koperasiList, setKoperasiList] = useState<Koperasi[]>([])
   const [myKoperasiId, setMyKoperasiId] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
-
-  // Form buat pengadaan baru
   const [form, setForm] = useState({ judul: '', item: '', satuan: 'kg', kebutuhan: '' })
-  // Form ajukan kebutuhan
   const [ajukanForm, setAjukanForm] = useState<Record<string, { kebutuhan: string; status_rekening: string }>>({})
 
   useEffect(() => {
@@ -48,9 +53,6 @@ export default function PengadaanPage() {
       if (!user) return
       const { data: p } = await supabase.from('profiles').select('koperasi_id').eq('id', user.id).single()
       if (p) setMyKoperasiId(p.koperasi_id)
-
-      const { data: kop } = await supabase.from('koperasi').select('id, nama').order('nama')
-      setKoperasiList(kop ?? [])
     }
     init()
     loadData()
@@ -70,20 +72,13 @@ export default function PengadaanPage() {
     e.preventDefault()
     setSaving(true)
     const { data: pengadaan } = await supabase.from('pengadaan').insert({
-      judul: form.judul,
-      item: form.item,
-      satuan: form.satuan,
-      status: 'aktif',
-      dibuat_oleh_koperasi_id: myKoperasiId,
+      judul: form.judul, item: form.item, satuan: form.satuan,
+      status: 'aktif', dibuat_oleh_koperasi_id: myKoperasiId,
     }).select().single()
-
     if (pengadaan) {
-      // Auto-daftarkan koperasi pembuat
       await supabase.from('pengadaan_alokasi').insert({
-        pengadaan_id: pengadaan.id,
-        koperasi_id: myKoperasiId,
-        kebutuhan: parseFloat(form.kebutuhan) || 0,
-        status_rekening: 'terhubung',
+        pengadaan_id: pengadaan.id, koperasi_id: myKoperasiId,
+        kebutuhan: parseFloat(form.kebutuhan) || 0, status_rekening: 'terhubung',
       })
     }
     setSaving(false)
@@ -96,120 +91,94 @@ export default function PengadaanPage() {
     const f = ajukanForm[pengadaanId]
     if (!f?.kebutuhan) return
     setSaving(true)
-
-    // Cek sudah daftar belum
-    const { data: existing } = await supabase
-      .from('pengadaan_alokasi')
-      .select('id')
-      .eq('pengadaan_id', pengadaanId)
-      .eq('koperasi_id', myKoperasiId)
-      .single()
-
+    const { data: existing } = await supabase.from('pengadaan_alokasi').select('id')
+      .eq('pengadaan_id', pengadaanId).eq('koperasi_id', myKoperasiId).single()
     if (existing) {
       await supabase.from('pengadaan_alokasi')
         .update({ kebutuhan: parseFloat(f.kebutuhan), status_rekening: f.status_rekening })
         .eq('id', existing.id)
     } else {
       await supabase.from('pengadaan_alokasi').insert({
-        pengadaan_id: pengadaanId,
-        koperasi_id: myKoperasiId,
-        kebutuhan: parseFloat(f.kebutuhan),
-        status_rekening: f.status_rekening ?? 'terhubung',
+        pengadaan_id: pengadaanId, koperasi_id: myKoperasiId,
+        kebutuhan: parseFloat(f.kebutuhan), status_rekening: f.status_rekening ?? 'terhubung',
       })
     }
-
-    // Update total_kebutuhan
-    const { data: alloc } = await supabase
-      .from('pengadaan_alokasi')
-      .select('kebutuhan')
-      .eq('pengadaan_id', pengadaanId)
+    const { data: alloc } = await supabase.from('pengadaan_alokasi').select('kebutuhan').eq('pengadaan_id', pengadaanId)
     const total = (alloc ?? []).reduce((s, r) => s + (r.kebutuhan ?? 0), 0)
     await supabase.from('pengadaan').update({ total_kebutuhan: total }).eq('id', pengadaanId)
-
     setSaving(false)
     setAjukanForm(f => ({ ...f, [pengadaanId]: { kebutuhan: '', status_rekening: 'terhubung' } }))
     loadData()
-  }
-
-  const STATUS_COLOR: Record<string, string> = {
-    draft:   'bg-slate-800 text-slate-400 border-slate-700',
-    aktif:   'bg-green-900/50 text-green-400 border-green-800',
-    selesai: 'bg-blue-900/50 text-blue-400 border-blue-800',
   }
 
   return (
     <div className="max-w-4xl mx-auto space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-white text-xl font-semibold">Lumbung Pasar</h1>
-          <p className="text-slate-400 text-sm">Pengadaan bersama antar koperasi</p>
+          <h1 className="text-stone-900 text-xl font-bold">Lumbung Pasar</h1>
+          <p className="text-stone-500 text-sm">Pengadaan bersama antar koperasi</p>
         </div>
         <button onClick={() => setTab('buat')}
-          className="bg-green-600 hover:bg-green-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
-          + Buat Pengadaan
+          className="flex items-center gap-1.5 bg-amber-700 hover:bg-amber-800 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm">
+          <Plus size={15} /> Buat Pengadaan
         </button>
       </div>
 
-     
-      <div className="flex gap-1 bg-slate-900 border border-slate-800 rounded-xl p-1 w-fit">
+      <div className="flex gap-1 bg-stone-100 border border-stone-200 rounded-xl p-1 w-fit">
         {(['daftar', 'buat'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-4 py-1.5 rounded-lg text-sm transition-colors
-              ${tab === t ? 'bg-green-700 text-white' : 'text-slate-400 hover:text-white'}`}>
+              ${tab === t ? 'bg-amber-700 text-white' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50'}`}>
             {t === 'buat' ? 'Buat Baru' : 'Daftar Pengadaan'}
           </button>
         ))}
       </div>
 
-      {/* Form buat baru */}
       {tab === 'buat' && (
-        <form onSubmit={handleBuat} className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-          <h2 className="text-white font-medium">Buat Pengadaan Bersama</h2>
+        <form onSubmit={handleBuat} className="bg-white border border-stone-200 rounded-xl p-5 space-y-4 shadow-sm">
+          <h2 className="text-stone-900 font-semibold">Buat Pengadaan Bersama</h2>
           <div>
-            <label className="block text-slate-300 text-sm mb-1.5">Judul *</label>
+            <label className="block text-stone-700 text-sm font-medium mb-1.5">Judul *</label>
             <input required value={form.judul} onChange={e => setForm(f => ({ ...f, judul: e.target.value }))}
-              placeholder="Pengadaan Pupuk Urea Juni 2026"
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-600" />
+              placeholder="Pengadaan Pupuk Urea Juni 2026" className={inputCls} />
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
-              <label className="block text-slate-300 text-sm mb-1.5">Item *</label>
+              <label className="block text-stone-700 text-sm font-medium mb-1.5">Item *</label>
               <input required value={form.item} onChange={e => setForm(f => ({ ...f, item: e.target.value }))}
-                placeholder="Pupuk Urea"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-600" />
+                placeholder="Pupuk Urea" className={inputCls} />
             </div>
             <div>
-              <label className="block text-slate-300 text-sm mb-1.5">Satuan</label>
-              <select value={form.satuan} onChange={e => setForm(f => ({ ...f, satuan: e.target.value }))}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-600">
-                {['kg','sak','liter','ton','karung'].map(s => <option key={s}>{s}</option>)}
+              <label className="block text-stone-700 text-sm font-medium mb-1.5">Satuan</label>
+              <select value={form.satuan} onChange={e => setForm(f => ({ ...f, satuan: e.target.value }))} className={inputCls}>
+                {['kg', 'sak', 'liter', 'ton', 'karung'].map(s => <option key={s}>{s}</option>)}
               </select>
             </div>
           </div>
           <div>
-            <label className="block text-slate-300 text-sm mb-1.5">Kebutuhan Koperasi Kamu ({form.satuan})</label>
+            <label className="block text-stone-700 text-sm font-medium mb-1.5">Kebutuhan Koperasi Kamu ({form.satuan})</label>
             <input type="number" min="0" value={form.kebutuhan} onChange={e => setForm(f => ({ ...f, kebutuhan: e.target.value }))}
-              placeholder="50"
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-600" />
+              placeholder="50" className={inputCls} />
           </div>
           <button type="submit" disabled={saving}
-            className="w-full bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold rounded-lg px-4 py-2.5 text-sm">
+            className="w-full bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white font-semibold rounded-lg px-4 py-2.5 text-sm transition-colors">
             {saving ? 'Membuat...' : 'Buat & Daftarkan Kebutuhan'}
           </button>
         </form>
       )}
 
-      {/* Daftar pengadaan */}
       {tab === 'daftar' && (
         loading ? (
-          <p className="text-slate-500 text-sm">Memuat...</p>
+          <div className="flex justify-center py-12">
+            <div className="w-5 h-5 border-2 border-amber-700 border-t-transparent rounded-full animate-spin" />
+          </div>
         ) : data.length === 0 ? (
-          <div className="text-center py-16 text-slate-500">
-            <p className="text-4xl mb-2">🛒</p>
-            <p>Belum ada pengadaan bersama.</p>
+          <div className="text-center py-16 text-stone-400 bg-white border border-stone-200 rounded-xl">
+            <ShoppingBag size={32} className="mx-auto mb-2 text-stone-300" />
+            <p className="text-sm">Belum ada pengadaan bersama.</p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {data.map(p => {
               const totalKebutuhan = p.pengadaan_alokasi.reduce((s, a) => s + (a.kebutuhan ?? 0), 0)
               const adaBelumTerhubung = p.pengadaan_alokasi.some(a => a.status_rekening === 'belum_terhubung')
@@ -217,99 +186,94 @@ export default function PengadaanPage() {
               const isExpanded = expandedId === p.id
 
               return (
-                <div key={p.id} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-                  {/* Header */}
-                  <div className="p-4 cursor-pointer hover:bg-slate-800/30 transition-colors"
+                <div key={p.id} className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
+                  <div className="p-4 cursor-pointer hover:bg-stone-50 transition-colors"
                     onClick={() => setExpandedId(isExpanded ? null : p.id)}>
                     <div className="flex items-start justify-between mb-2">
                       <div>
-                        <p className="text-white font-medium">{p.judul}</p>
-                        <p className="text-slate-400 text-sm">{p.item} · {p.koperasi?.nama}</p>
+                        <p className="text-stone-900 font-medium">{p.judul}</p>
+                        <p className="text-stone-500 text-sm">{p.item} · {p.koperasi?.nama}</p>
                       </div>
-                      <span className={`text-xs border px-2 py-0.5 rounded-full ${STATUS_COLOR[p.status]}`}>
-                        {p.status}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs border px-2 py-0.5 rounded-full ${STATUS_COLOR[p.status]}`}>
+                          {p.status}
+                        </span>
+                        {isExpanded ? <ChevronUp size={14} className="text-stone-400" /> : <ChevronDown size={14} className="text-stone-400" />}
+                      </div>
                     </div>
-
-                    {/* Ringkasan */}
                     <div className="flex items-center gap-4 text-sm">
-                      <span className="text-slate-400">
-                        Total: <strong className="text-white">{totalKebutuhan} {p.satuan}</strong>
+                      <span className="text-stone-500 text-xs">
+                        Total: <strong className="text-stone-900">{totalKebutuhan} {p.satuan}</strong>
                       </span>
-                      <span className="text-slate-400">
-                        {p.pengadaan_alokasi.length} koperasi
-                      </span>
+                      <span className="text-stone-400 text-xs">{p.pengadaan_alokasi.length} koperasi</span>
                       {adaBelumTerhubung && (
-                        <span className="text-red-400 text-xs flex items-center gap-1">
-                          ⚠ Ada koperasi belum punya rekening
+                        <span className="text-amber-600 text-xs flex items-center gap-1">
+                          <AlertTriangle size={12} /> Ada koperasi belum punya rekening
                         </span>
                       )}
                     </div>
                   </div>
 
-                  {/* Detail rekapitulasi */}
                   {isExpanded && (
-                    <div className="border-t border-slate-800 p-4 space-y-3">
-                      <p className="text-slate-400 text-xs">Rekapitulasi Kebutuhan</p>
+                    <div className="border-t border-stone-100 p-4 space-y-3 bg-stone-50">
+                      <p className="text-stone-500 text-xs font-medium uppercase tracking-wide">Rekapitulasi Kebutuhan</p>
                       <table className="w-full text-sm">
                         <thead>
-                          <tr className="text-slate-500 text-xs border-b border-slate-800">
-                            <th className="text-left pb-2">Koperasi</th>
-                            <th className="text-right pb-2">Kebutuhan</th>
-                            <th className="text-right pb-2">Dapat</th>
-                            <th className="text-center pb-2">Rekening</th>
+                          <tr className="text-stone-500 text-xs border-b border-stone-200">
+                            <th className="text-left pb-2 font-medium">Koperasi</th>
+                            <th className="text-right pb-2 font-medium">Kebutuhan</th>
+                            <th className="text-right pb-2 font-medium">Dapat</th>
+                            <th className="text-center pb-2 font-medium">Rekening</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-800">
+                        <tbody className="divide-y divide-stone-100">
                           {p.pengadaan_alokasi.map(a => (
                             <tr key={a.id}>
-                              <td className="py-2 text-slate-300">{a.koperasi?.nama ?? '—'}</td>
-                              <td className="py-2 text-right text-white">{a.kebutuhan} {p.satuan}</td>
-                              <td className="py-2 text-right text-slate-400">{a.alokasi_dapat || '—'}</td>
+                              <td className="py-2 text-stone-700">{a.koperasi?.nama ?? '—'}</td>
+                              <td className="py-2 text-right text-stone-900 font-medium">{a.kebutuhan} {p.satuan}</td>
+                              <td className="py-2 text-right text-stone-400">{a.alokasi_dapat || '—'}</td>
                               <td className="py-2 text-center">
                                 {a.status_rekening === 'terhubung'
-                                  ? <span className="text-green-400 text-xs">✓ Terhubung</span>
-                                  : <span className="text-red-400 text-xs">⚠ Belum</span>}
+                                  ? <span className="text-green-600 text-xs flex items-center justify-center gap-1"><CheckCircle size={11} /> Terhubung</span>
+                                  : <span className="text-red-500 text-xs flex items-center justify-center gap-1"><AlertTriangle size={11} /> Belum</span>}
                               </td>
                             </tr>
                           ))}
-                          <tr className="border-t border-slate-700">
-                            <td className="pt-2 text-white font-semibold">Total</td>
-                            <td className="pt-2 text-right text-green-400 font-semibold">{totalKebutuhan} {p.satuan}</td>
+                          <tr className="border-t border-stone-200">
+                            <td className="pt-2 text-stone-900 font-semibold">Total</td>
+                            <td className="pt-2 text-right text-amber-700 font-semibold">{totalKebutuhan} {p.satuan}</td>
                             <td colSpan={2} />
                           </tr>
                         </tbody>
                       </table>
 
-                      {/* Ajukan kebutuhan kalau belum daftar */}
                       {!sudahDaftar && p.status === 'aktif' && (
-                        <div className="bg-slate-800 rounded-xl p-3 space-y-3">
-                          <p className="text-slate-300 text-sm font-medium">Daftarkan Kebutuhan Koperasimu</p>
+                        <div className="bg-white border border-stone-200 rounded-xl p-4 space-y-3">
+                          <p className="text-stone-800 text-sm font-medium">Daftarkan Kebutuhan Koperasimu</p>
                           <div className="flex gap-2">
-                            <input
-                              type="number" min="0" placeholder={`Jumlah (${p.satuan})`}
+                            <input type="number" min="0" placeholder={`Jumlah (${p.satuan})`}
                               value={ajukanForm[p.id]?.kebutuhan ?? ''}
                               onChange={e => setAjukanForm(f => ({ ...f, [p.id]: { ...f[p.id], kebutuhan: e.target.value } }))}
-                              className="flex-1 bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-600" />
-                            <select
-                              value={ajukanForm[p.id]?.status_rekening ?? 'terhubung'}
+                              className="flex-1 bg-white border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500" />
+                            <select value={ajukanForm[p.id]?.status_rekening ?? 'terhubung'}
                               onChange={e => setAjukanForm(f => ({ ...f, [p.id]: { ...f[p.id], status_rekening: e.target.value } }))}
-                              className="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-600">
+                              className="bg-white border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
                               <option value="terhubung">Rekening Terhubung</option>
                               <option value="belum_terhubung">Belum Punya Rekening</option>
                             </select>
                           </div>
-                          <button
-                            onClick={() => handleAjukan(p.id)}
+                          <button onClick={() => handleAjukan(p.id)}
                             disabled={saving || !ajukanForm[p.id]?.kebutuhan}
-                            className="w-full bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg py-2">
+                            className="w-full bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white text-sm font-medium rounded-lg py-2 transition-colors">
                             {saving ? 'Mendaftar...' : 'Ajukan Kebutuhan'}
                           </button>
                         </div>
                       )}
 
                       {sudahDaftar && (
-                        <p className="text-green-400 text-xs">✓ Koperasimu sudah terdaftar di pengadaan ini</p>
+                        <p className="text-green-600 text-xs flex items-center gap-1">
+                          <CheckCircle size={12} /> Koperasimu sudah terdaftar di pengadaan ini
+                        </p>
                       )}
                     </div>
                   )}

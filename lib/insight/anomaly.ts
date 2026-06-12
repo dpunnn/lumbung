@@ -1,5 +1,4 @@
 import type { Analyzer, Signal, InsightInput } from "./types";
-import type { ModuleId } from "@/lib/types";
 
 const round = (n: number) => Math.round(n * 100) / 100;
 
@@ -12,7 +11,6 @@ export interface AnomalyResult {
   z: number;
 }
 
-/** Deteksi titik paling menyimpang via z-score. Generik, dipakai semua koperasi. */
 export function detectAnomali(series: number[], threshold = 2): AnomalyResult {
   const empty: AnomalyResult = { isAnomaly: false, index: -1, value: 0, mean: 0, std: 0, z: 0 };
   const n = series.length;
@@ -30,93 +28,157 @@ export function detectAnomali(series: number[], threshold = 2): AnomalyResult {
   return best;
 }
 
-interface StreamDef {
-  modul: ModuleId;
-  series: number[];
-  judul: (r: AnomalyResult) => string;
-  narasi: (r: AnomalyResult) => string;
+/** Hitung jumlah transaksi per bulan dari array dengan field ts (timestamp) */
+function countPerBulan(items: { ts: string }[], bulanBack = 6): number[] {
+  const now = new Date();
+  return Array.from({ length: bulanBack }, (_, i) => {
+    const target = new Date(now.getFullYear(), now.getMonth() - (bulanBack - 1 - i), 1);
+    const next   = new Date(target.getFullYear(), target.getMonth() + 1, 1);
+    return items.filter(x => {
+      const d = new Date(x.ts);
+      return d >= target && d < next;
+    }).length;
+  });
 }
 
 /**
- * Deret per koperasi. Sebagian DUMMY (menutupi gap) sampai data CRUD nyata mengalir.
- * Engine-nya sama; hanya kolom/datanya yang beda → bukti commodity adapter di lapis AI.
+ * Anomaly analyzer yang data-driven dari InsightInput nyata.
+ * Tidak ada switch per koperasi ID — works untuk semua tenant.
  */
-function streamsFor(input: InsightInput): StreamDef[] {
-  switch (input.koperasi.id) {
-    case "padiwangi":
-      return [{
-        modul: "simpan_pinjam",
-        series: [1, 0, 2, 1, 1, 0, 1, 2, 1, 0, 1, 2, 9], // dummy: pembatalan kasir per jam, spike jam tutup
-        judul: (r) => `Pembatalan kasir melonjak (${r.value}x) di luar jam normal`,
-        narasi: (r) =>
-          `Terjadi ${r.value} pembatalan transaksi pada satu jam — ${round(r.z)}× simpangan di atas rata-rata (${round(r.mean)}). Sebagian besar setelah jam tutup. Perlu ditinjau pengawas tanpa langsung menuduh.`,
-      }];
-    case "melati-jaya":
-      return [
-        {
-          modul: "inventori",
-          series: [6, 6, 7, 6, 8, 7, 15, 7], // dummy: suhu cold storage (°C)
-          judul: (r) => `Suhu cold storage menyentuh ${r.value}°C`,
-          narasi: (r) =>
-            `Suhu sempat ${r.value}°C, jauh di atas ambang aman (~${round(r.mean)}°C). Risiko sayur cepat rusak — periksa unit pendingin.`,
-        },
-        {
-          modul: "inventori",
-          series: [0, 1, 0, 1, 0, 4], // dummy: stok rusak per pemeriksaan
-          judul: (r) => `Stok rusak melonjak (${r.value} item)`,
-          narasi: (r) =>
-            `Jumlah stok rusak naik tajam ke ${r.value} item. Indikasi penanganan rantai dingin atau pencatatan stok yang hilang.`,
-        },
-      ];
-    case "sumber-makmur":
-      return [{
-        modul: "inventori",
-        series: [120, 118, 121, 119, 150, 120], // dummy: harga beli pupuk (ribu/sak)
-        judul: (r) => `Harga beli pupuk menyimpang (Rp${r.value}rb/sak)`,
-        narasi: (r) =>
-          `Satu pembelian seharga Rp${r.value}rb/sak, jauh di atas harga biasa (~Rp${round(r.mean)}rb). Cek apakah beda volume atau perlu negosiasi ulang supplier.`,
-      }];
-    case "tirta-bersama":
-      return [{
-        modul: "simpan_pinjam",
-        series: [2, 3, 2, 4, 3, 9], // dummy: jumlah tunggakan per bulan
-        judul: (r) => `Tunggakan melonjak (${r.value} kasus)`,
-        narasi: (r) =>
-          `Tunggakan naik ke ${r.value} kasus bulan ini, ${round(r.z)}× di atas normal. Perlu tindak lanjut penagihan.`,
-      }];
-    case "harapan-baru":
-      return [{
-        modul: "ternak",
-        series: [0, 1, 0, 1, 0, 3], // dummy: kematian ternak per bulan
-        judul: (r) => `Kematian ternak melonjak (${r.value} ekor)`,
-        narasi: (r) =>
-          `Kematian ternak naik ke ${r.value} ekor bulan ini. Periksa pakan, kandang, dan jadwal vaksin segera.`,
-      }];
-    default:
-      return [];
-  }
-}
-
 export const anomalyAnalyzer: Analyzer = (input) => {
+  const { koperasi, transaksi, ternak, stok } = input;
   const signals: Signal[] = [];
-  streamsFor(input).forEach((s, idx) => {
-    const r = detectAnomali(s.series);
-    if (!r.isAnomaly) return;
-    signals.push({
-      id: `anomaly-${input.koperasi.id}-${s.modul}-${idx}`,
-      tenantId: input.koperasi.id,
-      modul: s.modul,
-      kind: "anomaly",
-      severity: r.z > 3 ? "critical" : "warning",
-      judul: s.judul(r),
-      narasi: s.narasi(r),
-      nilai: r.value,
-      explain: [
-        { faktor: "Nilai teramati", bobot: 1, nilai: round(r.value) },
-        { faktor: "Rata-rata normal", bobot: 0, nilai: round(r.mean) },
-        { faktor: "Simpangan (z-score)", bobot: 0, nilai: round(r.z) },
-      ],
+  const tid = koperasi.id;
+
+  // ── 1. Simpanan: lonjakan / penurunan tiba-tiba ──────────────────────────
+  if (koperasi.modules.includes("simpan_pinjam")) {
+    const simpananTx = transaksi.filter(t => t.tipe === "simpanan");
+    const series = countPerBulan(simpananTx.map(t => ({ ts: t.ts })));
+    const r = detectAnomali(series, 2);
+    if (r.isAnomaly && r.value !== 0) {
+      const bulanIdx = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+      const now = new Date();
+      const bulanLabel = bulanIdx[(now.getMonth() - (5 - r.index) + 12) % 12];
+      const isSpike = r.value > r.mean;
+
+      signals.push({
+        id: `anomaly-simpanan-${tid}`,
+        tenantId: tid,
+        modul: "simpan_pinjam",
+        kind: "anomaly",
+        severity: r.z > 3 ? "critical" : "warning",
+        judul: isSpike
+          ? `Transaksi simpanan melonjak di ${bulanLabel} (${r.value}x)`
+          : `Transaksi simpanan turun drastis di ${bulanLabel} (${r.value}x)`,
+        narasi: isSpike
+          ? `Jumlah transaksi simpanan di ${bulanLabel} jauh di atas normal (${round(r.mean)} rata-rata). Lonjakan ${round(r.z)}× simpangan baku. Bisa jadi gelombang setoran bersama atau anomali pencatatan — perlu konfirmasi.`
+          : `Transaksi simpanan di ${bulanLabel} sangat rendah (${round(r.mean)} rata-rata, turun ke ${r.value}). Indikasi penurunan partisipasi anggota atau masalah operasional.`,
+        nilai: r.value,
+        explain: [
+          { faktor: "Bulan anomali", bobot: 1, nilai: r.value },
+          { faktor: "Rata-rata bulanan", bobot: 0, nilai: round(r.mean) },
+          { faktor: "Z-score", bobot: 0, nilai: round(r.z) },
+        ],
+      });
+    }
+  }
+
+  // ── 2. Pinjaman: angsuran macet terkonsentrasi ────────────────────────────
+  if (koperasi.modules.includes("simpan_pinjam")) {
+    const pinjamanTx = transaksi.filter(t => t.tipe === "pinjaman");
+    // Hitung berapa pinjaman baru per bulan (proxy untuk aktivitas kredit)
+    const series = countPerBulan(pinjamanTx.map(t => ({ ts: t.ts })));
+    const r = detectAnomali(series, 2.5);
+    if (r.isAnomaly && r.value > r.mean * 2) {
+      signals.push({
+        id: `anomaly-pinjaman-${tid}`,
+        tenantId: tid,
+        modul: "simpan_pinjam",
+        kind: "anomaly",
+        severity: "warning",
+        judul: `Pemberian pinjaman melonjak (${r.value}× normal di bulan itu)`,
+        narasi: `Jumlah pinjaman baru di satu bulan mencapai ${r.value} pencairan — ${round(r.z)}× di atas normal (${round(r.mean)}). Risiko konsentrasi kredit meningkat, pastikan kapasitas bayar anggota mencukupi.`,
+        nilai: r.value,
+        explain: [
+          { faktor: "Pinjaman bulan puncak", bobot: 1, nilai: r.value },
+          { faktor: "Rata-rata bulanan", bobot: 0, nilai: round(r.mean) },
+          { faktor: "Z-score", bobot: 0, nilai: round(r.z) },
+        ],
+      });
+    }
+  }
+
+  // ── 3. Ternak: lonjakan kematian ─────────────────────────────────────────
+  if (koperasi.modules.includes("ternak") && ternak.length >= 3) {
+    const matiCount = ternak.filter(t => t.status === "mati").length;
+    const totalCount = ternak.length;
+    const sehatCount = ternak.filter(t => t.status === "sehat").length;
+    const rasioMati = matiCount / totalCount;
+
+    if (rasioMati >= 0.05 && matiCount >= 2) {
+      signals.push({
+        id: `anomaly-ternak-mati-${tid}`,
+        tenantId: tid,
+        modul: "ternak",
+        kind: "anomaly",
+        severity: rasioMati >= 0.15 ? "critical" : "warning",
+        judul: `Kematian ternak di atas normal (${matiCount} ekor, ${Math.round(rasioMati * 100)}%)`,
+        narasi: `${matiCount} dari ${totalCount} ternak berstatus mati — rasio ${Math.round(rasioMati * 100)}% melampaui ambang aman 5%. Periksa pola penyakit, kualitas pakan, dan ventilasi kandang.`,
+        nilai: matiCount,
+        explain: [
+          { faktor: "Ternak mati", bobot: 1, nilai: matiCount },
+          { faktor: "Total ternak", bobot: 0, nilai: totalCount },
+          { faktor: "Rasio (%)", bobot: 0, nilai: round(rasioMati * 100) },
+        ],
+      });
+    }
+
+    // Deteksi ternak tidak divaksin dalam waktu lama
+    const now = Date.now();
+    const perluVaksin = ternak.filter(t => {
+      if (t.status === "mati") return false;
+      if (!t.vaksin || t.vaksin.length === 0) return true;
+      const last = new Date(t.vaksin[t.vaksin.length - 1]).getTime();
+      return (now - last) > 90 * 24 * 60 * 60 * 1000; // > 90 hari
     });
-  });
+    if (perluVaksin.length >= 3) {
+      signals.push({
+        id: `anomaly-vaksin-${tid}`,
+        tenantId: tid,
+        modul: "ternak",
+        kind: "anomaly",
+        severity: "warning",
+        judul: `${perluVaksin.length} ekor belum divaksin > 90 hari`,
+        narasi: `${perluVaksin.length} ekor ternak tidak memiliki catatan vaksin dalam 90 hari terakhir. Risiko penyakit menular meningkat — jadwalkan vaksinasi segera.`,
+        nilai: perluVaksin.length,
+        explain: [
+          { faktor: "Belum vaksin (90h+)", bobot: 1, nilai: perluVaksin.length },
+          { faktor: "Ternak sehat total", bobot: 0, nilai: sehatCount },
+        ],
+      });
+    }
+  }
+
+  // ── 4. Inventori: stok menipis ≥ 3 item sekaligus (cluster alert) ─────────
+  if (koperasi.modules.includes("inventori") || koperasi.modules.includes("pakan")) {
+    const itemMenipis = stok.filter(s => s.qty <= 50 && (s.kondisi ?? "baik") === "baik");
+    if (itemMenipis.length >= 2) {
+      signals.push({
+        id: `anomaly-stok-cluster-${tid}`,
+        tenantId: tid,
+        modul: "inventori",
+        kind: "anomaly",
+        severity: itemMenipis.length >= 4 ? "critical" : "warning",
+        judul: `${itemMenipis.length} jenis stok menipis secara bersamaan`,
+        narasi: `${itemMenipis.map(s => s.nama).join(", ")} — semuanya di bawah batas aman. Kejadian bersamaan ini bisa menandakan masalah rantai pasokan atau lonjakan permintaan mendadak.`,
+        nilai: itemMenipis.length,
+        explain: [
+          { faktor: "Item di bawah minimum", bobot: 1, nilai: itemMenipis.length },
+          ...itemMenipis.slice(0, 3).map(s => ({ faktor: s.nama, bobot: 0, nilai: s.qty })),
+        ],
+      });
+    }
+  }
+
   return signals;
 };

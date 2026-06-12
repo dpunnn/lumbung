@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { TrendingUp } from 'lucide-react'
 
 type Simpanan = { tanggal: string; jumlah: number }
 type Pinjaman = { created_at: string; jumlah: number; status: string }
@@ -48,47 +49,53 @@ export default function LensPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-5">
       <div>
-        <h1 className="text-white text-xl font-semibold">Lumbung Lens</h1>
-        <p className="text-slate-400 text-sm">Visualisasi tren keuangan koperasi</p>
+        <h1 className="text-stone-900 text-xl font-bold">Lumbung Lens</h1>
+        <p className="text-stone-600 text-sm">Visualisasi tren keuangan koperasi</p>
       </div>
 
       {/* Stat cards */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: 'Total Simpanan', value: `Rp ${(totalSimpanan / 1_000_000).toFixed(1)}jt`, color: 'text-green-400' },
-          { label: 'Total Pinjaman', value: `Rp ${(totalPinjaman / 1_000_000).toFixed(1)}jt`, color: 'text-blue-400' },
-          { label: 'Pinjaman Macet', value: pinjamanMacet, color: pinjamanMacet > 0 ? 'text-red-400' : 'text-slate-400' },
+          { label: 'Total Simpanan', value: `Rp ${(totalSimpanan / 1_000_000).toFixed(1)}jt`, color: 'text-green-700' },
+          { label: 'Total Pinjaman', value: `Rp ${(totalPinjaman / 1_000_000).toFixed(1)}jt`, color: 'text-blue-700' },
+          { label: 'Pinjaman Macet', value: pinjamanMacet, color: pinjamanMacet > 0 ? 'text-red-600' : 'text-stone-400' },
         ].map(s => (
-          <div key={s.label} className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-            <p className="text-slate-400 text-xs mb-1">{s.label}</p>
+          <div key={s.label} className="bg-white border border-stone-200 rounded-xl shadow-sm p-4">
+            <p className="text-stone-400 text-xs mb-1">{s.label}</p>
             <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
           </div>
         ))}
       </div>
 
       {/* Bar chart simpanan 6 bulan terakhir */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-        <p className="text-slate-300 text-sm font-medium mb-4">Simpanan Masuk — 6 Bulan Terakhir</p>
+      <div className="bg-white border border-stone-200 rounded-xl shadow-sm p-5">
+        <p className="text-stone-900 text-sm font-medium mb-4">Simpanan Masuk — 6 Bulan Terakhir</p>
         {loading ? (
-          <p className="text-slate-500 text-sm">Memuat...</p>
+          <div className="flex items-center gap-3 py-8 justify-center">
+            <div className="w-5 h-5 border-2 border-amber-700 border-t-transparent rounded-full animate-spin" />
+            <p className="text-stone-400 text-sm">Memuat...</p>
+          </div>
         ) : simpananBulanan.length === 0 ? (
-          <p className="text-slate-500 text-sm">Belum ada data simpanan.</p>
+          <div className="text-center py-8 text-stone-400">
+            <TrendingUp className="w-8 h-8 mx-auto mb-2" />
+            <p className="text-sm">Belum ada data simpanan.</p>
+          </div>
         ) : (
           <div className="flex items-end gap-2 h-32">
             {simpananBulanan.map(([bulan, val]) => {
               const pct = (val / maxSimpanan) * 100
               return (
                 <div key={bulan} className="flex-1 flex flex-col items-center gap-1">
-                  <span className="text-slate-500 text-xs">
+                  <span className="text-stone-400 text-xs">
                     {val >= 1_000_000 ? `${(val / 1_000_000).toFixed(1)}jt` : `${Math.round(val / 1000)}rb`}
                   </span>
-                  <div className="w-full bg-slate-800 rounded-t overflow-hidden" style={{ height: '80px' }}>
+                  <div className="w-full bg-stone-100 rounded-t overflow-hidden" style={{ height: '80px' }}>
                     <div
-                      className="w-full bg-green-600/80 rounded-t transition-all"
+                      className="w-full bg-amber-600/80 rounded-t transition-all"
                       style={{ height: `${pct}%`, marginTop: `${100 - pct}%` }}
                     />
                   </div>
-                  <span className="text-slate-600 text-xs">{bulan.slice(5)}/{bulan.slice(2, 4)}</span>
+                  <span className="text-stone-400 text-xs">{bulan.slice(5)}/{bulan.slice(2, 4)}</span>
                 </div>
               )
             })}
@@ -97,33 +104,33 @@ export default function LensPage() {
       </div>
 
       {/* Tabel pinjaman ringkasan */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-        <p className="text-slate-300 text-sm font-medium mb-3">Riwayat Pinjaman</p>
+      <div className="bg-white border border-stone-200 rounded-xl shadow-sm p-5">
+        <p className="text-stone-900 text-sm font-medium mb-3">Riwayat Pinjaman</p>
         {pinjaman.length === 0 ? (
-          <p className="text-slate-500 text-sm">Belum ada pinjaman.</p>
+          <p className="text-stone-400 text-sm">Belum ada pinjaman.</p>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-slate-500 text-xs border-b border-slate-800">
+              <tr className="text-stone-500 text-xs border-b border-stone-200">
                 <th className="text-left pb-2">Tanggal</th>
                 <th className="text-right pb-2">Jumlah</th>
                 <th className="text-right pb-2">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-stone-100">
               {pinjaman.slice(0, 10).map((p, i) => (
                 <tr key={i}>
-                  <td className="py-2 text-slate-400 text-xs">
+                  <td className="py-2 text-stone-400 text-xs">
                     {new Date(p.created_at).toLocaleDateString('id-ID')}
                   </td>
-                  <td className="py-2 text-right text-white">
+                  <td className="py-2 text-right text-stone-900">
                     Rp {p.jumlah.toLocaleString('id-ID')}
                   </td>
                   <td className="py-2 text-right">
                     <span className={`text-xs px-2 py-0.5 rounded-full border
-                      ${p.status === 'aktif' ? 'bg-green-900/50 text-green-400 border-green-800'
-                      : p.status === 'macet' ? 'bg-red-900/50 text-red-400 border-red-800'
-                      : 'bg-slate-800 text-slate-400 border-slate-700'}`}>
+                      ${p.status === 'aktif' ? 'bg-green-50 text-green-700 border-green-200'
+                      : p.status === 'macet' ? 'bg-red-50 text-red-600 border-red-200'
+                      : 'bg-stone-100 text-stone-600 border-stone-200'}`}>
                       {p.status}
                     </span>
                   </td>

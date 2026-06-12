@@ -16,85 +16,67 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
     setLoading(true)
-
     const { error } = await supabase.auth.signInWithPassword({ email, password })
-
     if (error) {
       setError('Email atau password salah.')
       setLoading(false)
       return
     }
-
     router.push('/dashboard')
   }
 
   return (
     <div className="w-full max-w-sm">
-      {/* Logo */}
       <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-green-600 mb-3">
-          <span className="text-white text-2xl font-bold">L</span>
+        <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-amber-700 mb-3 shadow-sm">
+          <span className="text-white text-xl font-black">L</span>
         </div>
-        <h1 className="text-white text-2xl font-bold tracking-tight">LUMBUNG</h1>
-        <p className="text-slate-400 text-sm mt-1">Sistem Operasi Koperasi</p>
+        <h1 className="text-stone-900 text-2xl font-bold tracking-tight">LUMBUNG</h1>
+        <p className="text-stone-500 text-sm mt-1">Sistem Operasi Koperasi</p>
       </div>
 
-      {/* Card */}
-      <form
-        onSubmit={handleLogin}
-        className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4"
-      >
+      <form onSubmit={handleLogin}
+        className="bg-white border border-stone-200 rounded-2xl p-6 space-y-4 shadow-sm">
         <div>
-          <label className="block text-slate-300 text-sm font-medium mb-1.5">
-            Email
-          </label>
+          <label className="block text-stone-700 text-sm font-medium mb-1.5">Email</label>
           <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            type="email" required value={email}
+            onChange={e => setEmail(e.target.value)}
             placeholder="pengurus@koperasi.id"
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5
-                       text-white placeholder-slate-500 text-sm
-                       focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
+            className="w-full bg-white border border-stone-300 rounded-lg px-3 py-2.5
+                       text-stone-900 placeholder-stone-400 text-sm
+                       focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500 transition-colors"
           />
         </div>
 
         <div>
-          <label className="block text-slate-300 text-sm font-medium mb-1.5">
-            Password
-          </label>
+          <label className="block text-stone-700 text-sm font-medium mb-1.5">Password</label>
           <input
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            type="password" required value={password}
+            onChange={e => setPassword(e.target.value)}
             placeholder="••••••••"
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5
-                       text-white placeholder-slate-500 text-sm
-                       focus:outline-none focus:ring-2 focus:ring-green-600 focus:border-transparent"
+            className="w-full bg-white border border-stone-300 rounded-lg px-3 py-2.5
+                       text-stone-900 placeholder-stone-400 text-sm
+                       focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500 transition-colors"
           />
         </div>
 
         {error && (
-          <p className="text-red-400 text-sm bg-red-950/50 border border-red-900 rounded-lg px-3 py-2">
+          <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2">
             {error}
           </p>
         )}
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-green-600 hover:bg-green-500 disabled:opacity-50
+        <button type="submit" disabled={loading}
+          className="w-full bg-amber-700 hover:bg-amber-800 disabled:opacity-50
                      text-white font-semibold rounded-lg px-4 py-2.5 text-sm
-                     transition-colors"
-        >
+                     transition-colors shadow-sm">
           {loading ? 'Masuk...' : 'Masuk'}
         </button>
 
-        <p className="text-center text-slate-500 text-sm">
+        <p className="text-center text-stone-500 text-sm">
           Belum punya akun?{' '}
-          <Link href="/daftar" className="text-green-400 hover:underline">Daftar</Link>
+          <Link href="/daftar" className="text-amber-700 hover:text-amber-800 font-medium">Daftar</Link>
         </p>
       </form>
     </div>
