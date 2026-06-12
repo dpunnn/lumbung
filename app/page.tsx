@@ -32,7 +32,7 @@ export default function Dashboard() {
             {koperasi.fokusUsaha} · {koperasi.lokasi} · literasi {koperasi.literasi}
           </p>
         </div>
-        <KoperasiSwitcher />
+        <KoperasiSwitcher/>
       </header>
 
       {/* Ringkasan umum */}
