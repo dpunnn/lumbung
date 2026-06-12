@@ -37,10 +37,7 @@ interface StreamDef {
   narasi: (r: AnomalyResult) => string;
 }
 
-/**
- * Deret per koperasi. Sebagian DUMMY (menutupi gap) sampai data CRUD nyata mengalir.
- * Engine-nya sama; hanya kolom/datanya yang beda → bukti commodity adapter di lapis AI.
- */
+
 function streamsFor(input: InsightInput): StreamDef[] {
   switch (input.koperasi.id) {
     case "padiwangi":
