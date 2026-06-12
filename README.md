@@ -1,89 +1,36 @@
-# LUMBUNG — Satu Lumbung, Banyak Koperasi
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-**Sistem Operasi Koperasi Desa: Multi-Tenant, Offline-First, dengan Paspor Data Berbasis Persetujuan untuk Membuka Akses Pembiayaan.**
+## Getting Started
 
-Hackathon TechnoScape 9.0 (BNCC × AD-INS) — Tim **FraudHunter**
-Studi Kasus: Perancangan Sistem Digitalisasi Program Koperasi — *Koperasi Harapan Baru (Ternak & Pakan)*
+First, run the development server:
 
-> Status: **tahap proposal / babak penyisihan.** Repositori ini memuat dokumen perancangan, arsitektur, dan rencana implementasi. Pembangunan MVP dilakukan pada babak final.
-
----
-
-## Masalah
-
-Setahun setelah MVP pencatatan digital satu koperasi (Koperasi Viva) berhasil, pemerintah kabupaten ingin mereplikasinya ke banyak koperasi desa. Sistem lama gagal naik kelas karena dirancang untuk **satu** koperasi:
-
-1. **Data bercampur** ketika koperasi kedua bergabung (tidak ada isolasi tenant).
-2. **Pengurus tidak memahami laporan** (tidak adaptif terhadap literasi).
-3. **Bingung berbagi data ke mitra pembiayaan** — tidak tahu apa yang boleh dibagikan & seberapa banyak.
-
-Akar masalah: sistem dibangun sebagai **aplikasi tunggal**, bukan **platform**.
-
-## Solusi — LUMBUNG
-
-Sebuah *Sistem Operasi Koperasi* yang dirancang sejak awal untuk **banyak koperasi sekaligus**, berdiri di atas empat lapis + mesin kecerdasan:
-
-| Lapis | Komponen | Fungsi |
-|---|---|---|
-| Fondasi | **Lumbung Core** | Multi-tenant + *commodity adapter* — 1 platform untuk beras/sayur/pupuk/air/ternak tanpa data tercampur |
-| Konektivitas | **Lumbung Sync** | *Offline-first* (CRDT) — tetap jalan tanpa internet, sinkron bebas konflik saat online |
-| **Hero** | **Lumbung Pass** | Paspor data: berbagi ke pemodal secara **minim, atas izin, terverifikasi, teraudit** |
-| Akses | **Lumbung Lens** | Laporan adaptif literasi pengurus (visual / bahasa sederhana / narasi) |
-| Mesin AI | **Lumbung Insight** | Valuasi aset ternak, credit scoring, verifikasi ternak via foto (anti-agunan fiktif), peringatan dini, anomali stok, NLP |
-| Govtech | **Lumbung Atlas** | Konsolidasi kabupaten *privacy-preserving* (federated) — agregat tanpa menyedot data mentah |
-
-Dan **Embedded Financing**: data terverifikasi → kredit mengalir langsung ke koperasi desa yang selama ini *unbankable*.
-
-## Mengapa Harapan Baru (Ternak)?
-
-- Lokasi terjauh, sinyal sulit → menuntut **offline-first** (tantangan teknis paling membedakan).
-- Ternak adalah **aset hidup** → bisa menjadi **agunan**; pencatatan rapi + terverifikasi membuka akses modal.
-- Segmen paling sulit mengakses modal formal → dampak inklusi keuangan terbesar.
-
-## Arsitektur (ringkas)
-
-```
-Pengurus (PWA, offline)  ──CRDT delta sync──►  Lumbung Core (multi-tenant, RLS)
-        │                                              │
-        │ append-only event log                        ▼
-        ▼                                      Lumbung Insight (AI)
-  Lumbung Lens (laporan)                               │
-                                                       ▼
-  Mitra Pembiayaan  ◄──Lumbung Pass (minim, consent, verified)──┤
-  Pemerintah Kab.   ◄──Lumbung Atlas (agregat, privacy-preserving)
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
 ```
 
-Detail lengkap: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-## Tech Stack (rencana)
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-| Lapisan | Teknologi |
-|---|---|
-| Klien | Progressive Web App (mobile-first), SQLite + CRDT lokal |
-| Sinkronisasi | Delta sync + store-and-forward, fallback SMS |
-| Backend | Event-sourced services (Docker), PostgreSQL + Row-Level Security |
-| Lumbung Pass | Snapshot bertanda tangan + hash-chained audit log |
-| AI | Gradient boosting (valuasi/skor), CV ringan/TinyML (verifikasi foto), isolation forest (anomali), NLP |
-| Keamanan | Enkripsi at-rest & in-transit, kepatuhan UU PDP No. 27/2022 |
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-## Dokumen
+## Learn More
 
-- [Proposal (PDF)](docs/FraudHunter_Proposal_Hackathon_TechnoScape_2026.pdf)
-- [Arsitektur](docs/ARCHITECTURE.md)
+To learn more about Next.js, take a look at the following resources:
 
-## Roadmap
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-- [x] Perancangan & proposal (babak penyisihan)
-- [ ] MVP: Lumbung Core (multi-tenant) + modul ternak + Lumbung Sync dasar + Lumbung Lens (babak final)
-- [ ] Lumbung Pass v1 + onboarding 1–2 mitra pembiayaan
-- [ ] Pilot 1 kabupaten (5 koperasi), uji offline-first lapangan
-- [ ] Skala nasional — selaras program Koperasi Desa Merah Putih (Inpres 9/2025)
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-## Tim FraudHunter
+## Deploy on Vercel
 
-- **Dhafin Ahamad Athalla** (BINUS University) — Project Lead & System Architect
-- **Farhan Kamalhadi Elevana** (Universitas Padjadjaran) — Data & Product Engineer
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
----
-
-*TechnoScape 9.0 Hackathon · BNCC × AD-INS · 2026*
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
