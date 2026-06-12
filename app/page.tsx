@@ -4,16 +4,25 @@ import { useTenant } from "@/lib/tenant-context";
 import { KoperasiSwitcher } from "@/components/koperasi-switcher";
 import { useInsight } from "@/lib/insight/use-insight";
 import { InsightPanel } from "@/components/insight-panel";
+import Link from "next/link";
 
+const moduleIcon: Record<string, string> = {
+  simpan_pinjam: "💰",
+  inventori: "📦",
+  ternak: "🐄",
+  air: "💧",
+  ritel: "🛒",
+};
 const moduleLabel: Record<string, string> = {
   simpan_pinjam: "Simpan Pinjam",
-  inventori: "Inventori / Stok",
+  inventori: "Inventori & Stok",
   ternak: "Registri Ternak",
   air: "Utilitas Air",
-  ritel: "Toko / Ritel",
+  ritel: "Toko Ritel",
 };
 
-const rupiah = (n: number) => "Rp" + n.toLocaleString("id-ID");
+const rupiah = (n: number) =>
+  "Rp " + n.toLocaleString("id-ID");
 
 export default function Dashboard() {
   const { koperasi, data } = useTenant();
@@ -23,76 +32,138 @@ export default function Dashboard() {
     .filter((t) => t.tipe === "simpanan")
     .reduce((s, t) => s + t.jumlah, 0);
 
+  const critical = signals.filter(s => s.severity === "critical");
+  const warning  = signals.filter(s => s.severity === "warning");
+
   return (
-    <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-8">
-      <header className="mb-6 flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">{koperasi.nama}</h1>
-          <p className="text-sm text-zinc-500">
-            {koperasi.fokusUsaha} · {koperasi.lokasi} · literasi {koperasi.literasi}
-          </p>
+    <div className="min-h-screen bg-gray-50 font-sans">
+
+      {/* Navbar */}
+      <nav className="bg-white border-b border-gray-200 sticky top-0 z-20 shadow-sm">
+        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-green-600 flex items-center justify-center shadow-sm">
+              <span className="text-white text-xs font-black">L</span>
+            </div>
+            <span className="font-bold text-green-700 text-base tracking-tight">LUMBUNG</span>
+            <span className="hidden sm:inline text-gray-300 text-sm">·</span>
+            <span className="hidden sm:inline text-gray-400 text-sm">Insight Engine Demo</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <KoperasiSwitcher />
+            <Link
+              href="/login"
+              className="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-4 py-1.5 rounded-lg transition-colors shadow-sm">
+              Masuk →
+            </Link>
+          </div>
         </div>
-        <KoperasiSwitcher/>
-      </header>
+      </nav>
 
-      {/* Ringkasan umum */}
-      <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Stat label="Anggota" value={String(data.anggota.length)} />
-        <Stat label="Transaksi" value={String(data.transaksi.length)} />
-        <Stat label="Total Simpanan" value={rupiah(totalSimpanan)} />
-        <Stat label="Modul Aktif" value={String(koperasi.modules.length)} />
-      </div>
+      <main className="max-w-5xl mx-auto px-6 py-8 space-y-8">
 
-      {/* Commodity adapter: hanya modul yang aktif yang muncul */}
-      <h2 className="mb-3 text-sm font-semibold uppercase text-zinc-500">Modul Koperasi Ini</h2>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {koperasi.modules.includes("simpan_pinjam") && (
-          <Card title="Simpan Pinjam">{data.transaksi.length} transaksi tercatat</Card>
-        )}
-        {koperasi.modules.includes("inventori") && (
-          <Card title="Inventori / Stok">
-            {data.stok.length} jenis barang · {data.stok.filter((s) => s.kondisi !== "baik").length} perlu perhatian
-          </Card>
-        )}
-        {koperasi.modules.includes("ternak") && (
-          <Card title="Registri Ternak">
-            {data.ternak.length} ekor · {data.ternak.filter((t) => t.status === "perlu_vaksin").length} perlu vaksin
-          </Card>
-        )}
-        {koperasi.modules.includes("air") && <Card title="Utilitas Air">Pencatatan meteran & tagihan</Card>}
-        {koperasi.modules.includes("ritel") && <Card title="Toko / Ritel">Penjualan gerai</Card>}
-      </div>
+        {/* Koperasi identity + alert pills */}
+        <div>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h1 className="text-gray-900 text-2xl font-bold">{koperasi.nama}</h1>
+              <p className="text-gray-500 text-sm mt-0.5">
+                {koperasi.fokusUsaha} &middot; {koperasi.lokasi}
+              </p>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {critical.length > 0 && (
+                <span className="inline-flex items-center gap-1.5 bg-red-50 text-red-700 border border-red-200 text-xs font-semibold px-3 py-1 rounded-full">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                  {critical.length} kritis
+                </span>
+              )}
+              {warning.length > 0 && (
+                <span className="inline-flex items-center gap-1.5 bg-amber-50 text-amber-700 border border-amber-200 text-xs font-semibold px-3 py-1 rounded-full">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                  {warning.length} peringatan
+                </span>
+              )}
+              {signals.length === 0 && (
+                <span className="inline-flex items-center gap-1.5 bg-green-50 text-green-700 border border-green-200 text-xs font-semibold px-3 py-1 rounded-full">
+                  ✓ Normal
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
 
-      {/* Lumbung Insight — Lens me-render Signal[] dari mesin Insight */}
-      <section className="mt-8">
-        <h2 className="mb-3 text-sm font-semibold uppercase text-zinc-500">
-          Lumbung Insight — Sinyal Kepercayaan
-        </h2>
-        <InsightPanel signals={signals} />
-      </section>
+        {/* KPI row — varied sizing */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 col-span-1">
+            <p className="text-gray-400 text-xs font-medium uppercase tracking-wider">Anggota</p>
+            <p className="text-gray-900 text-4xl font-black mt-2 leading-none">{data.anggota.length}</p>
+            <p className="text-gray-400 text-xs mt-2">orang terdaftar</p>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 col-span-1">
+            <p className="text-gray-400 text-xs font-medium uppercase tracking-wider">Transaksi</p>
+            <p className="text-blue-600 text-4xl font-black mt-2 leading-none">{data.transaksi.length}</p>
+            <p className="text-gray-400 text-xs mt-2">total tercatat</p>
+          </div>
+          <div className="bg-green-600 rounded-2xl shadow-sm p-5 col-span-1">
+            <p className="text-green-200 text-xs font-medium uppercase tracking-wider">Simpanan</p>
+            <p className="text-white text-2xl font-black mt-2 leading-tight">{rupiah(totalSimpanan)}</p>
+            <p className="text-green-300 text-xs mt-2">total terhimpun</p>
+          </div>
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 col-span-1">
+            <p className="text-gray-400 text-xs font-medium uppercase tracking-wider">Modul</p>
+            <p className="text-amber-500 text-4xl font-black mt-2 leading-none">{koperasi.modules.length}</p>
+            <p className="text-gray-400 text-xs mt-2">dari 5 aktif</p>
+          </div>
+        </div>
 
-      <p className="mt-8 text-xs text-zinc-400">
-        Modul yang ditampilkan: {koperasi.modules.map((m) => moduleLabel[m]).join(", ")}.
-        Ganti koperasi di kanan atas untuk melihat commodity adapter & Insight bekerja.
-      </p>
-    </main>
-  );
-}
+        {/* Two-column section: Modul + Insight */}
+        <div className="grid lg:grid-cols-5 gap-6">
 
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-      <div className="text-xs text-zinc-500">{label}</div>
-      <div className="mt-1 text-xl font-semibold">{value}</div>
-    </div>
-  );
-}
+          {/* Modul — narrower */}
+          <div className="lg:col-span-2 space-y-3">
+            <div>
+              <p className="text-gray-700 text-sm font-semibold">Modul Koperasi</p>
+              <p className="text-gray-400 text-xs mt-0.5">Commodity adapter aktif</p>
+            </div>
+            {koperasi.modules.map(m => (
+              <div key={m} className="bg-white rounded-xl border border-gray-200 shadow-sm px-4 py-3 flex items-center gap-3 hover:border-green-300 transition-colors">
+                <span className="text-xl">{moduleIcon[m] ?? "📌"}</span>
+                <div>
+                  <p className="text-gray-800 text-sm font-medium">{moduleLabel[m] ?? m}</p>
+                  {m === "simpan_pinjam" && <p className="text-gray-400 text-xs">{data.transaksi.length} transaksi</p>}
+                  {m === "inventori" && <p className="text-gray-400 text-xs">{data.stok.length} item · {data.stok.filter(s => s.kondisi !== "baik").length} perlu perhatian</p>}
+                  {m === "ternak" && <p className="text-gray-400 text-xs">{data.ternak.length} ekor · {data.ternak.filter(t => t.status === "perlu_vaksin").length} perlu vaksin</p>}
+                  {m === "air" && <p className="text-gray-400 text-xs">Meteran & tagihan</p>}
+                  {m === "ritel" && <p className="text-gray-400 text-xs">Penjualan gerai</p>}
+                </div>
+              </div>
+            ))}
+            {koperasi.modules.length === 0 && (
+              <p className="text-gray-400 text-sm">Tidak ada modul aktif.</p>
+            )}
+          </div>
 
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
-      <h3 className="font-semibold">{title}</h3>
-      <p className="mt-1 text-sm text-zinc-500">{children}</p>
+          {/* Insight — wider */}
+          <div className="lg:col-span-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-gray-700 text-sm font-semibold">Lumbung Insight</p>
+                <p className="text-gray-400 text-xs mt-0.5">Sinyal AI — anomaly & risk scoring</p>
+              </div>
+              {signals.length > 0 && (
+                <span className="text-gray-400 text-xs">{signals.length} sinyal</span>
+              )}
+            </div>
+            <InsightPanel signals={signals} />
+          </div>
+        </div>
+
+        {/* Footer */}
+        <p className="text-gray-400 text-xs text-center border-t border-gray-200 pt-6">
+          Demo mode · data mock · ganti koperasi di atas untuk melihat commodity adapter berbeda
+        </p>
+      </main>
     </div>
   );
 }

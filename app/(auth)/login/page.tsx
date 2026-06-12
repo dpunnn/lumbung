@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
 export default function LoginPage() {
@@ -90,6 +91,11 @@ export default function LoginPage() {
         >
           {loading ? 'Masuk...' : 'Masuk'}
         </button>
+
+        <p className="text-center text-slate-500 text-sm">
+          Belum punya akun?{' '}
+          <Link href="/daftar" className="text-green-400 hover:underline">Daftar</Link>
+        </p>
       </form>
     </div>
   )

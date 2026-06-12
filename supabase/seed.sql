@@ -1,5 +1,5 @@
 -- ============================================================
--- LUMBUNG — SEED DATA OPERASIONAL (Phase 11.1)
+-- LUMBUNG — SEED DATA OPERASIONAL (Phase 11.1) — GABUNGAN
 -- Jalankan SETELAH schema.sql, di Supabase SQL Editor.
 -- Aman dijalankan berulang: data operasional lama dihapus dulu,
 -- tabel koperasi & profiles TIDAK disentuh.
@@ -48,6 +48,7 @@ DECLARE
   a_asep uuid; a_budi uuid; a_cucu uuid; a_dedi uuid; a_eli uuid;
   hendra_padi uuid; hendra_tirta uuid;
   prg uuid;
+  v_kasir uuid;   -- profile untuk demo anomali Case D
 BEGIN
   SELECT id INTO k_padi    FROM koperasi WHERE nama = 'Padiwangi';
   SELECT id INTO k_melati  FROM koperasi WHERE nama = 'Melati Jaya';
@@ -65,6 +66,7 @@ BEGIN
   DELETE FROM pengadaan_alokasi;
   DELETE FROM pengadaan;
   DELETE FROM anggota;
+  DELETE FROM audit_log;   -- bersihkan jejak audit lama (termasuk Case D) agar tidak dobel
 
   -- ============================================================
   -- HARAPAN BARU (Ternak & pakan) — koperasi paling lengkap
@@ -135,6 +137,10 @@ BEGIN
     (k_padi,'Pak Hendra'),(k_padi,'Rina'),(k_padi,'Sari'),(k_padi,'Tono');
   SELECT id INTO hendra_padi FROM anggota WHERE koperasi_id=k_padi AND nama='Pak Hendra';
 
+  -- Pak Hendra di Padiwangi = track record bagus -> limit Level 4 (untuk demo Pass)
+  UPDATE anggota SET limit_level = 4, limit_rupiah = 20000000
+    WHERE id = hendra_padi;
+
   INSERT INTO pinjaman(koperasi_id,anggota_id,jumlah_pokok,tenor_bulan,tanggal_mulai,angsuran_per_bulan,status)
     VALUES (k_padi,hendra_padi,5000000,12,(current_date - interval '5 month')::date,420000,'aktif') RETURNING id INTO pid;
   PERFORM _seed_angsuran(pid,(current_date - interval '5 month')::date,12,420000,5,5); -- semua lancar
@@ -165,6 +171,20 @@ BEGIN
   INSERT INTO anggota(koperasi_id, nama) VALUES
     (k_sumber,'Qori'),(k_sumber,'Rudi'),(k_sumber,'Sinta');
   PERFORM _seed_simpanan(k_sumber, 90000);
+
+  -- ============================================================
+  -- CASE D — Anomali kasir Padiwangi (5x batal/ubah setelah jam 18)
+  -- Ambil 1 profile sebagai "kasir". Kalau belum ada akun, blok dilewati.
+  -- ============================================================
+  SELECT id INTO v_kasir FROM profiles LIMIT 1;
+  IF v_kasir IS NOT NULL AND k_padi IS NOT NULL THEN
+    INSERT INTO audit_log (koperasi_id, tabel_nama, row_id, aksi, dilakukan_oleh, dilakukan_pada) VALUES
+      (k_padi, 'simpanan', gen_random_uuid(), 'DELETE', v_kasir, (current_date - 1)::timestamptz + interval '19 hours'),
+      (k_padi, 'simpanan', gen_random_uuid(), 'DELETE', v_kasir, (current_date - 2)::timestamptz + interval '20 hours 15 minutes'),
+      (k_padi, 'angsuran', gen_random_uuid(), 'UPDATE', v_kasir, (current_date - 3)::timestamptz + interval '21 hours'),
+      (k_padi, 'angsuran', gen_random_uuid(), 'DELETE', v_kasir, (current_date - 4)::timestamptz + interval '19 hours 30 minutes'),
+      (k_padi, 'simpanan', gen_random_uuid(), 'DELETE', v_kasir, (current_date - 5)::timestamptz + interval '22 hours');
+  END IF;
 
   -- ============================================================
   -- LUMBUNG PASAR (Case B) — pengadaan pupuk bersama 3 koperasi

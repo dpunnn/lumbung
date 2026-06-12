@@ -9,9 +9,7 @@ export async function middleware(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
+        getAll() { return request.cookies.getAll() },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
           supabaseResponse = NextResponse.next({ request })
@@ -24,19 +22,60 @@ export async function middleware(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
+  const path = request.nextUrl.pathname
 
-  const isAuthRoute = request.nextUrl.pathname.startsWith('/login')
-  const isPassPublic = request.nextUrl.pathname.startsWith('/pass/')
-  const isDashboard = request.nextUrl.pathname.startsWith('/dashboard') ||
-    ['/ternak', '/pakan', '/simpan-pinjam', '/pass', '/insight', '/lens', '/atlas', '/guard']
-      .some(p => request.nextUrl.pathname.startsWith(p))
+  // Route publik — tidak butuh auth
+  const isPassPublic = /^\/pass\/[^/]+$/.test(path)
+  const isAuthRoute = path === '/login' || path === '/daftar'
 
-  if (!user && isDashboard) {
+  // Route per-tier
+  const isDashboard = path.startsWith('/dashboard') ||
+    ['/ternak', '/pakan', '/simpan-pinjam', '/pass', '/insight', '/lens', '/guard', '/pengadaan']
+      .some(p => path.startsWith(p))
+  const isAdmin = path.startsWith('/admin')
+  const isMember = path.startsWith('/member')
+  const isAtlas = path.startsWith('/atlas')
+
+  const isProtected = !isPassPublic && (isDashboard || isAdmin || isMember || isAtlas)
+
+  // Belum login → ke /login
+  if (!user && isProtected) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
+  // Sudah login, akses auth route → redirect sesuai role
   if (user && isAuthRoute) {
+    const { data: profile } = await supabase
+      .from('profiles').select('role').eq('id', user.id).single()
+
+    const role = profile?.role ?? 'anggota'
+
+    if (role === 'superadmin') return NextResponse.redirect(new URL('/admin', request.url))
+    if (role === 'anggota') return NextResponse.redirect(new URL('/member', request.url))
     return NextResponse.redirect(new URL('/dashboard', request.url))
+  }
+
+  // Sudah login, cek akses ke tier yang salah
+  if (user && isProtected) {
+    const { data: profile } = await supabase
+      .from('profiles').select('role').eq('id', user.id).single()
+
+    const role = profile?.role ?? 'anggota'
+
+    // superadmin coba akses /dashboard atau /member → ke /admin
+    if (role === 'superadmin' && !isAdmin) {
+      return NextResponse.redirect(new URL('/admin', request.url))
+    }
+
+    // anggota coba akses /dashboard atau /admin → ke /member
+    if (role === 'anggota' && !isMember) {
+      return NextResponse.redirect(new URL('/member', request.url))
+    }
+
+    // pengurus/kasir coba akses /admin → ke /dashboard
+    if ((role === 'pengurus' || role === 'kasir') && isAdmin) {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
+    }
   }
 
   return supabaseResponse

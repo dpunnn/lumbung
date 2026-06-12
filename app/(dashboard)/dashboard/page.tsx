@@ -53,77 +53,137 @@ export default function DashboardPage() {
     : 0
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5">
+    <div className="max-w-4xl mx-auto space-y-6">
+      {/* Header */}
       <div>
-        <h1 className="text-white text-xl font-semibold">Beranda</h1>
-        <p className="text-slate-400 text-sm">Kondisi koperasi hari ini</p>
+        <h1 className="text-white text-2xl font-bold tracking-tight">Beranda</h1>
+        <p className="text-slate-400 text-sm mt-1">Kondisi koperasi hari ini</p>
       </div>
 
-      {/* Alert mortalitas */}
+      {/* Alert banners */}
       {mortalitasPct >= 10 && (
-        <div className="bg-red-950/50 border border-red-900 rounded-xl p-3 flex items-center gap-2 text-red-300 text-sm">
-          <span>⚠</span>
-          <span><strong>Mortalitas tinggi:</strong> {stats.ternak.matiBuilan} ternak mati bulan ini ({mortalitasPct}%)</span>
+        <div className="bg-red-950/40 border border-red-900/60 border-l-4 border-l-red-500 rounded-xl px-4 py-3 flex items-start gap-3">
+          <span className="text-red-400 text-lg leading-none mt-0.5">!</span>
+          <div>
+            <p className="text-red-300 text-sm font-medium">Mortalitas Tinggi</p>
+            <p className="text-red-400/80 text-xs mt-0.5">{stats.ternak.matiBuilan} ternak mati bulan ini ({mortalitasPct}% dari populasi)</p>
+          </div>
         </div>
       )}
 
-      {/* Alert stok pakan */}
       {stats.pakan.length > 0 && (
-        <div className="bg-yellow-950/50 border border-yellow-900 rounded-xl p-3 flex items-center gap-2 text-yellow-300 text-sm">
-          <span>⚠</span>
-          <span><strong>Stok menipis:</strong> {stats.pakan.map(p => p.nama).join(', ')}</span>
+        <div className="bg-yellow-950/40 border border-yellow-900/60 border-l-4 border-l-yellow-500 rounded-xl px-4 py-3 flex items-start gap-3">
+          <span className="text-yellow-400 text-lg leading-none mt-0.5">!</span>
+          <div>
+            <p className="text-yellow-300 text-sm font-medium">Stok Pakan Menipis</p>
+            <p className="text-yellow-400/80 text-xs mt-0.5">{stats.pakan.map(p => `${p.nama} (${p.stok} ${p.satuan})`).join(', ')}</p>
+          </div>
         </div>
       )}
 
-      {/* Kartu ringkasan */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Link href="/ternak" className="bg-slate-900 border border-slate-800 rounded-xl p-4 hover:border-green-700 transition-colors">
-          <p className="text-slate-400 text-xs mb-1">Ternak Hidup</p>
-          <p className="text-white text-2xl font-bold">{stats.ternak.total}</p>
-          <p className="text-slate-500 text-xs mt-1">{stats.ternak.sakit} sakit · {stats.ternak.pantau} pantau</p>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {/* Ternak */}
+        <Link href="/ternak" className="group bg-slate-900 border border-slate-800 rounded-xl p-5 hover:border-green-700/60 transition-all">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-2xl">🐄</span>
+            <span className="text-slate-600 group-hover:text-slate-400 transition-colors text-xs">→</span>
+          </div>
+          <p className="text-green-400 text-3xl font-bold tracking-tight">{stats.ternak.total}</p>
+          <p className="text-slate-400 text-xs font-medium mt-1">Ternak Hidup</p>
+          <p className="text-slate-500 text-xs mt-0.5">{stats.ternak.sehat} sehat · {stats.ternak.pantau} pantau · {stats.ternak.sakit} sakit</p>
         </Link>
-        <Link href="/simpan-pinjam" className="bg-slate-900 border border-slate-800 rounded-xl p-4 hover:border-green-700 transition-colors">
-          <p className="text-slate-400 text-xs mb-1">Total Simpanan</p>
-          <p className="text-white text-2xl font-bold">
+
+        {/* Simpanan */}
+        <Link href="/simpan-pinjam" className="group bg-slate-900 border border-slate-800 rounded-xl p-5 hover:border-green-700/60 transition-all">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-2xl">💰</span>
+            <span className="text-slate-600 group-hover:text-slate-400 transition-colors text-xs">→</span>
+          </div>
+          <p className="text-blue-400 text-3xl font-bold tracking-tight">
             {stats.simpanan >= 1000000
-              ? `Rp${(stats.simpanan/1000000).toFixed(1)}jt`
-              : `Rp${(stats.simpanan/1000).toFixed(0)}rb`}
+              ? `${(stats.simpanan/1000000).toFixed(1)}jt`
+              : `${(stats.simpanan/1000).toFixed(0)}rb`}
           </p>
-          <p className="text-slate-500 text-xs mt-1">semua anggota</p>
+          <p className="text-slate-400 text-xs font-medium mt-1">Total Simpanan</p>
+          <p className="text-slate-500 text-xs mt-0.5">Rupiah · semua anggota</p>
         </Link>
-        <Link href="/simpan-pinjam" className="bg-slate-900 border border-slate-800 rounded-xl p-4 hover:border-green-700 transition-colors">
-          <p className="text-slate-400 text-xs mb-1">Pinjaman Aktif</p>
-          <p className="text-white text-2xl font-bold">{stats.pinjaman.aktif}</p>
+
+        {/* Pinjaman */}
+        <Link href="/simpan-pinjam" className={`group bg-slate-900 border rounded-xl p-5 transition-all ${stats.pinjaman.macet > 0 ? 'border-red-900/50 hover:border-red-700/60' : 'border-slate-800 hover:border-green-700/60'}`}>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-2xl">📋</span>
+            <span className="text-slate-600 group-hover:text-slate-400 transition-colors text-xs">→</span>
+          </div>
+          <p className={`text-3xl font-bold tracking-tight ${stats.pinjaman.macet > 0 ? 'text-amber-400' : 'text-white'}`}>{stats.pinjaman.aktif}</p>
+          <p className="text-slate-400 text-xs font-medium mt-1">Pinjaman Aktif</p>
           {stats.pinjaman.macet > 0
-            ? <p className="text-red-400 text-xs mt-1">{stats.pinjaman.macet} macet</p>
-            : <p className="text-slate-500 text-xs mt-1">semua lancar</p>}
+            ? <p className="text-red-400 text-xs font-medium mt-0.5">{stats.pinjaman.macet} macet</p>
+            : <p className="text-slate-500 text-xs mt-0.5">Semua lancar</p>}
         </Link>
-        <Link href="/pakan" className="bg-slate-900 border border-slate-800 rounded-xl p-4 hover:border-green-700 transition-colors">
-          <p className="text-slate-400 text-xs mb-1">Stok Pakan</p>
-          <p className={`text-2xl font-bold ${stats.pakan.length > 0 ? 'text-yellow-400' : 'text-white'}`}>
-            {stats.pakan.length > 0 ? `${stats.pakan.length} ⚠` : 'Aman'}
+
+        {/* Stok Pakan */}
+        <Link href="/pakan" className={`group bg-slate-900 border rounded-xl p-5 transition-all ${stats.pakan.length > 0 ? 'border-yellow-900/50 hover:border-yellow-700/60' : 'border-slate-800 hover:border-green-700/60'}`}>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-2xl">🌾</span>
+            <span className="text-slate-600 group-hover:text-slate-400 transition-colors text-xs">→</span>
+          </div>
+          <p className={`text-3xl font-bold tracking-tight ${stats.pakan.length > 0 ? 'text-yellow-400' : 'text-green-400'}`}>
+            {stats.pakan.length > 0 ? stats.pakan.length : 'OK'}
           </p>
-          <p className="text-slate-500 text-xs mt-1">
-            {stats.pakan.length > 0 ? 'perlu restok' : 'stok cukup'}
+          <p className="text-slate-400 text-xs font-medium mt-1">Stok Pakan</p>
+          <p className="text-slate-500 text-xs mt-0.5">
+            {stats.pakan.length > 0 ? 'Item perlu restok' : 'Semua stok aman'}
           </p>
         </Link>
       </div>
 
-      {/* Status ternak detail */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-        <p className="text-slate-400 text-xs mb-3">Status Ternak</p>
-        <div className="flex gap-3">
-          {[
-            { label: 'Sehat', val: stats.ternak.sehat, color: 'bg-green-600' },
-            { label: 'Pantau', val: stats.ternak.pantau, color: 'bg-yellow-500' },
-            { label: 'Sakit', val: stats.ternak.sakit, color: 'bg-red-500' },
-          ].map(s => (
-            <div key={s.label} className="flex items-center gap-1.5">
-              <div className={`w-2 h-2 rounded-full ${s.color}`} />
-              <span className="text-slate-300 text-sm">{s.label} <strong className="text-white">{s.val}</strong></span>
-            </div>
-          ))}
+      {/* Status Ternak - Progress Bars */}
+      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-white text-sm font-semibold">Status Ternak</p>
+            <p className="text-slate-500 text-xs mt-0.5">Distribusi kesehatan populasi</p>
+          </div>
+          <Link href="/ternak" className="text-slate-500 hover:text-slate-300 text-xs transition-colors">Lihat detail →</Link>
         </div>
+
+        <div className="space-y-3">
+          {[
+            { label: 'Sehat', val: stats.ternak.sehat, color: 'bg-green-500', textColor: 'text-green-400' },
+            { label: 'Pantau', val: stats.ternak.pantau, color: 'bg-yellow-500', textColor: 'text-yellow-400' },
+            { label: 'Sakit', val: stats.ternak.sakit, color: 'bg-red-500', textColor: 'text-red-400' },
+          ].map(s => {
+            const pct = stats.ternak.total > 0 ? Math.round((s.val / stats.ternak.total) * 100) : 0
+            return (
+              <div key={s.label}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${s.color}`} />
+                    <span className="text-slate-300 text-sm">{s.label}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-semibold ${s.textColor}`}>{s.val}</span>
+                    <span className="text-slate-600 text-xs w-10 text-right">{pct}%</span>
+                  </div>
+                </div>
+                <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                  <div className={`h-full ${s.color} rounded-full transition-all duration-500`} style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Mortalitas bulan ini */}
+        {stats.ternak.matiBuilan > 0 && (
+          <div className="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between">
+            <span className="text-slate-500 text-xs">Mortalitas bulan ini</span>
+            <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full border ${mortalitasPct >= 10 ? 'bg-red-900/40 text-red-400 border-red-800' : 'bg-slate-800 text-slate-400 border-slate-700'}`}>
+              {stats.ternak.matiBuilan} ekor ({mortalitasPct}%)
+            </span>
+          </div>
+        )}
       </div>
     </div>
   )
