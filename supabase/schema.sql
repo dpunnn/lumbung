@@ -150,6 +150,52 @@ CREATE TABLE pass_access_log (
   ip          text
 );
 
+-- ============================================================
+-- CASE A — Cek riwayat kredit LINTAS KOPERASI (mini BI-Checking)
+-- SECURITY DEFINER: berjalan di atas RLS sehingga bisa membaca
+-- jejak pinjaman di semua koperasi, TAPI hanya mengembalikan
+-- sinyal agregat. Tidak ada nama, nominal, atau identitas
+-- koperasi lain yang bocor -> privasi anggota lain terjaga.
+-- Pencocokan via ktp_hash (SHA-256 NIK), bukan NIK mentah.
+-- ============================================================
+CREATE OR REPLACE FUNCTION cek_riwayat_kredit(p_ktp_hash text)
+RETURNS TABLE (
+  jumlah_koperasi    int,
+  total_pinjaman     int,
+  pinjaman_lancar    int,
+  pinjaman_macet     int,
+  angsuran_tepat     int,
+  angsuran_terlambat int,
+  ada_tunggakan      boolean
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  WITH ang AS (
+    SELECT id AS anggota_id, koperasi_id
+    FROM anggota WHERE ktp_hash = p_ktp_hash AND p_ktp_hash IS NOT NULL
+  ),
+  pj AS (
+    SELECT p.* FROM pinjaman p JOIN ang ON ang.anggota_id = p.anggota_id
+  ),
+  ag AS (
+    SELECT s.* FROM angsuran s JOIN pj ON pj.id = s.pinjaman_id
+  )
+  SELECT
+    (SELECT COUNT(DISTINCT koperasi_id) FROM ang)::int,
+    (SELECT COUNT(*) FROM pj)::int,
+    (SELECT COUNT(*) FROM pj WHERE status IN ('aktif','lunas'))::int,
+    (SELECT COUNT(*) FROM pj WHERE status = 'macet')::int,
+    (SELECT COUNT(*) FROM ag WHERE status = 'lunas')::int,
+    (SELECT COUNT(*) FROM ag WHERE status = 'terlambat')::int,
+    (SELECT EXISTS(SELECT 1 FROM ag WHERE status = 'terlambat')
+         OR EXISTS(SELECT 1 FROM pj WHERE status = 'macet'));
+$$;
+
+-- Boleh dipanggil dari klien (anon/authenticated) — outputnya sudah aman
+GRANT EXECUTE ON FUNCTION cek_riwayat_kredit(text) TO anon, authenticated;
+
 
 -- ============================================================
 -- LUMBUNG GUARD — audit trail otomatis

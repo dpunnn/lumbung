@@ -5,6 +5,9 @@
 -- tabel koperasi & profiles TIDAK disentuh.
 -- ============================================================
 
+-- pgcrypto untuk digest() (hash NIK). Aman bila sudah ada.
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- ---------- Helper: generate angsuran untuk satu pinjaman ----------
 CREATE OR REPLACE FUNCTION _seed_angsuran(
   p uuid, mulai date, tenor int, perbulan bigint,
@@ -159,6 +162,11 @@ BEGIN
   PERFORM _seed_angsuran(pid,(current_date - interval '4 month')::date,12,250000,3,4); -- bulan ke-4 terlambat
 
   PERFORM _seed_simpanan(k_tirta, 120000);
+
+  -- Case A: NIK yang sama menghubungkan Pak Hendra di Padiwangi & Tirta.
+  -- ktp_hash = SHA-256(NIK) — NIK '3273010101900001' dipakai untuk demo cek kelayakan.
+  UPDATE anggota SET ktp_hash = encode(digest('3273010101900001', 'sha256'), 'hex')
+    WHERE id IN (hendra_padi, hendra_tirta);
 
   -- ============================================================
   -- MELATI JAYA (Sayuran) & SUMBER MAKMUR (Pupuk)

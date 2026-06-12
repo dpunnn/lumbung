@@ -2,14 +2,16 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { buildFields, hashFields, hitungSkor } from '@/lib/pass'
+import { buildFields, hashFields } from '@/lib/pass'
+import { cekKelayakan } from '@/lib/credit'
 import type { ConsentMap, PassFields } from '@/lib/pass'
+import type { HasilKelayakan } from '@/lib/credit'
 import type { LumbungPass } from '@/types'
 
 const ORIGIN = typeof window !== 'undefined' ? window.location.origin : ''
 
 export default function PassPage() {
-  const [tab, setTab] = useState<'buat' | 'daftar'>('daftar')
+  const [tab, setTab] = useState<'buat' | 'daftar' | 'cek'>('daftar')
   const [passList, setPassList] = useState<LumbungPass[]>([])
   const [consent, setConsent] = useState<ConsentMap>({ ternak: true, simpanan: true, pinjaman: true })
   const [form, setForm] = useState({ tujuan: '', mitra: '', hari: '30' })
@@ -17,6 +19,9 @@ export default function PassPage() {
   const [generated, setGenerated] = useState<LumbungPass | null>(null)
   const [loading, setLoading] = useState(false)
   const [koperasiId, setKoperasiId] = useState('')
+  const [nik, setNik] = useState('')
+  const [hasilCek, setHasilCek] = useState<HasilKelayakan | null>(null)
+  const [loadingCek, setLoadingCek] = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -76,6 +81,15 @@ export default function PassPage() {
   const toggleConsent = (k: keyof ConsentMap) =>
     setConsent(c => ({ ...c, [k]: !c[k] }))
 
+  async function handleCek() {
+    if (!nik.trim()) return
+    setLoadingCek(true)
+    setHasilCek(null)
+    const hasil = await cekKelayakan(nik)
+    setHasilCek(hasil)
+    setLoadingCek(false)
+  }
+
   return (
     <div className="max-w-3xl mx-auto space-y-5">
       <div className="flex items-center justify-between">
@@ -91,11 +105,11 @@ export default function PassPage() {
 
       {/* Tab */}
       <div className="flex gap-1 bg-slate-900 border border-slate-800 rounded-xl p-1 w-fit">
-        {(['daftar', 'buat'] as const).map(t => (
+        {(['daftar', 'buat', 'cek'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-4 py-1.5 rounded-lg text-sm transition-colors capitalize
               ${tab === t ? 'bg-green-700 text-white' : 'text-slate-400 hover:text-white'}`}>
-            {t === 'buat' ? 'Terbitkan Baru' : 'Daftar Pass'}
+            {t === 'buat' ? 'Terbitkan Baru' : t === 'cek' ? 'Cek Anggota' : 'Daftar Pass'}
           </button>
         ))}
       </div>
@@ -198,6 +212,94 @@ export default function PassPage() {
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Tab cek anggota — Case A */}
+      {tab === 'cek' && (
+        <div className="space-y-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
+            <div>
+              <h2 className="text-white font-medium text-sm">Cek Kelayakan Anggota</h2>
+              <p className="text-slate-400 text-xs mt-1">
+                Periksa riwayat kredit pemohon di seluruh jaringan koperasi sebelum menyetujui pinjaman.
+                Hanya sinyal agregat yang ditampilkan — tanpa nama, nominal, atau identitas koperasi lain.
+              </p>
+            </div>
+            <div>
+              <label className="block text-slate-300 text-xs mb-1.5">NIK Pemohon</label>
+              <div className="flex gap-2">
+                <input value={nik} onChange={e => setNik(e.target.value)}
+                  placeholder="Mis. 3273010101900001"
+                  className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-600" />
+                <button onClick={handleCek} disabled={loadingCek || !nik.trim()}
+                  className="bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap">
+                  {loadingCek ? 'Mengecek...' : 'Cek Kelayakan'}
+                </button>
+              </div>
+              <p className="text-slate-600 text-xs mt-1.5">NIK di-hash (SHA-256) sebelum dicocokkan — NIK asli tidak dikirim.</p>
+            </div>
+          </div>
+
+          {hasilCek && (() => {
+            const rek = hasilCek.rekomendasi
+            const tema = rek === 'SETUJUI'
+              ? { border: 'border-green-700', badge: 'bg-green-900/50 text-green-300 border-green-700', bar: 'bg-green-500', skor: 'text-green-400' }
+              : rek === 'TINJAU'
+              ? { border: 'border-yellow-700', badge: 'bg-yellow-900/50 text-yellow-300 border-yellow-700', bar: 'bg-yellow-500', skor: 'text-yellow-400' }
+              : { border: 'border-red-800', badge: 'bg-red-900/50 text-red-300 border-red-800', bar: 'bg-red-500', skor: 'text-red-400' }
+            const r = hasilCek.riwayat
+            return (
+              <div className={`bg-slate-900 border ${tema.border} rounded-xl p-5 space-y-4`}>
+                <div className="flex items-center justify-between">
+                  <p className="text-slate-400 text-xs">Rekomendasi Sistem</p>
+                  <span className={`text-xs font-semibold border px-2.5 py-1 rounded-full ${tema.badge}`}>{rek}</span>
+                </div>
+
+                {hasilCek.ditemukan && (
+                  <div>
+                    <div className="flex items-end gap-2 mb-2">
+                      <span className={`text-4xl font-bold ${tema.skor}`}>{hasilCek.skor}</span>
+                      <span className="text-slate-500 text-sm mb-1">/100 skor kelayakan</span>
+                    </div>
+                    <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all ${tema.bar}`} style={{ width: `${hasilCek.skor}%` }} />
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  {hasilCek.alasan.map((a, i) => (
+                    <p key={i} className="text-slate-300 text-sm flex gap-2">
+                      <span className="text-slate-600">•</span><span>{a}</span>
+                    </p>
+                  ))}
+                </div>
+
+                {r && r.jumlah_koperasi > 0 && (
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-slate-800 rounded-lg p-3 text-center">
+                      <p className="text-white font-semibold">{r.angsuran_tepat}</p>
+                      <p className="text-slate-400 text-xs">Tepat waktu</p>
+                    </div>
+                    <div className="bg-slate-800 rounded-lg p-3 text-center">
+                      <p className="text-white font-semibold">{r.angsuran_terlambat}</p>
+                      <p className="text-slate-400 text-xs">Terlambat</p>
+                    </div>
+                    <div className="bg-slate-800 rounded-lg p-3 text-center">
+                      <p className="text-white font-semibold">{r.pinjaman_macet}</p>
+                      <p className="text-slate-400 text-xs">Macet</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-start gap-2 bg-blue-950/50 border border-blue-900 rounded-lg px-3 py-2 text-xs text-blue-300">
+                  <span>ℹ</span>
+                  <span>Keputusan akhir ada di tangan <b>pengurus koperasi tujuan</b>. Sistem hanya merekomendasikan — tidak menyetujui/menolak otomatis.</span>
+                </div>
+              </div>
+            )
+          })()}
         </div>
       )}
 
