@@ -123,12 +123,16 @@ export default function SimpanPinjamPage() {
   const lunas = (p: PinjamanWithAngsuran) => p.angsuran.filter(a => a.status === 'lunas').length
 
   return (
-    <div className="max-w-4xl mx-auto space-y-5">
+    <div className="max-w-5xl mx-auto space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-white text-xl font-semibold">Simpan Pinjam</h1>
+        <div>
+          <h1 className="text-white text-2xl font-bold tracking-tight">Simpan Pinjam</h1>
+          <p className="text-slate-400 text-sm mt-1">Kelola pinjaman dan anggota koperasi</p>
+        </div>
         <div className="flex gap-2">
           <button onClick={() => setTab('anggota')}
-            className="border border-slate-700 hover:border-green-700 text-slate-300 text-sm px-3 py-1.5 rounded-lg transition-colors">
+            className="bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm px-4 py-2 rounded-lg border border-slate-700 transition-colors">
             + Anggota
           </button>
           <button onClick={() => setTab('baru')}
@@ -138,12 +142,12 @@ export default function SimpanPinjamPage() {
         </div>
       </div>
 
-      {/* Tab */}
+      {/* Tab Navigation */}
       <div className="flex gap-1 bg-slate-900 border border-slate-800 rounded-xl p-1 w-fit">
         {['pinjaman','baru','anggota'].map(t => (
           <button key={t} onClick={() => setTab(t as typeof tab)}
-            className={`px-4 py-1.5 rounded-lg text-sm transition-colors capitalize
-              ${tab === t ? 'bg-green-700 text-white' : 'text-slate-400 hover:text-white'}`}>
+            className={`px-5 py-2 rounded-lg text-sm font-medium transition-all
+              ${tab === t ? 'bg-green-600 text-white shadow-lg shadow-green-900/30' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
             {t === 'baru' ? 'Pinjaman Baru' : t === 'anggota' ? 'Tambah Anggota' : 'Daftar Pinjaman'}
           </button>
         ))}
@@ -151,142 +155,211 @@ export default function SimpanPinjamPage() {
 
       {/* Form pinjaman baru */}
       {tab === 'baru' && (
-        <form onSubmit={handleBuatPinjaman} className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-          <h2 className="text-white font-medium">Buat Pinjaman Baru</h2>
-          <div>
-            <label className="block text-slate-300 text-sm mb-1.5">Anggota *</label>
-            <select required value={formP.anggota_id} onChange={e => setP('anggota_id', e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-600">
-              <option value="">Pilih anggota...</option>
-              {anggotaList.map(a => <option key={a.id} value={a.id}>{a.nama}</option>)}
-            </select>
+        <form onSubmit={handleBuatPinjaman} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-800">
+            <h2 className="text-white font-semibold">Buat Pinjaman Baru</h2>
+            <p className="text-slate-500 text-xs mt-0.5">Isi form berikut untuk membuat pinjaman</p>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="p-6 space-y-5">
             <div>
-              <label className="block text-slate-300 text-sm mb-1.5">Jumlah Pokok (Rp) *</label>
-              <input required type="number" min="0" value={formP.jumlah_pokok} onChange={e => setP('jumlah_pokok', e.target.value)}
-                placeholder="5000000"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-600" />
-            </div>
-            <div>
-              <label className="block text-slate-300 text-sm mb-1.5">Tenor (bulan) *</label>
-              <select value={formP.tenor_bulan} onChange={e => setP('tenor_bulan', e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-600">
-                {[3,6,9,12,18,24,36].map(t => <option key={t} value={t}>{t} bulan</option>)}
+              <label className="block text-slate-400 text-xs uppercase tracking-wide font-medium mb-2">Anggota *</label>
+              <select required value={formP.anggota_id} onChange={e => setP('anggota_id', e.target.value)}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-600">
+                <option value="">Pilih anggota...</option>
+                {anggotaList.map(a => <option key={a.id} value={a.id}>{a.nama}</option>)}
               </select>
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-slate-400 text-xs uppercase tracking-wide font-medium mb-2">Jumlah Pokok (Rp) *</label>
+                <input required type="number" min="0" value={formP.jumlah_pokok} onChange={e => setP('jumlah_pokok', e.target.value)}
+                  placeholder="5000000"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-600" />
+              </div>
+              <div>
+                <label className="block text-slate-400 text-xs uppercase tracking-wide font-medium mb-2">Tenor (bulan) *</label>
+                <select value={formP.tenor_bulan} onChange={e => setP('tenor_bulan', e.target.value)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-600">
+                  {[3,6,9,12,18,24,36].map(t => <option key={t} value={t}>{t} bulan</option>)}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="block text-slate-400 text-xs uppercase tracking-wide font-medium mb-2">Tanggal Mulai</label>
+              <input type="date" value={formP.tanggal_mulai} onChange={e => setP('tanggal_mulai', e.target.value)}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-600" />
+            </div>
+            {formP.jumlah_pokok && (
+              <div className="bg-slate-800/60 border border-slate-700 rounded-lg px-4 py-3 flex items-center justify-between">
+                <span className="text-slate-400 text-sm">Angsuran per bulan</span>
+                <span className="text-green-400 text-lg font-bold">
+                  Rp{Math.ceil(parseInt(formP.jumlah_pokok)/parseInt(formP.tenor_bulan)).toLocaleString('id-ID')}
+                </span>
+              </div>
+            )}
           </div>
-          <div>
-            <label className="block text-slate-300 text-sm mb-1.5">Tanggal Mulai</label>
-            <input type="date" value={formP.tanggal_mulai} onChange={e => setP('tanggal_mulai', e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-600" />
+          <div className="px-6 py-4 border-t border-slate-800 bg-slate-950/40">
+            <button type="submit" disabled={saving}
+              className="w-full bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold rounded-lg px-4 py-2.5 text-sm transition-colors">
+              {saving ? 'Membuat...' : 'Buat Pinjaman'}
+            </button>
           </div>
-          {formP.jumlah_pokok && (
-            <p className="text-slate-400 text-sm bg-slate-800 rounded-lg px-3 py-2">
-              Angsuran/bulan: <strong className="text-white">
-                Rp{Math.ceil(parseInt(formP.jumlah_pokok)/parseInt(formP.tenor_bulan)).toLocaleString('id-ID')}
-              </strong>
-            </p>
-          )}
-          <button type="submit" disabled={saving}
-            className="w-full bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold rounded-lg px-4 py-2.5 text-sm">
-            {saving ? 'Membuat...' : 'Buat Pinjaman'}
-          </button>
         </form>
       )}
 
       {/* Form tambah anggota */}
       {tab === 'anggota' && (
-        <form onSubmit={handleBuatAnggota} className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-4">
-          <h2 className="text-white font-medium">Tambah Anggota</h2>
-          <div>
-            <label className="block text-slate-300 text-sm mb-1.5">Nama *</label>
-            <input required value={formA.nama} onChange={e => setA('nama', e.target.value)}
-              placeholder="Pak Hendra"
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-600" />
+        <form onSubmit={handleBuatAnggota} className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+          <div className="px-6 py-4 border-b border-slate-800">
+            <h2 className="text-white font-semibold">Tambah Anggota</h2>
+            <p className="text-slate-500 text-xs mt-0.5">Daftarkan anggota baru ke koperasi</p>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="p-6 space-y-5">
             <div>
-              <label className="block text-slate-300 text-sm mb-1.5">No. HP</label>
-              <input value={formA.no_hp} onChange={e => setA('no_hp', e.target.value)}
-                placeholder="081234567890"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-600" />
+              <label className="block text-slate-400 text-xs uppercase tracking-wide font-medium mb-2">Nama *</label>
+              <input required value={formA.nama} onChange={e => setA('nama', e.target.value)}
+                placeholder="Pak Hendra"
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-600" />
             </div>
-            <div>
-              <label className="block text-slate-300 text-sm mb-1.5">Nama Penjamin</label>
-              <input value={formA.nama_penjamin} onChange={e => setA('nama_penjamin', e.target.value)}
-                placeholder="Pak Budi (penjamin)"
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-600" />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-slate-400 text-xs uppercase tracking-wide font-medium mb-2">No. HP</label>
+                <input value={formA.no_hp} onChange={e => setA('no_hp', e.target.value)}
+                  placeholder="081234567890"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-600" />
+              </div>
+              <div>
+                <label className="block text-slate-400 text-xs uppercase tracking-wide font-medium mb-2">Nama Penjamin</label>
+                <input value={formA.nama_penjamin} onChange={e => setA('nama_penjamin', e.target.value)}
+                  placeholder="Pak Budi (penjamin)"
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-600" />
+              </div>
             </div>
           </div>
-          <button type="submit" disabled={saving}
-            className="w-full bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold rounded-lg px-4 py-2.5 text-sm">
-            {saving ? 'Menyimpan...' : 'Simpan Anggota'}
-          </button>
+          <div className="px-6 py-4 border-t border-slate-800 bg-slate-950/40">
+            <button type="submit" disabled={saving}
+              className="w-full bg-green-600 hover:bg-green-500 disabled:opacity-50 text-white font-semibold rounded-lg px-4 py-2.5 text-sm transition-colors">
+              {saving ? 'Menyimpan...' : 'Simpan Anggota'}
+            </button>
+          </div>
         </form>
       )}
 
-      {/* Daftar pinjaman */}
+      {/* Daftar pinjaman - Table view */}
       {tab === 'pinjaman' && (
         <>
           {loading ? (
-            <p className="text-slate-500 text-sm">Memuat...</p>
+            <div className="flex items-center gap-3 py-8 justify-center">
+              <div className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+              <p className="text-slate-400 text-sm">Memuat data pinjaman...</p>
+            </div>
           ) : data.length === 0 ? (
-            <div className="text-center py-16 text-slate-500">
-              <p className="text-4xl mb-2">💰</p>
-              <p>Belum ada pinjaman.</p>
+            <div className="text-center py-20 bg-slate-900 border border-slate-800 rounded-xl">
+              <div className="w-16 h-16 bg-slate-800 border border-slate-700 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <span className="text-slate-500 text-2xl">Rp</span>
+              </div>
+              <p className="text-slate-300 font-semibold">Belum Ada Pinjaman</p>
+              <p className="text-slate-500 text-sm mt-1">Klik "+ Pinjaman" untuk membuat pinjaman baru</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {data.map(p => {
-                const terbayar = lunas(p)
-                const pct = Math.round((terbayar / p.tenor_bulan) * 100)
-                return (
-                  <div key={p.id}
-                    onClick={() => setSelected(selected?.id === p.id ? null : p)}
-                    className="bg-slate-900 border border-slate-800 rounded-xl p-4 cursor-pointer hover:border-slate-700 transition-colors">
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <p className="text-white font-medium">{(p.anggota as unknown as {nama:string})?.nama ?? '—'}</p>
-                        <p className="text-slate-400 text-sm">Rp{p.jumlah_pokok.toLocaleString('id-ID')} · {p.tenor_bulan} bulan</p>
-                      </div>
-                      <span className={`text-xs border px-2 py-0.5 rounded-full ${STATUS_STYLE[p.status]}`}>{p.status}</span>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-xs text-slate-400">
-                        <span>{terbayar}/{p.tenor_bulan} angsuran lunas</span>
-                        <span>{pct}%</span>
-                      </div>
-                      <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                        <div className="h-full bg-green-600 rounded-full transition-all" style={{ width: `${pct}%` }} />
-                      </div>
-                    </div>
-
-                    {/* Detail angsuran */}
-                    {selected?.id === p.id && (
-                      <div className="mt-4 border-t border-slate-800 pt-4">
-                        <p className="text-slate-400 text-xs mb-2">Riwayat Angsuran — Rp{p.angsuran_per_bulan.toLocaleString('id-ID')}/bulan</p>
-                        <div className="space-y-1.5 max-h-64 overflow-y-auto">
-                          {p.angsuran.sort((a,b) => a.bulan_ke - b.bulan_ke).map(a => (
-                            <div key={a.id} className="flex items-center justify-between bg-slate-800 rounded-lg px-3 py-2">
-                              <span className="text-slate-300 text-xs">Bulan {a.bulan_ke} · {a.tanggal_jatuh_tempo}</span>
-                              {a.status === 'lunas' ? (
-                                <span className="text-green-400 text-xs">✓ Lunas {a.tanggal_bayar}</span>
-                              ) : (
-                                <button
-                                  onClick={e => { e.stopPropagation(); bayarAngsuran(a) }}
-                                  className="bg-green-700 hover:bg-green-600 text-white text-xs px-3 py-1 rounded-lg">
-                                  Bayar
-                                </button>
-                              )}
+            <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-800">
+                    <th className="px-4 py-3 text-left text-slate-500 text-xs uppercase tracking-wide font-medium">No</th>
+                    <th className="px-4 py-3 text-left text-slate-500 text-xs uppercase tracking-wide font-medium">Anggota</th>
+                    <th className="px-4 py-3 text-left text-slate-500 text-xs uppercase tracking-wide font-medium">Pokok</th>
+                    <th className="px-4 py-3 text-left text-slate-500 text-xs uppercase tracking-wide font-medium">Angsuran/bln</th>
+                    <th className="px-4 py-3 text-left text-slate-500 text-xs uppercase tracking-wide font-medium">Status</th>
+                    <th className="px-4 py-3 text-left text-slate-500 text-xs uppercase tracking-wide font-medium">Mulai</th>
+                    <th className="px-4 py-3 text-left text-slate-500 text-xs uppercase tracking-wide font-medium">Progress</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800">
+                  {data.map((p, idx) => {
+                    const terbayar = lunas(p)
+                    const pct = Math.round((terbayar / p.tenor_bulan) * 100)
+                    const isSelected = selected?.id === p.id
+                    return (
+                      <tr key={p.id}
+                        onClick={() => setSelected(isSelected ? null : p)}
+                        className={`cursor-pointer transition-colors ${isSelected ? 'bg-green-900/10 border-l-4 border-l-green-500' : 'hover:bg-slate-800/40'}`}>
+                        <td className="px-4 py-3 text-slate-500 text-xs">{idx + 1}</td>
+                        <td className="px-4 py-3">
+                          <p className="text-white font-medium text-sm">{(p.anggota as unknown as {nama:string})?.nama ?? '--'}</p>
+                        </td>
+                        <td className="px-4 py-3 text-slate-300 text-sm">Rp{p.jumlah_pokok.toLocaleString('id-ID')}</td>
+                        <td className="px-4 py-3 text-slate-300 text-sm">Rp{p.angsuran_per_bulan.toLocaleString('id-ID')}</td>
+                        <td className="px-4 py-3">
+                          <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium border ${STATUS_STYLE[p.status] ?? 'bg-slate-800 text-slate-400 border-slate-700'}`}>
+                            {p.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-slate-400 text-xs whitespace-nowrap">
+                          {new Date(p.tanggal_mulai).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: '2-digit' })}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2 min-w-[120px]">
+                            <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full transition-all ${pct >= 100 ? 'bg-green-500' : 'bg-green-600'}`} style={{ width: `${pct}%` }} />
                             </div>
-                          ))}
-                        </div>
+                            <span className="text-slate-500 text-xs w-14 text-right">{terbayar}/{p.tenor_bulan}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Panel angsuran detail (di bawah tabel) */}
+          {selected && (
+            <div className="bg-slate-900 border border-green-800/30 border-l-4 border-l-green-500 rounded-xl overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-800 flex items-center justify-between">
+                <div>
+                  <p className="text-white font-semibold">{(selected.anggota as unknown as {nama:string})?.nama}</p>
+                  <p className="text-slate-400 text-xs mt-0.5">Angsuran Rp{selected.angsuran_per_bulan.toLocaleString('id-ID')}/bulan · {selected.tenor_bulan} bulan</p>
+                </div>
+                <button onClick={() => setSelected(null)} className="text-slate-500 hover:text-slate-300 text-xs transition-colors">Tutup</button>
+              </div>
+
+              {/* Angsuran grid */}
+              <div className="p-5">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                  {selected.angsuran.sort((a,b) => a.bulan_ke - b.bulan_ke).map(a => {
+                    const isOverdue = a.status !== 'lunas' && new Date(a.tanggal_jatuh_tempo) < new Date()
+                    return (
+                      <div key={a.id} className={`rounded-lg p-3 text-center border ${
+                        a.status === 'lunas'
+                          ? 'bg-green-900/20 border-green-800/40'
+                          : isOverdue
+                            ? 'bg-red-900/20 border-red-800/40'
+                            : 'bg-slate-800/60 border-slate-700'
+                      }`}>
+                        <p className="text-slate-500 text-xs mb-1">Bln {a.bulan_ke}</p>
+                        {a.status === 'lunas' ? (
+                          <span className="bg-green-900/40 text-green-400 border border-green-800 text-xs px-2 py-0.5 rounded-full font-medium">Lunas</span>
+                        ) : isOverdue ? (
+                          <button
+                            onClick={e => { e.stopPropagation(); bayarAngsuran(a) }}
+                            className="bg-red-600 hover:bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-medium transition-colors">
+                            Terlambat
+                          </button>
+                        ) : (
+                          <button
+                            onClick={e => { e.stopPropagation(); bayarAngsuran(a) }}
+                            className="bg-yellow-900/40 text-yellow-400 border border-yellow-800 text-xs px-2 py-0.5 rounded-full font-medium hover:bg-yellow-900/60 transition-colors">
+                            Pending
+                          </button>
+                        )}
+                        <p className="text-slate-600 text-[10px] mt-1">{a.tanggal_jatuh_tempo}</p>
                       </div>
-                    )}
-                  </div>
-                )
-              })}
+                    )
+                  })}
+                </div>
+              </div>
             </div>
           )}
         </>

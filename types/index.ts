@@ -62,6 +62,19 @@ export type Angsuran = {
   status: 'pending' | 'lunas' | 'terlambat'
 }
 
+export type LumbungPass = {
+  id: string
+  koperasi_id: string
+  tujuan: string
+  mitra: string
+  fields: Record<string, unknown>
+  hash: string
+  consent: Record<string, boolean>
+  berlaku_sampai: string
+  status: 'aktif' | 'kedaluwarsa' | 'dicabut'
+  created_at: string
+}
+
 export type Profile = {
   id: string
   koperasi_id: string
