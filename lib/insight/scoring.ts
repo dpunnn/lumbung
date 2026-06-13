@@ -4,7 +4,6 @@ const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
 const sumTipe = (tx: InsightInput["transaksi"], tipe: string) =>
   tx.filter((t) => t.tipe === tipe).reduce((s, t) => s + t.jumlah, 0);
 
-/* ---------- (b) Skor KOPERASI → untuk Pass/Atlas ---------- */
 export interface SkorKoperasi { skor: number; level: string; explain: ExplainItem[] }
 
 export function hitungSkorKoperasi(input: InsightInput): SkorKoperasi {
@@ -48,7 +47,6 @@ export const scoreAnalyzer: Analyzer = (input) => {
   }];
 };
 
-/* ---------- (a) Skor ANGGOTA → limit bertahap, dipakai Core ---------- */
 export interface SkorAnggota {
   anggotaId: string; nama: string; level: 1 | 2 | 3 | 4;
   limit: [number, number]; saran: string; explain: ExplainItem[];

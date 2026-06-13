@@ -11,7 +11,6 @@ export interface RingkasanLens {
 const rb = (n: number) =>
   n >= 1_000_000 ? `Rp${(n / 1_000_000).toFixed(1)} juta` : `Rp${(n / 1_000).toFixed(0)} ribu`
 
-/** Fallback tanpa AI: rangkai kalimat HANYA dari modul yang dimiliki koperasi. */
 export function narasiTemplate(d: RingkasanLens): string {
   const bagian: string[] = []
 

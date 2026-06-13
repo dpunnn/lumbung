@@ -12,7 +12,6 @@ export const riskAnalyzer: Analyzer = (input) => {
   const { koperasi } = input;
   const signals: Signal[] = [];
 
-  // Ternak: mortalitas + perlu vaksin
   if (koperasi.modules.includes("ternak") && input.ternak.length) {
     const mati = input.ternak.filter((t) => t.status === "mati").length;
     const rasio = mati / input.ternak.length;
@@ -31,7 +30,6 @@ export const riskAnalyzer: Analyzer = (input) => {
     }
   }
 
-  // Inventori: spoilage / stok menipis
   if (koperasi.modules.includes("inventori")) {
     for (const s of input.stok.filter((x) => x.kondisi && x.kondisi !== "baik")) {
       signals.push(mkRisk(koperasi.id, "inventori", s.kondisi === "rusak" ? "critical" : "warning",

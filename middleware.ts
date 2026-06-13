@@ -24,11 +24,9 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const path = request.nextUrl.pathname
 
-  // Route publik — tidak butuh auth
   const isPassPublic = /^\/pass\/[^/]+$/.test(path)
   const isAuthRoute = path === '/login' || path === '/daftar'
 
-  // Route per-tier
   const isDashboard = path.startsWith('/dashboard') ||
     ['/ternak', '/pakan', '/simpan-pinjam', '/pass', '/insight', '/lens', '/guard', '/pengadaan']
       .some(p => path.startsWith(p))
@@ -38,12 +36,10 @@ export async function middleware(request: NextRequest) {
 
   const isProtected = !isPassPublic && (isDashboard || isAdmin || isMember || isAtlas)
 
-  // Belum login → ke /login
   if (!user && isProtected) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Sudah login, akses auth route → redirect sesuai role
   if (user && isAuthRoute) {
     const { data: profile } = await supabase
       .from('profiles').select('role').eq('id', user.id).single()
@@ -55,24 +51,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  // Sudah login, cek akses ke tier yang salah
   if (user && isProtected) {
     const { data: profile } = await supabase
       .from('profiles').select('role').eq('id', user.id).single()
 
     const role = profile?.role ?? 'anggota'
 
-    // superadmin coba akses /dashboard atau /member → ke /admin
     if (role === 'superadmin' && !isAdmin) {
       return NextResponse.redirect(new URL('/admin', request.url))
     }
 
-    // anggota coba akses /dashboard atau /admin → ke /member
     if (role === 'anggota' && !isMember) {
       return NextResponse.redirect(new URL('/member', request.url))
     }
 
-    // pengurus/kasir coba akses /admin → ke /dashboard
     if ((role === 'pengurus' || role === 'kasir') && isAdmin) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }

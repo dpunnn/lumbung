@@ -45,7 +45,6 @@ export default function MemberPassPage() {
     })
   }, [loadPasses])
 
-  // Realtime: pass baru diterbitkan, dicabut, atau diupdate
   useEffect(() => {
     if (!kopIds.length) return
     const channel = supabase

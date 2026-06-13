@@ -1,9 +1,8 @@
-// Generate PWA icons — no npm install needed, pure Node.js
+
 const zlib = require('zlib')
 const fs   = require('fs')
 const path = require('path')
 
-// CRC32 table
 const CRC_TABLE = new Uint32Array(256)
 for (let i = 0; i < 256; i++) {
   let c = i
@@ -24,13 +23,12 @@ function pngChunk(type, data) {
 }
 
 function solidPNG(size, r, g, b) {
-  // IHDR
+  
   const ihdr = Buffer.alloc(13)
   ihdr.writeUInt32BE(size, 0)
   ihdr.writeUInt32BE(size, 4)
-  ihdr[8] = 8; ihdr[9] = 2 // 8-bit RGB
+  ihdr[8] = 8; ihdr[9] = 2 
 
-  // Raw scanlines: filter(0) + RGB per pixel
   const row = size * 3 + 1
   const raw = Buffer.alloc(size * row)
   for (let y = 0; y < size; y++) {
@@ -50,9 +48,8 @@ function solidPNG(size, r, g, b) {
   ])
 }
 
-// Draw "L" letter on green background (simple approach: green square + white L pixels)
 function iconPNG(size) {
-  // green-600 background
+  
   const BG = [22, 163, 74]
   const FG = [255, 255, 255]
 
@@ -67,7 +64,6 @@ function iconPNG(size) {
     for (let x = 0; x < size; x++) {
       const i = y * row + 1 + x * 3
 
-      // Draw "L": vertical bar left + horizontal bar bottom
       const isVbar = x >= margin && x < margin + thick && y >= margin && y < size - margin
       const isHbar = y >= size - margin - thick && y < size - margin && x >= margin && x < size - margin
 

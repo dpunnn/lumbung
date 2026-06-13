@@ -32,7 +32,6 @@ export async function hitungTernak(
   return { jumlah, rincian, deteksi };
 }
 
-// Rasio verifikasi → dipakai asset.ts. Mencegah "ghost cattle".
 export function rasioVerifikasi(jumlahTerverifikasi: number, jumlahKlaim: number): number {
   if (jumlahKlaim <= 0) return 0;
   return Math.min(1, jumlahTerverifikasi / jumlahKlaim);

@@ -55,7 +55,6 @@ export default function TernakPage() {
         </Link>
       </div>
 
-      {/* Ringkasan status */}
       <div className="grid grid-cols-4 gap-3">
         {(['sehat','pantau','sakit','mati'] as const).map(s => (
           <div key={s} className={`rounded-xl p-3 text-center ${STATUS_STYLE[s]}`}>
@@ -65,7 +64,6 @@ export default function TernakPage() {
         ))}
       </div>
 
-      {/* Tabel */}
       {loading ? (
         <div className="flex items-center gap-3 py-8 justify-center">
           <div className="w-5 h-5 border-2 border-amber-700 border-t-transparent rounded-full animate-spin" />

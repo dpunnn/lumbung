@@ -75,7 +75,6 @@ export default function DashboardPage() {
         <p className="text-stone-500 text-sm mt-0.5">Kondisi koperasi hari ini</p>
       </div>
 
-      {/* Alert banners */}
       {mortalitasPct >= 10 && (
         <div className="bg-red-50 border border-red-200 border-l-4 border-l-red-500 rounded-xl px-4 py-3 flex items-start gap-3">
           <AlertTriangle size={16} className="text-red-500 mt-0.5 shrink-0" />
@@ -96,7 +95,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Link href="/ternak"
           className="group bg-white border border-stone-200 rounded-xl p-5 hover:border-amber-300 hover:shadow-sm transition-all">
@@ -161,7 +159,6 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* Status Ternak */}
       <div className="bg-white border border-stone-200 rounded-xl p-5 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <div>

@@ -1,23 +1,12 @@
--- ============================================================
--- MIGRATION V2 — Lengkapi fitur yang missing
--- Jalankan di Supabase SQL Editor
--- ============================================================
 
--- 1. Tambah user_id ke anggota (link ke auth user untuk cross-koperasi check)
 ALTER TABLE anggota ADD COLUMN IF NOT EXISTS user_id uuid REFERENCES auth.users(id);
 CREATE INDEX IF NOT EXISTS idx_anggota_user_id ON anggota(user_id);
 
--- 2. Update pinjaman status constraint (tambah 'diajukan' dan 'ditolak')
 ALTER TABLE pinjaman DROP CONSTRAINT IF EXISTS pinjaman_status_check;
 ALTER TABLE pinjaman ADD CONSTRAINT pinjaman_status_check
   CHECK (status IN ('diajukan','aktif','lunas','macet','ditolak'));
 
--- 3. Tambah modules column ke koperasi (kalau belum ada) — tipe jsonb
 ALTER TABLE koperasi ADD COLUMN IF NOT EXISTS modules jsonb DEFAULT '[]'::jsonb;
-
--- ============================================================
--- TABEL INVENTORI — untuk Melati Jaya (sayuran) & Sumber Makmur (toko)
--- ============================================================
 
 CREATE TABLE IF NOT EXISTS inventori (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -29,8 +18,8 @@ CREATE TABLE IF NOT EXISTS inventori (
   harga_beli    bigint DEFAULT 0,
   harga_jual    bigint DEFAULT 0,
   batas_minimum numeric DEFAULT 0,
-  kadaluwarsa   date,                  -- untuk produk perishable (sayuran, dll)
-  lokasi        text,                  -- untuk cold storage: nama rak/zone
+  kadaluwarsa   date,                  
+  lokasi        text,                  
   keterangan    text,
   updated_at    timestamptz DEFAULT now(),
   created_at    timestamptz DEFAULT now()
@@ -43,10 +32,6 @@ CREATE POLICY "inventori_tenant" ON inventori FOR ALL USING (koperasi_id = get_k
 CREATE TRIGGER trg_audit_inventori
   AFTER INSERT OR UPDATE OR DELETE ON inventori
   FOR EACH ROW EXECUTE FUNCTION fn_audit_log();
-
--- ============================================================
--- TABEL AIR — untuk Tirta Bersama
--- ============================================================
 
 CREATE TABLE IF NOT EXISTS meteran_air (
   id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -64,7 +49,7 @@ CREATE TABLE IF NOT EXISTS tagihan_air (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   koperasi_id     uuid NOT NULL REFERENCES koperasi(id) ON DELETE CASCADE,
   meteran_id      uuid NOT NULL REFERENCES meteran_air(id) ON DELETE CASCADE,
-  bulan           text NOT NULL,         -- format: '2026-06'
+  bulan           text NOT NULL,         
   meter_awal      numeric DEFAULT 0,
   meter_akhir     numeric DEFAULT 0,
   pemakaian       numeric GENERATED ALWAYS AS (meter_akhir - meter_awal) STORED,
@@ -82,11 +67,6 @@ CREATE POLICY "meteran_air_tenant" ON meteran_air FOR ALL USING (koperasi_id = g
 DROP POLICY IF EXISTS "tagihan_air_tenant" ON tagihan_air;
 CREATE POLICY "tagihan_air_tenant" ON tagihan_air FOR ALL USING (koperasi_id = get_koperasi_id() OR is_superadmin());
 
--- ============================================================
--- FUNGSI CROSS-KOPERASI RISK CHECK
--- Dipanggil pengurus saat hendak approve pinjaman
--- ============================================================
-
 CREATE OR REPLACE FUNCTION fn_anggota_risk_cross(p_anggota_id uuid)
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -101,7 +81,7 @@ BEGIN
   SELECT user_id INTO v_user_id FROM anggota WHERE id = p_anggota_id;
 
   IF v_user_id IS NULL THEN
-    -- Anggota belum punya akun (walk-in), cek per nama di koperasi sendiri
+    
     SELECT
       COUNT(*) FILTER (WHERE p.status = 'macet'),
       COUNT(*) FILTER (WHERE p.status = 'aktif'),
@@ -118,7 +98,6 @@ BEGIN
     );
   END IF;
 
-  -- Ada user_id → cek semua koperasi
   SELECT
     COUNT(*) FILTER (WHERE p.status = 'macet'),
     COUNT(*) FILTER (WHERE p.status = 'aktif'),
@@ -137,10 +116,6 @@ BEGIN
   );
 END;
 $$;
-
--- ============================================================
--- FUNGSI AUTO-GENERATE ANGSURAN saat pinjaman disetujui
--- ============================================================
 
 CREATE OR REPLACE FUNCTION fn_generate_angsuran(p_pinjaman_id uuid)
 RETURNS void
@@ -161,10 +136,6 @@ BEGIN
   END LOOP;
 END;
 $$;
-
--- ============================================================
--- UPDATE SEED: modules untuk tiap koperasi
--- ============================================================
 
 UPDATE koperasi SET modules = '["simpan_pinjam","inventori","pass","insight","lens","guard","pasar"]'::jsonb
   WHERE nama = 'Padiwangi';

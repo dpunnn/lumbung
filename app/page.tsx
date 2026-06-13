@@ -10,7 +10,6 @@ import {
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 
-// ─── auth-aware CTA ──────────────────────────────────────────
 function useAuthState() {
   const [state, setState] = useState<'loading' | 'guest' | 'authed'>('loading')
   const [role, setRole] = useState('')
@@ -30,7 +29,6 @@ function dashboardHref(role: string) {
   return '/dashboard'
 }
 
-// ─── data ────────────────────────────────────────────────────
 const MODULES = [
   { icon: Landmark,    color: 'bg-blue-50 text-blue-600',    label: 'Simpan Pinjam',  desc: 'Setoran, pinjaman, dan cicilan anggota' },
   { icon: ShieldCheck, color: 'bg-red-50 text-red-600',      label: 'Guard',          desc: 'Deteksi fraud & audit trail real-time' },
@@ -60,7 +58,6 @@ const PROBLEMS = [
   { n: '04', title: 'Tidak Ada Sinyal', body: 'Koperasi Harapan Baru di pegunungan tidak bisa lapor real-time. Dengan offline-first Sync, mereka tetap mencatat dan otomatis sync saat online.' },
 ]
 
-// ─── component ───────────────────────────────────────────────
 export default function LandingPage() {
   const router = useRouter()
   const { state, role } = useAuthState()
@@ -68,7 +65,6 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-stone-50 font-sans">
 
-      {/* ── Navbar ─────────────────────────────────────────── */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-stone-200/60">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -91,18 +87,17 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      {/* ── Hero ───────────────────────────────────────────── */}
       <section className="relative pt-32 pb-24 overflow-hidden">
-        {/* Background gradient */}
+
         <div className="absolute inset-0 bg-gradient-to-br from-stone-900 via-stone-800 to-amber-900" />
-        {/* Grid overlay */}
+
         <div className="absolute inset-0 opacity-[0.04]"
           style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
-        {/* Glow */}
+
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-amber-600/10 rounded-full blur-3xl" />
 
         <div className="relative max-w-7xl mx-auto px-6">
-          {/* Badge */}
+
           <div className="flex justify-center mb-8">
             <span className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold px-4 py-2 rounded-full">
               <Zap size={12} />
@@ -110,7 +105,6 @@ export default function LandingPage() {
             </span>
           </div>
 
-          {/* Headline */}
           <h1 className="text-center text-white font-black leading-[1.05] tracking-tight max-w-4xl mx-auto" style={{ fontSize: 'clamp(44px, 7vw, 88px)' }}>
             Satu Lumbung,<br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-400 to-orange-400">
@@ -122,7 +116,6 @@ export default function LandingPage() {
             Platform digitalisasi koperasi desa Indonesia. Multi-tenant, offline-first, dan terhubung ke sistem pembiayaan formal — untuk 80.000 koperasi yang belum pernah tersentuh teknologi.
           </p>
 
-          {/* CTA */}
           <div className="flex items-center justify-center gap-4 mt-10 flex-wrap">
             {state === 'authed' ? (
               <Link href={dashboardHref(role)}
@@ -143,7 +136,6 @@ export default function LandingPage() {
             )}
           </div>
 
-          {/* Stats row */}
           <div className="grid grid-cols-3 gap-4 mt-16 max-w-2xl mx-auto">
             {[
               { n: '80.000+', l: 'Koperasi Target' },
@@ -159,7 +151,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Problem → Solution ─────────────────────────────── */}
       <section id="masalah" className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
@@ -181,7 +172,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Product Layers ─────────────────────────────────── */}
       <section id="produk" className="py-24 bg-stone-50">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
@@ -213,7 +203,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Modules Grid ───────────────────────────────────── */}
       <section id="fitur" className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
@@ -239,12 +228,10 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Highlight: Guard + Pass ─────────────────────────── */}
       <section className="py-24 bg-stone-900">
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-            {/* Guard */}
             <div className="bg-stone-800 border border-stone-700 rounded-2xl p-8">
               <div className="w-10 h-10 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-center mb-5">
                 <ShieldCheck size={18} className="text-red-400" />
@@ -263,7 +250,6 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Pass */}
             <div className="bg-gradient-to-br from-amber-900/50 to-stone-800 border border-amber-700/30 rounded-2xl p-8">
               <div className="w-10 h-10 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-center mb-5">
                 <CreditCard size={18} className="text-amber-400" />
@@ -283,7 +269,6 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Offline badge */}
           <div className="mt-6 bg-stone-800 border border-stone-700 rounded-2xl p-6 flex items-center gap-6 flex-wrap">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center">
@@ -306,7 +291,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Program Context ─────────────────────────────────── */}
       <section className="py-20 bg-white border-y border-stone-100">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center gap-10">
           <div className="flex-1">
@@ -340,7 +324,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── CTA ─────────────────────────────────────────────── */}
       <section className="py-24 bg-gradient-to-br from-amber-900 via-amber-800 to-stone-900 relative overflow-hidden">
         <div className="absolute inset-0 opacity-5"
           style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
@@ -371,7 +354,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Footer ──────────────────────────────────────────── */}
       <footer className="bg-stone-900 py-10 border-t border-stone-800">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">

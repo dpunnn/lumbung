@@ -4,7 +4,6 @@ import { assetAnalyzer } from "./asset";
 import { riskAnalyzer } from "./risk";
 import { scoreAnalyzer } from "./scoring";
 
-// Tambah analyzer baru = cukup daftarkan di sini. Lens/Core tak perlu diubah.
 const analyzers: Analyzer[] = [
   anomalyAnalyzer,
   riskAnalyzer,

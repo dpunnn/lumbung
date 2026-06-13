@@ -66,7 +66,6 @@ export default function MemberSimpananPage() {
     })
   }, [])
 
-  // Realtime: INSERT baru dari kasir + UPDATE status apapun
   useEffect(() => {
     if (!anggotaIds.length) return
     const channel = supabase
@@ -179,7 +178,7 @@ export default function MemberSimpananPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-5">
-      {/* Toasts */}
+
       <div className="fixed top-4 right-4 z-50 space-y-2 pointer-events-none">
         {toasts.map(t => (
           <div key={t.id} className={`flex items-start gap-2 px-4 py-3 rounded-xl shadow-lg text-sm pointer-events-auto max-w-xs
@@ -190,7 +189,6 @@ export default function MemberSimpananPage() {
         ))}
       </div>
 
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-stone-900 text-xl font-bold">Simpanan Saya</h1>
@@ -208,7 +206,6 @@ export default function MemberSimpananPage() {
         </div>
       </div>
 
-      {/* Tab nav */}
       <div className="flex gap-1 bg-stone-100 border border-stone-200 rounded-xl p-1 w-fit">
         {(['list', 'setor', 'lapor'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
@@ -224,7 +221,6 @@ export default function MemberSimpananPage() {
         ))}
       </div>
 
-      {/* Form: Setor Simpanan (member-initiated) */}
       {tab === 'setor' && (
         <form onSubmit={handleSetor} className="bg-white border border-stone-200 rounded-xl p-5 space-y-4 shadow-sm">
           <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-xs text-amber-700">
@@ -255,7 +251,6 @@ export default function MemberSimpananPage() {
         </form>
       )}
 
-      {/* Form: Laporkan tidak tercatat */}
       {tab === 'lapor' && (
         <form onSubmit={handleLapor} className="bg-white border border-stone-200 rounded-xl p-5 space-y-4 shadow-sm">
           <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-700">
@@ -288,7 +283,7 @@ export default function MemberSimpananPage() {
 
       {tab === 'list' && (
         <div className="space-y-4">
-          {/* Konfirmasi dari kasir */}
+
           {needConfirm.length > 0 && (
             <div className="space-y-3">
               <p className="text-stone-700 text-sm font-semibold flex items-center gap-1.5">
@@ -337,7 +332,6 @@ export default function MemberSimpananPage() {
             </div>
           )}
 
-          {/* Riwayat semua */}
           {simpanan.filter(s => s.status !== 'pending_member_confirm').length === 0 && needConfirm.length === 0 ? (
             <div className="text-center py-16 bg-white border border-stone-200 rounded-xl">
               <Coins size={32} className="mx-auto mb-2 text-stone-300"/>

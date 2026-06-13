@@ -11,7 +11,7 @@ export function useSync(onSynced?: (count: number) => void) {
     }
 
     window.addEventListener('online', handleOnline)
-    // Coba sync saat pertama load (kalau baru online lagi)
+    
     if (navigator.onLine) handleOnline()
 
     return () => window.removeEventListener('online', handleOnline)

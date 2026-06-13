@@ -7,18 +7,18 @@ export type Severity = "info" | "warning" | "critical";
 
 export interface ExplainItem {
   faktor: string;
-  bobot: number; // 0..1 (kontribusi; 0 kalau cuma angka pendukung)
+  bobot: number;
   nilai: number;
 }
 
 export interface Signal {
   id: string;
   tenantId: string;
-  modul: ModuleId; // dari komoditas mana sinyal ini lahir
+  modul: ModuleId;
   kind: SignalKind;
   severity: Severity;
   judul: string;
-  narasi: string; // bahasa awam → langsung dipakai Lens
+  narasi: string;
   nilai?: number;
   explain: ExplainItem[];
 }
@@ -29,7 +29,7 @@ export interface InsightInput {
   transaksi: Transaksi[];
   stok: StokItem[];
   ternak: Ternak[];
-  verifiedRatio?: number; // dari vision (jumlah_terverifikasi / jumlah_klaim)
+  verifiedRatio?: number;
 }
 
 export type Analyzer = (input: InsightInput) => Signal[];

@@ -26,24 +26,20 @@ export default function InsightPage() {
   const [tab, setTab] = useState<Tab>('verifikasi')
   const [koperasiId, setKoperasiId] = useState('')
 
-  // COCO-SSD state
   const imgRef = useRef<HTMLImageElement>(null)
   const [imgUrl, setImgUrl] = useState<string | null>(null)
   const [detecting, setDetecting] = useState(false)
   const [hasil, setHasil] = useState<HasilDeteksi | null>(null)
   const [modelReady, setModelReady] = useState(false)
 
-  // Engine state
   const [signals, setSignals] = useState<Signal[]>([])
   const [skor, setSkor] = useState<ReturnType<typeof hitungSkorKoperasi> | null>(null)
   const [loadingEngine, setLoadingEngine] = useState(false)
 
-  // Preload model di background
   useEffect(() => {
     loadModel().then(() => setModelReady(true)).catch(console.error)
   }, [])
 
-  // Ambil koperasi_id dari profile
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
@@ -79,7 +75,6 @@ export default function InsightPage() {
 
       if (!kopData) return
 
-      // Map ke InsightInput types
       const koperasi: Koperasi = {
         id: kopData.id,
         nama: kopData.nama,
@@ -162,7 +157,6 @@ export default function InsightPage() {
         <p className="text-stone-600 text-sm">AI pendukung keputusan — verifikasi aset + analisis risiko</p>
       </div>
 
-      {/* Tab */}
       <div className="flex gap-1 bg-white border border-stone-200 rounded-xl shadow-sm p-1 w-fit">
         {([
           { key: 'verifikasi', label: 'Verifikasi Ternak' },
@@ -177,7 +171,6 @@ export default function InsightPage() {
         ))}
       </div>
 
-      {/* Tab: Verifikasi Ternak (COCO-SSD) */}
       {tab === 'verifikasi' && (
         <div className="space-y-4">
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700 flex items-start gap-2">
@@ -186,7 +179,7 @@ export default function InsightPage() {
           </div>
 
           <div className="bg-white border border-stone-200 rounded-xl shadow-sm p-5 space-y-4">
-            {/* Upload */}
+
             <div>
               <label className="block text-stone-600 text-sm font-medium mb-2">Upload Foto Ternak</label>
               <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-stone-300 rounded-xl cursor-pointer hover:border-amber-500 transition-colors">
@@ -197,10 +190,9 @@ export default function InsightPage() {
               </label>
             </div>
 
-            {/* Preview */}
             {imgUrl && (
               <div className="space-y-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
+
                 <img ref={imgRef} src={imgUrl} alt="preview"
                   className="w-full rounded-xl object-contain max-h-72 bg-stone-100" />
 
@@ -212,7 +204,6 @@ export default function InsightPage() {
               </div>
             )}
 
-            {/* Hasil */}
             {hasil && (
               <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 space-y-3">
                 <div className="flex items-center justify-between">
@@ -254,7 +245,6 @@ export default function InsightPage() {
         </div>
       )}
 
-      {/* Tab: Skor Koperasi */}
       {tab === 'skor' && (
         <div className="space-y-4">
           {loadingEngine ? (
@@ -266,7 +256,7 @@ export default function InsightPage() {
             <p className="text-stone-400 text-sm">Tidak ada data untuk dihitung.</p>
           ) : (
             <div className="space-y-4">
-              {/* Skor besar */}
+
               <div className="bg-white border border-stone-200 rounded-xl shadow-sm p-5">
                 <div className="flex items-end gap-4 mb-4">
                   <div>
@@ -285,7 +275,6 @@ export default function InsightPage() {
                   </div>
                 </div>
 
-                {/* Breakdown */}
                 <div className="space-y-2">
                   {skor.explain.map((e, i) => (
                     <div key={i} className="flex items-center gap-3">
@@ -312,7 +301,6 @@ export default function InsightPage() {
         </div>
       )}
 
-      {/* Tab: Sinyal AI */}
       {tab === 'sinyal' && (
         <div className="space-y-3">
           {loadingEngine ? (

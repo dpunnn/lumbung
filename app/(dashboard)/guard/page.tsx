@@ -37,7 +37,6 @@ export default function GuardPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [auditVisible, setAuditVisible] = useState(20)
 
-  // AI analysis per anomali
   const [aiLoading, setAiLoading] = useState<Record<string, boolean>>({})
   const [aiResult, setAiResult] = useState<Record<string, AnomalyAnalysis>>({})
 
@@ -136,7 +135,6 @@ export default function GuardPage() {
         ))}
       </div>
 
-      {/* Tab Anomali */}
       {tab === 'anomali' && (
         <div className="space-y-4">
           <div className="bg-blue-50 border border-blue-200 border-l-4 border-l-blue-500 rounded-xl px-4 py-3 flex items-start gap-3">
@@ -211,7 +209,7 @@ export default function GuardPage() {
 
                 {isExpanded && (
                   <div className="border-t border-stone-200 bg-stone-50 p-4 space-y-4">
-                    {/* AI Analysis */}
+
                     {aiLoading[key] ? (
                       <div className="flex items-center gap-2 text-amber-700 text-sm py-2">
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -241,7 +239,6 @@ export default function GuardPage() {
                       </div>
                     ) : null}
 
-                    {/* Timeline kejadian */}
                     <div>
                       <p className="text-stone-400 text-xs uppercase tracking-wide font-medium mb-3">Timeline Kejadian</p>
                       <div className="space-y-2">
@@ -277,7 +274,6 @@ export default function GuardPage() {
         </div>
       )}
 
-      {/* Tab Audit Trail */}
       {tab === 'audit' && (
         <div className="space-y-4">
           <div className="flex items-center gap-2 flex-wrap">

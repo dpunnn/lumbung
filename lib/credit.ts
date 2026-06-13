@@ -1,12 +1,5 @@
 import { supabase } from './supabase'
 
-// ============================================================
-// CASE A — Cek kelayakan anggota LINTAS KOPERASI
-// Memanggil fungsi SQL `cek_riwayat_kredit` (SECURITY DEFINER)
-// yang hanya mengembalikan sinyal agregat: tanpa nama, nominal,
-// atau identitas koperasi lain. Privasi anggota lain terjaga.
-// ============================================================
-
 export interface RiwayatKredit {
   jumlah_koperasi: number
   total_pinjaman: number
@@ -27,8 +20,6 @@ export interface HasilKelayakan {
   riwayat: RiwayatKredit | null
 }
 
-// SHA-256(NIK) — sama persis dengan yang disimpan di kolom anggota.ktp_hash.
-// NIK asli tidak pernah dikirim/disimpan mentah.
 export async function hashNik(nik: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(nik.trim()))
   return Array.from(new Uint8Array(buf))
@@ -41,7 +32,6 @@ export async function cekKelayakan(nik: string): Promise<HasilKelayakan> {
   const { data, error } = await supabase.rpc('cek_riwayat_kredit', { p_ktp_hash: ktpHash })
   const r = (data?.[0] ?? null) as RiwayatKredit | null
 
-  // First-time borrower: belum ada jejak di jaringan koperasi
   if (error || !r || r.jumlah_koperasi === 0) {
     return {
       ditemukan: false,
@@ -58,7 +48,7 @@ export async function cekKelayakan(nik: string): Promise<HasilKelayakan> {
   const totalAngsuran = r.angsuran_tepat + r.angsuran_terlambat
   const rasioTepat = totalAngsuran > 0 ? r.angsuran_tepat / totalAngsuran : 1
   const skorMacet = r.pinjaman_macet === 0 ? 1 : 0
-  // Skor: 70% ketepatan cicilan + 30% bebas macet
+
   const skor = Math.round((0.7 * rasioTepat + 0.3 * skorMacet) * 100)
 
   const alasan: string[] = [

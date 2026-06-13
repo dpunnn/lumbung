@@ -15,7 +15,6 @@ export type AnomalyKasir = {
   status_investigasi: 'belum_ditinjau' | 'sedang_ditinjau' | 'selesai'
 }
 
-// Jam kerja resmi koperasi: 07:00 – 18:00 WIB (UTC+7)
 function isLuarJamKerja(ts: string): boolean {
   const jamWIB = (new Date(ts).getUTCHours() + 7) % 24
   return jamWIB < 7 || jamWIB >= 18
@@ -34,14 +33,13 @@ export async function getAnomalyKasir(): Promise<AnomalyKasir[]> {
   since.setDate(since.getDate() - 30)
 
   const [{ data: simpananIssues }, { data: deleteLogs }, { data: updateLogs }] = await Promise.all([
-    // Simpanan yang disputed atau claimed
+
     supabase
       .from('simpanan')
       .select('id, jumlah, status, tanggal, keterangan, disputed_note')
       .in('status', ['disputed', 'claimed'])
       .gte('tanggal', since.toISOString().split('T')[0]),
 
-    // DELETE pada tabel finansial
     supabase
       .from('audit_log')
       .select('*, profiles(nama)')
@@ -49,7 +47,6 @@ export async function getAnomalyKasir(): Promise<AnomalyKasir[]> {
       .in('tabel_nama', ['simpanan', 'pinjaman', 'angsuran'])
       .gte('dilakukan_pada', since.toISOString()),
 
-    // UPDATE pada field jumlah/nominal
     supabase
       .from('audit_log')
       .select('*, profiles(nama)')
@@ -60,7 +57,6 @@ export async function getAnomalyKasir(): Promise<AnomalyKasir[]> {
 
   const results: AnomalyKasir[] = []
 
-  // Pola 1: Sengketa setoran — anggota bilang nominal salah
   const disputed = (simpananIssues ?? []).filter(s => s.status === 'disputed')
   if (disputed.length >= 1) {
     results.push({
@@ -80,7 +76,6 @@ export async function getAnomalyKasir(): Promise<AnomalyKasir[]> {
     })
   }
 
-  // Pola 2: Klaim tidak tercatat — anggota bayar tapi tidak ada record
   const claimed = (simpananIssues ?? []).filter(s => s.status === 'claimed')
   if (claimed.length >= 1) {
     results.push({
@@ -100,7 +95,6 @@ export async function getAnomalyKasir(): Promise<AnomalyKasir[]> {
     })
   }
 
-  // Pola 3: Hapus data finansial — DELETE di simpanan/pinjaman/angsuran
   if ((deleteLogs ?? []).length > 0) {
     const byUser = new Map<string, any[]>()
     for (const log of deleteLogs ?? []) {
@@ -125,7 +119,6 @@ export async function getAnomalyKasir(): Promise<AnomalyKasir[]> {
     }
   }
 
-  // Pola 4: Ubah nominal — UPDATE jumlah setelah konfirmasi
   const nominalUpdates = (updateLogs ?? []).filter((l: any) => {
     const baru = l.nilai_baru as Record<string, unknown> | null
     return baru && ('jumlah' in baru || 'jumlah_pokok' in baru || 'angsuran_per_bulan' in baru)
@@ -155,7 +148,6 @@ export async function getAnomalyKasir(): Promise<AnomalyKasir[]> {
     }
   }
 
-  // Pola 5: Pembatalan luar jam kerja — DELETE + UPDATE status batal setelah 18:00 atau sebelum 07:00 WIB
   const cancelLogs = [
     ...(deleteLogs ?? []),
     ...(updateLogs ?? []).filter((l: any) => {

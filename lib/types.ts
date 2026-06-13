@@ -20,7 +20,7 @@ export interface Anggota {
   id: string;
   tenantId: string;
   nama: string;
-  bergabung: string; // ISO date
+  bergabung: string;
 }
 
 export interface Transaksi {
@@ -29,7 +29,7 @@ export interface Transaksi {
   tipe: "simpanan" | "pinjaman" | "angsuran" | "penjualan" | "pembelian";
   anggotaId?: string;
   jumlah: number;
-  ts: string; // ISO datetime
+  ts: string;
   catatan?: string;
 }
 
@@ -40,7 +40,7 @@ export interface StokItem {
   qty: number;
   satuan: string;
   kondisi?: "baik" | "layu" | "rusak";
-  suhuC?: number; // untuk cold storage (Melati Jaya)
+  suhuC?: number;
 }
 
 export interface Ternak {
@@ -53,4 +53,3 @@ export interface Ternak {
   vaksin: string[];
   status: "sehat" | "perlu_vaksin" | "sakit" | "mati";
 }
-

@@ -114,7 +114,6 @@ export default function AirPage() {
     const { data: { user } } = await supabase.auth.getUser()
     const { data: profile } = await supabase.from('profiles').select('koperasi_id').eq('id', user!.id).single()
 
-    // Upsert berdasarkan meteran_id + bulan
     const { data: existing } = await supabase
       .from('tagihan_air')
       .select('id')
@@ -174,7 +173,7 @@ export default function AirPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-5">
-      {/* Header */}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-stone-900 text-xl font-bold">Utilitas Air</h1>
@@ -192,7 +191,6 @@ export default function AirPage() {
         </div>
       </div>
 
-      {/* KPI summary */}
       {filteredTagihan.length > 0 && (
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-white border border-stone-200 rounded-xl shadow-sm p-4">
@@ -210,7 +208,6 @@ export default function AirPage() {
         </div>
       )}
 
-      {/* Tab */}
       <div className="flex gap-1 bg-white border border-stone-200 rounded-xl shadow-sm p-1 w-fit">
         {(['tagihan', 'meteran'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
@@ -221,7 +218,6 @@ export default function AirPage() {
         ))}
       </div>
 
-      {/* Form input bacaan */}
       {tab === 'tagihan' && showTagihanForm && (
         <form onSubmit={handleInputTagihan} className="bg-white border border-amber-200 rounded-xl shadow-sm p-5 space-y-4">
           <div className="flex items-center justify-between">
@@ -278,10 +274,9 @@ export default function AirPage() {
         </form>
       )}
 
-      {/* Tab Tagihan */}
       {tab === 'tagihan' && !showTagihanForm && (
         <div className="space-y-4">
-          {/* Filter bulan */}
+
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-stone-400 text-xs">Filter:</span>
             <button onClick={() => setFilterBulan(BULAN_INI)}
@@ -362,7 +357,6 @@ export default function AirPage() {
         </div>
       )}
 
-      {/* Tab Meteran */}
       {tab === 'meteran' && (
         <div className="space-y-4">
           {showMeteranForm && (

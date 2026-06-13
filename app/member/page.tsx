@@ -64,7 +64,7 @@ export default function MemberPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* Welcome */}
+
       <div className="bg-amber-700 rounded-xl p-6 text-white">
         <h1 className="text-xl font-bold">Selamat datang di Portal Anggota</h1>
         <p className="text-amber-200 text-sm mt-1">Kelola keanggotaan dan layanan koperasi dari satu tempat.</p>
@@ -80,7 +80,6 @@ export default function MemberPage() {
         </div>
       </div>
 
-      {/* Koperasi yang sudah diikuti */}
       {joinedKoperasi.length > 0 && (
         <div className="space-y-3">
           <div>
@@ -140,7 +139,6 @@ export default function MemberPage() {
         </div>
       )}
 
-      {/* Koperasi tersedia */}
       {availableKoperasi.length > 0 && (
         <div className="space-y-3">
           <div>

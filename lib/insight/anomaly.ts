@@ -28,7 +28,6 @@ export function detectAnomali(series: number[], threshold = 2): AnomalyResult {
   return best;
 }
 
-/** Hitung jumlah transaksi per bulan dari array dengan field ts (timestamp) */
 function countPerBulan(items: { ts: string }[], bulanBack = 6): number[] {
   const now = new Date();
   return Array.from({ length: bulanBack }, (_, i) => {
@@ -46,7 +45,6 @@ export const anomalyAnalyzer: Analyzer = (input) => {
   const signals: Signal[] = [];
   const tid = koperasi.id;
 
-  // ── 1. Simpanan: lonjakan / penurunan tiba-tiba ──────────────────────────
   if (koperasi.modules.includes("simpan_pinjam")) {
     const simpananTx = transaksi.filter(t => t.tipe === "simpanan");
     const series = countPerBulan(simpananTx.map(t => ({ ts: t.ts })));
@@ -79,7 +77,6 @@ export const anomalyAnalyzer: Analyzer = (input) => {
     }
   }
 
-  // ── 2. Pinjaman: angsuran macet terkonsentrasi ────────────────────────────
   if (koperasi.modules.includes("simpan_pinjam")) {
     const pinjamanTx = transaksi.filter(t => t.tipe === "pinjaman");
     const series = countPerBulan(pinjamanTx.map(t => ({ ts: t.ts })));
@@ -103,7 +100,6 @@ export const anomalyAnalyzer: Analyzer = (input) => {
     }
   }
 
-  // ── 3. Ternak: lonjakan kematian ─────────────────────────────────────────
   if (koperasi.modules.includes("ternak") && ternak.length >= 3) {
     const matiCount = ternak.filter(t => t.status === "mati").length;
     const totalCount = ternak.length;
@@ -153,7 +149,6 @@ export const anomalyAnalyzer: Analyzer = (input) => {
     }
   }
 
-  // ── 4. Inventori: stok menipis ≥ 2 item sekaligus (cluster alert) ─────────
   if (koperasi.modules.includes("inventori") || (koperasi.modules as string[]).includes("pakan")) {
     const itemMenipis = stok.filter(s => s.qty <= 50 && (s.kondisi ?? "baik") === "baik");
     if (itemMenipis.length >= 2) {

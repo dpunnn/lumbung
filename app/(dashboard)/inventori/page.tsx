@@ -65,7 +65,6 @@ function ExpiryBadge({ date }: { date: string | null }) {
 export default function InventoriPage() {
   const [pageTab, setPageTab] = useState<'inventori' | 'jadwal'>('inventori')
 
-  // --- Inventori state ---
   const [items, setItems] = useState<Item[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -79,7 +78,6 @@ export default function InventoriPage() {
     kadaluwarsa: '', lokasi: '', keterangan: '',
   })
 
-  // --- Jadwal Panen state (persisted in localStorage) ---
   const [batches, setBatches] = useState<BatchPenerimaan[]>(() => {
     if (typeof window === 'undefined') return []
     try { return JSON.parse(localStorage.getItem('lumbung_batches') ?? '[]') } catch { return [] }
@@ -214,7 +212,7 @@ export default function InventoriPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-5">
-      {/* Header */}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-stone-900 text-xl font-bold">Inventori & Jadwal Panen</h1>
@@ -236,7 +234,6 @@ export default function InventoriPage() {
         </div>
       </div>
 
-      {/* Tab selector */}
       <div className="flex gap-1 bg-stone-100 border border-stone-200 rounded-xl p-1 w-fit">
         <button onClick={() => setPageTab('inventori')}
           className={`px-4 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-1.5
@@ -255,7 +252,6 @@ export default function InventoriPage() {
         </button>
       </div>
 
-      {/* ---- TAB: INVENTORI ---- */}
       {pageTab === 'inventori' && (
         <>
           {lowStock.length > 0 && (
@@ -435,10 +431,9 @@ export default function InventoriPage() {
         </>
       )}
 
-      {/* ---- TAB: JADWAL PANEN ---- */}
       {pageTab === 'jadwal' && (
         <>
-          {/* Summary strip */}
+
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-white border border-stone-200 rounded-xl p-4">
               <p className="text-stone-400 text-xs">Total Batch</p>
@@ -454,7 +449,6 @@ export default function InventoriPage() {
             </div>
           </div>
 
-          {/* Form catat penerimaan */}
           {showBatchForm && (
             <form onSubmit={handleTambahBatch} className="bg-white border border-amber-200 rounded-xl shadow-sm p-5 space-y-4">
               <div className="flex items-center justify-between">
@@ -522,7 +516,6 @@ export default function InventoriPage() {
             </form>
           )}
 
-          {/* Batch list */}
           {batches.length === 0 ? (
             <div className="text-center py-20 bg-white border border-stone-200 rounded-xl shadow-sm text-stone-400">
               <Calendar className="w-10 h-10 mx-auto mb-3" />
@@ -553,7 +546,6 @@ export default function InventoriPage() {
 
                     {b.catatan && <p className="text-stone-400 text-xs italic mb-2">{b.catatan}</p>}
 
-                    {/* Jadwal kirim setter */}
                     {b.status === 'menunggu' && (
                       <div className="flex gap-2 items-center mt-2">
                         <input type="date" value={jadwalInput[b.id] ?? ''}

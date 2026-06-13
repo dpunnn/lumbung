@@ -10,7 +10,6 @@ import { AlertTriangle, ArrowDown, ArrowUp, BarChart2, TrendingUp, Minus } from 
 import { supabase } from '@/lib/supabase'
 import { narasiTemplate, type RingkasanLens } from '@/lib/narasi'
 
-// ─── helpers ────────────────────────────────────────────────────────────────
 const WARNA_TERNAK: Record<string, string> = {
   sehat: '#22c55e', pantau: '#eab308', sakit: '#ef4444', mati: '#64748b',
 }
@@ -21,7 +20,6 @@ const rp = (n: number) => 'Rp ' + n.toLocaleString('id-ID')
 const fmtRb = (n: number) =>
   n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}jt` : n >= 1_000 ? `${(n / 1_000).toFixed(0)}rb` : String(n)
 
-// ─── types ──────────────────────────────────────────────────────────────────
 type LensData = {
   koperasi: string; fokusUsaha: string; kopId: string
   simpananTrend: { bulan: string; total: number; key: string }[]
@@ -58,7 +56,6 @@ const STATUS_TERNAK: Record<string, string> = {
   mati:   'bg-stone-100 text-stone-500 border-stone-200',
 }
 
-// ─── custom tooltips ─────────────────────────────────────────────────────────
 function SimpananTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
   const cur = payload[0].value as number
@@ -141,7 +138,6 @@ function PakanTooltip({ active, payload, label }: any) {
   )
 }
 
-// ─── active pie shape ─────────────────────────────────────────────────────────
 function ActivePieShape(props: any) {
   const { cx, cy, innerRadius, outerRadius, startAngle, endAngle, fill, payload, percent, value } = props
   return (
@@ -157,7 +153,6 @@ function ActivePieShape(props: any) {
   )
 }
 
-// ─── component ───────────────────────────────────────────────────────────────
 export default function LensPage() {
   const [data, setData] = useState<LensData | null>(null)
   const [narasi, setNarasi] = useState('')
@@ -165,19 +160,16 @@ export default function LensPage() {
   const [mode, setMode] = useState<'ringkas' | 'rinci'>('ringkas')
   const [loading, setLoading] = useState(true)
 
-  // ringkas interactive state
   const [periode, setPeriode] = useState<3 | 6 | 12>(6)
   const [chartType, setChartType] = useState<'bar' | 'line'>('bar')
   const [activeTernakIdx, setActiveTernakIdx] = useState(0)
 
-  // rinci state
   const [rinciData, setRinciData] = useState<RinciData | null>(null)
   const [rinciLoading, setRinciLoading] = useState(false)
   const [angsuranFilter, setAngsuranFilter] = useState('semua')
   const [ternakFilter, setTernakFilter] = useState('semua')
   const [simpananSort, setSimpananSort] = useState<'tanggal' | 'jumlah'>('tanggal')
 
-  // ── load summary data (12 months) ───────────────────────────────────────
   useEffect(() => {
     async function load() {
       const { data: auth } = await supabase.auth.getUser()
@@ -203,7 +195,7 @@ export default function LensPage() {
       }
 
       const now = new Date()
-      // Build 12-month list
+
       const bulanList: { key: string; bulan: string }[] = []
       for (let i = 11; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
@@ -215,7 +207,7 @@ export default function LensPage() {
         bulan: b.bulan,
         total: (simpanan ?? []).filter((s) => s.tanggal?.startsWith(b.key)).reduce((sum, s) => sum + (s.jumlah ?? 0), 0),
       }))
-      // Attach prev month value and index for tooltip
+
       const simpananTrend = totals.map((t, i) => ({
         ...t, _idx: i, _prev: i > 0 ? totals[i - 1].total : 0,
       }))
@@ -231,7 +223,6 @@ export default function LensPage() {
       const pakanChart = (pakan ?? []).map((p) => ({ nama: p.nama, stok: p.stok, minimum: p.batas_minimum }))
       const pakanMenipis = (pakan ?? []).filter((p) => p.batas_minimum > 0 && p.stok <= p.batas_minimum).map((p) => p.nama)
 
-      // 12-month angsuran too
       const angsuranChart = bulanList.map((b) => {
         const baris = (angsuran ?? []).filter((a) => a.tanggal_jatuh_tempo?.startsWith(b.key))
         return {
@@ -276,7 +267,6 @@ export default function LensPage() {
     load()
   }, [])
 
-  // ── load rinci (lazy) ────────────────────────────────────────────────────
   const loadRinci = useCallback(async (kopId: string) => {
     if (rinciData) return
     setRinciLoading(true)
@@ -309,7 +299,6 @@ export default function LensPage() {
     if (mode === 'rinci' && data?.kopId && !rinciData && !rinciLoading) loadRinci(data.kopId)
   }, [mode, data, rinciData, rinciLoading, loadRinci])
 
-  // ── derived: ringkas ─────────────────────────────────────────────────────
   const simpananVisible = useMemo(() =>
     data ? data.simpananTrend.slice(-periode) : [], [data, periode])
 
@@ -320,7 +309,6 @@ export default function LensPage() {
   const angsuranVisible = useMemo(() =>
     data ? data.angsuran.slice(-periode) : [], [data, periode])
 
-  // ── derived: rinci ───────────────────────────────────────────────────────
   const filteredAngsuran = useMemo(() => {
     if (!rinciData) return []
     return angsuranFilter === 'semua' ? rinciData.angsuranAll : rinciData.angsuranAll.filter(a => a.status === angsuranFilter)
@@ -338,7 +326,6 @@ export default function LensPage() {
     )
   }, [rinciData, simpananSort])
 
-  // ── render ───────────────────────────────────────────────────────────────
   if (loading) return (
     <div className="flex justify-center py-12">
       <div className="w-5 h-5 border-2 border-amber-700 border-t-transparent rounded-full animate-spin" />
@@ -361,7 +348,6 @@ export default function LensPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-5">
 
-      {/* Header + mode toggle */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-stone-900 text-xl font-bold">Lumbung Lens</h1>
@@ -378,7 +364,6 @@ export default function LensPage() {
         </div>
       </div>
 
-      {/* Narasi AI */}
       <div className="bg-white border border-stone-200 rounded-xl shadow-sm p-4">
         <div className="flex items-center justify-between mb-1.5">
           <p className="text-stone-500 text-xs font-medium">Ringkasan Bulan Ini</p>
@@ -394,11 +379,9 @@ export default function LensPage() {
         </div>
       )}
 
-      {/* ══ MODE RINGKAS ══════════════════════════════════════════════════════ */}
       {mode === 'ringkas' && adaModul && (
         <div className="space-y-5">
 
-          {/* ── Stat Cards ─────────────────────────────────────────────── */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {modul.simpanPinjam && (
               <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
@@ -445,7 +428,6 @@ export default function LensPage() {
             )}
           </div>
 
-          {/* ── Period + ChartType controls ─────────────────────────────── */}
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex gap-1 bg-white border border-stone-200 rounded-xl p-1 shadow-sm">
               {([3, 6, 12] as const).map(p => (
@@ -472,10 +454,8 @@ export default function LensPage() {
             )}
           </div>
 
-          {/* ── Charts grid ─────────────────────────────────────────────── */}
           <div className="grid gap-4 sm:grid-cols-2">
 
-            {/* Simpanan trend */}
             {modul.simpanPinjam && (
               <div className="bg-white border border-stone-200 rounded-xl shadow-sm p-4">
                 <div className="flex items-center justify-between mb-1">
@@ -530,7 +510,6 @@ export default function LensPage() {
               </div>
             )}
 
-            {/* Angsuran stacked */}
             {modul.simpanPinjam && angsuranVisible.some(a => a.tepat + a.terlambat > 0) && (
               <div className="bg-white border border-stone-200 rounded-xl shadow-sm p-4">
                 <p className="text-stone-700 text-sm font-medium mb-1">Ketepatan Angsuran</p>
@@ -550,14 +529,13 @@ export default function LensPage() {
               </div>
             )}
 
-            {/* Ternak pie with active shape */}
             {modul.ternak && data.ternak.length > 0 && (
               <div className="bg-white border border-stone-200 rounded-xl shadow-sm p-4">
                 <p className="text-stone-700 text-sm font-medium mb-1">Komposisi Ternak</p>
                 <p className="text-stone-400 text-xs mb-1">Hover atau klik untuk detail</p>
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
-                    {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+
                     <Pie {...{
                       data: data.ternak,
                       dataKey: 'value',
@@ -583,7 +561,6 @@ export default function LensPage() {
               </div>
             )}
 
-            {/* Pakan: color-coded horizontal bars */}
             {modul.pakan && data.pakan.length > 0 && (
               <div className="bg-white border border-stone-200 rounded-xl shadow-sm p-4">
                 <p className="text-stone-700 text-sm font-medium mb-1">Stok Pakan</p>
@@ -613,7 +590,6 @@ export default function LensPage() {
         </div>
       )}
 
-      {/* ══ MODE RINCI ════════════════════════════════════════════════════════ */}
       {mode === 'rinci' && adaModul && (
         <div className="space-y-4">
           {rinciLoading ? (
@@ -625,7 +601,7 @@ export default function LensPage() {
             <>
               {modul.simpanPinjam && (
                 <>
-                  {/* Setoran bulan ini */}
+
                   <div className="bg-white border border-stone-200 rounded-xl shadow-sm overflow-hidden">
                     <div className="px-4 py-3 border-b border-stone-100 flex items-start justify-between gap-2">
                       <div>
@@ -692,7 +668,6 @@ export default function LensPage() {
                     )}
                   </div>
 
-                  {/* Angsuran */}
                   <div className="bg-white border border-stone-200 rounded-xl shadow-sm overflow-hidden">
                     <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between flex-wrap gap-2">
                       <div>
@@ -755,7 +730,6 @@ export default function LensPage() {
                 </>
               )}
 
-              {/* Ternak */}
               {modul.ternak && (
                 <div className="bg-white border border-stone-200 rounded-xl shadow-sm overflow-hidden">
                   <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between flex-wrap gap-2">
@@ -809,7 +783,6 @@ export default function LensPage() {
                 </div>
               )}
 
-              {/* Pakan */}
               {modul.pakan && (
                 <div className="bg-white border border-stone-200 rounded-xl shadow-sm overflow-hidden">
                   <div className="px-4 py-3 border-b border-stone-100">

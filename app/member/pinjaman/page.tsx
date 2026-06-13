@@ -74,7 +74,7 @@ function AngsuranTimeline({ angsuran, angsuranPerBulan }: { angsuran: Angsuran[]
 
   return (
     <div className="mt-3 space-y-2.5">
-      {/* Progress bar */}
+
       <div>
         <div className="flex justify-between text-xs text-stone-500 mb-1">
           <span>{lunasCount} dari {sorted.length} angsuran lunas</span>
@@ -85,7 +85,6 @@ function AngsuranTimeline({ angsuran, angsuranPerBulan }: { angsuran: Angsuran[]
         </div>
       </div>
 
-      {/* List angsuran — read only */}
       <div className="space-y-1.5">
         {sorted.map(a => {
           const jatuhTempo = new Date(a.tanggal_jatuh_tempo)
@@ -225,7 +224,6 @@ function PinjamanContent() {
     })
   }, [loadPinjaman])
 
-  // Realtime: status pinjaman berubah (disetujui/ditolak) atau angsuran dibayar admin
   useEffect(() => {
     if (!anggotaIds.length) return
     const channel = supabase.channel('member-pinjaman-rt')
@@ -284,7 +282,7 @@ function PinjamanContent() {
     setTab('list')
     setForm(f => ({ ...f, jumlah: '', tenor_bulan: '12' }))
     setSaving(false)
-    // Reload by anggota_id supaya konsisten
+
     const { data: anggotaRows } = await supabase.from('anggota').select('id').eq('user_id', userId)
     loadPinjaman((anggotaRows ?? []).map((a: any) => a.id))
   }

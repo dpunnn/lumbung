@@ -367,7 +367,6 @@ export default function SimpanPinjamPage() {
         ))}
       </div>
 
-      {/* TAB: Pengajuan Masuk */}
       {tab === 'pengajuan' && (
         <div className="space-y-4">
           {pengajuan.length === 0 ? (
@@ -387,10 +386,9 @@ export default function SimpanPinjamPage() {
         </div>
       )}
 
-      {/* TAB: Setoran */}
       {tab === 'setoran' && (
         <div className="space-y-5">
-          {/* Form catat setoran baru */}
+
           <div className="bg-white border border-stone-200 rounded-xl shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-stone-200">
               <h2 className="text-stone-900 font-semibold text-sm">Catat Setoran Anggota</h2>
@@ -429,7 +427,6 @@ export default function SimpanPinjamPage() {
             </form>
           </div>
 
-          {/* Item perlu tindakan */}
           {simpananAksi.length > 0 && (
             <div className="space-y-3">
               <p className="text-stone-700 text-sm font-semibold">Perlu tindakan ({simpananAksi.length})</p>
@@ -516,7 +513,6 @@ export default function SimpanPinjamPage() {
         </div>
       )}
 
-      {/* TAB: Buat pinjaman baru */}
       {tab === 'baru' && (
         <form onSubmit={handleBuatPinjaman} className="bg-white border border-stone-200 rounded-xl shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-stone-200">
@@ -577,7 +573,6 @@ export default function SimpanPinjamPage() {
         </form>
       )}
 
-      {/* TAB: Tambah anggota */}
       {tab === 'anggota' && (
         <form onSubmit={handleBuatAnggota} className="bg-white border border-stone-200 rounded-xl shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-stone-200">
@@ -614,7 +609,6 @@ export default function SimpanPinjamPage() {
         </form>
       )}
 
-      {/* TAB: Daftar pinjaman */}
       {tab === 'pinjaman' && (
         <>
           {loading ? (

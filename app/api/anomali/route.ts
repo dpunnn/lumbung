@@ -85,7 +85,6 @@ function templateAnalysis(input: AnomalyInput): AnomalyAnalysis {
     }
   }
 
-  // pembatalan_luar_jam
   const rasio = input.rasio_luar_jam ?? 0
   const luarJam = input.luar_jam_count ?? input.jumlah_flag
   const total = input.total_aksi ?? input.jumlah_flag

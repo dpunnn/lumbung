@@ -114,7 +114,6 @@ export default function PassPage() {
         </button>
       </div>
 
-      {/* Tab */}
       <div className="flex gap-1 bg-white border border-stone-200 rounded-xl shadow-sm p-1 w-fit">
         {(['daftar', 'buat', 'cek'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
@@ -125,10 +124,9 @@ export default function PassPage() {
         ))}
       </div>
 
-      {/* Form terbitkan baru */}
       {tab === 'buat' && (
         <div className="space-y-4">
-          {/* Step 1: Consent */}
+
           <div className="bg-white border border-stone-200 rounded-xl shadow-sm p-5 space-y-4">
             <h2 className="text-stone-900 font-medium text-sm">1. Pilih Data yang Dibagikan</h2>
             <div className="space-y-2">
@@ -149,7 +147,6 @@ export default function PassPage() {
             </div>
           </div>
 
-          {/* Step 2: Info */}
           <div className="bg-white border border-stone-200 rounded-xl shadow-sm p-5 space-y-3">
             <h2 className="text-stone-900 font-medium text-sm">2. Informasi Pass</h2>
             <div>
@@ -175,7 +172,6 @@ export default function PassPage() {
             </div>
           </div>
 
-          {/* Preview */}
           {!preview ? (
             <button onClick={handlePreview} disabled={loading || !form.tujuan || !form.mitra}
               className="w-full border border-amber-700 hover:bg-amber-50 disabled:opacity-50 text-amber-700 font-medium rounded-xl py-3 text-sm transition-colors inline-flex items-center justify-center gap-1.5">
@@ -226,7 +222,6 @@ export default function PassPage() {
         </div>
       )}
 
-      {/* Tab cek anggota — Case A */}
       {tab === 'cek' && (
         <div className="space-y-4">
           <div className="bg-white border border-stone-200 rounded-xl shadow-sm p-5 space-y-4">
@@ -314,7 +309,6 @@ export default function PassPage() {
         </div>
       )}
 
-      {/* Hasil generate */}
       {generated && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-5 space-y-3">
           <p className="text-green-700 font-medium text-sm inline-flex items-center gap-1.5"><CheckCircle className="w-4 h-4" /> Pass berhasil diterbitkan!</p>
@@ -329,7 +323,6 @@ export default function PassPage() {
         </div>
       )}
 
-      {/* Daftar pass */}
       {tab === 'daftar' && (
         passList.length === 0 ? (
           <div className="text-center py-16 text-stone-400">

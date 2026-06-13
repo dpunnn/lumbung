@@ -43,7 +43,6 @@ export const koperasiList: Koperasi[] = [
   },
 ];
 
-// --- helper kecil biar seed-nya ringkas ---
 const hariLalu = (n: number) =>
   new Date(Date.now() - n * 86_400_000).toISOString();
 

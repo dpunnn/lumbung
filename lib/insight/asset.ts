@@ -1,6 +1,5 @@
 import type { Analyzer, Signal, InsightInput, ExplainItem } from "./types";
 
-// Harga referensi (dummy, gampang diganti).
 const HARGA_TERNAK_PER_KG: Record<string, number> = { Sapi: 65_000, Kambing: 90_000 };
 const FAKTOR_SEHAT: Record<string, number> = { sehat: 1, perlu_vaksin: 0.85, sakit: 0.6, mati: 0 };
 const HARGA_STOK: Record<string, number> = {
@@ -15,7 +14,6 @@ export const assetAnalyzer: Analyzer = (input) => {
   const explain: ExplainItem[] = [];
   let total = 0;
 
-  // Ternak (Harapan Baru) — dikalikan rasio verifikasi dari vision (default 1 = manual).
   if (koperasi.modules.includes("ternak")) {
     const nilaiTernak = input.ternak.reduce((sum, t) => {
       const harga = HARGA_TERNAK_PER_KG[t.jenis] ?? 50_000;
@@ -30,7 +28,6 @@ export const assetAnalyzer: Analyzer = (input) => {
     });
   }
 
-  // Stok/inventori (Melati, Sumber, Padiwangi, Harapan-pakan)
   if (koperasi.modules.includes("inventori") || koperasi.modules.includes("ritel")) {
     const nilaiStok = input.stok.reduce((sum, s) => {
       const harga = HARGA_STOK[s.nama] ?? 10_000;
@@ -42,11 +39,10 @@ export const assetAnalyzer: Analyzer = (input) => {
     }
   }
 
-  // Portofolio pinjaman sehat (Padiwangi, Tirta)
   if (koperasi.modules.includes("simpan_pinjam")) {
     const pinjaman = input.transaksi.filter((t) => t.tipe === "pinjaman").reduce((s, t) => s + t.jumlah, 0);
     const angsuran = input.transaksi.filter((t) => t.tipe === "angsuran").reduce((s, t) => s + t.jumlah, 0);
-    const rasioMacet = pinjaman > 0 ? Math.max(0, 1 - angsuran / pinjaman) * 0.2 : 0; // proxy dummy
+    const rasioMacet = pinjaman > 0 ? Math.max(0, 1 - angsuran / pinjaman) * 0.2 : 0;
     const nilai = pinjaman * (1 - rasioMacet);
     if (nilai > 0) {
       total += nilai;

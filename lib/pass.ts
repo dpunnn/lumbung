@@ -63,14 +63,14 @@ export async function hashFields(fields: PassFields): Promise<string> {
 }
 
 export function hitungSkor(fields: PassFields): number {
-  // Jalur A: ada riwayat pinjaman
+
   if (fields.rasio_cicilan_lancar !== undefined) {
     const ternak = (fields.rasio_ternak_sehat ?? 100) / 100
     const cicilan = (fields.rasio_cicilan_lancar) / 100
     const simpanan = fields.total_simpanan ? Math.min(fields.total_simpanan / 10_000_000, 1) : 0
     return Math.round((0.4 * ternak + 0.4 * cicilan + 0.2 * simpanan) * 100)
   }
-  // Jalur B: first-time borrower
+
   const aset = fields.nilai_aset_ternak ? Math.min(fields.nilai_aset_ternak / 5_000_000, 1) : 0
   return Math.round(0.5 * aset * 100)
 }

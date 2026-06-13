@@ -37,7 +37,6 @@ export default function PassPublicPage() {
     }
     load()
 
-    // Realtime: kalau admin cabut pass saat lender sedang buka, langsung berubah
     const channel = supabase
       .channel(`pass-watch-${token}`)
       .on('postgres_changes', {
@@ -104,7 +103,6 @@ export default function PassPublicPage() {
     <div className="min-h-screen bg-stone-50 px-4 py-8">
       <div className="max-w-lg mx-auto space-y-4">
 
-        {/* Header brand */}
         <div className="text-center mb-2">
           <div className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-amber-700 mb-3">
             <span className="text-white text-base font-black">L</span>
@@ -113,7 +111,6 @@ export default function PassPublicPage() {
           <p className="text-stone-500 text-sm mt-0.5">Data koperasi terverifikasi</p>
         </div>
 
-        {/* Badge verifikasi */}
         <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-3">
           <ShieldCheck size={18} className="text-green-600 shrink-0" />
           <div>
@@ -122,7 +119,6 @@ export default function PassPublicPage() {
           </div>
         </div>
 
-        {/* Info pass */}
         <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm space-y-2.5">
           {[
             { label: 'Tujuan',    value: pass!.tujuan },
@@ -137,7 +133,6 @@ export default function PassPublicPage() {
           ))}
         </div>
 
-        {/* Skor kredit */}
         <div className="bg-white border border-stone-200 rounded-xl p-5 shadow-sm">
           <p className="text-stone-500 text-xs mb-3">Skor Kelayakan Kredit</p>
           <div className="flex items-end gap-3 mb-4">
@@ -154,7 +149,6 @@ export default function PassPublicPage() {
           </div>
         </div>
 
-        {/* Data detail */}
         <div className="bg-white border border-stone-200 rounded-xl p-5 shadow-sm space-y-3">
           <p className="text-stone-500 text-xs">Data Terverifikasi</p>
           <div className="grid grid-cols-2 gap-2">
@@ -192,7 +186,6 @@ export default function PassPublicPage() {
           <p className="text-stone-400 text-xs">Tidak ada nama, NIK, atau data pribadi anggota</p>
         </div>
 
-        {/* Tombol setujui */}
         {!approved ? (
           <button onClick={() => setApproved(true)}
             className="w-full bg-amber-700 hover:bg-amber-800 text-white font-semibold rounded-xl py-3.5 text-sm transition-colors shadow-sm">

@@ -18,7 +18,7 @@ type NavItem = {
   label: string
   icon: React.ElementType
   module: string | null
-  roles?: string[]  // jika diisi, hanya role ini yang bisa lihat
+  roles?: string[]
 }
 
 const ALL_NAV: NavItem[] = [
@@ -134,13 +134,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-stone-50 flex">
-      {/* Sidebar desktop */}
+
       <aside className="hidden md:flex flex-col w-56 bg-white border-r border-stone-200 shrink-0">
         <SidebarContent />
       </aside>
 
       <div className="flex flex-col flex-1 min-w-0">
-        {/* Mobile header */}
+
         <header className="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-stone-200">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-md bg-amber-700 flex items-center justify-center">

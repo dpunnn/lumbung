@@ -104,7 +104,7 @@ export default function PengadaanPage() {
       setSaving(false)
       return
     }
-    // Optimistic update — langsung ubah state lokal tanpa tunggu reload
+
     setData(prev => prev.map(p =>
       p.id === pengadaanId
         ? { ...p, status: 'selesai', pengadaan_alokasi: p.pengadaan_alokasi.map(a => ({ ...a, alokasi_dapat: a.kebutuhan })) }
@@ -303,7 +303,6 @@ export default function PengadaanPage() {
                         </p>
                       )}
 
-                      {/* Progress rekening */}
                       {p.pengadaan_alokasi.length > 0 && (
                         <div className="space-y-1.5">
                           <div className="flex items-center justify-between text-xs text-stone-500">
@@ -321,7 +320,6 @@ export default function PengadaanPage() {
                         </div>
                       )}
 
-                      {/* Finalisasi — hanya creator */}
                       {p.dibuat_oleh_koperasi_id === myKoperasiId && p.status === 'aktif' && confirmId !== p.id && (
                         <button onClick={() => { setConfirmId(p.id); setFinalisasiError(null) }}
                           className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors">
@@ -329,7 +327,6 @@ export default function PengadaanPage() {
                         </button>
                       )}
 
-                      {/* Inline confirmation modal */}
                       {confirmId === p.id && p.status === 'aktif' && (
                         <div className="bg-blue-50 border border-blue-300 rounded-xl p-4 space-y-3">
                           <p className="text-blue-900 font-semibold text-sm">Konfirmasi Finalisasi</p>

@@ -15,7 +15,6 @@ CREATE TABLE profiles (
   created_at  timestamptz DEFAULT now()
 );
 
-
 CREATE OR REPLACE FUNCTION get_koperasi_id()
 RETURNS uuid
 LANGUAGE sql
@@ -25,21 +24,16 @@ AS $$
   SELECT koperasi_id FROM profiles WHERE id = auth.uid()
 $$;
 
-
--- ============================================================
--- TABEL OPERASIONAL (semua punya koperasi_id = multi-tenant)
--- ============================================================
-
 CREATE TABLE anggota (
   id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   koperasi_id      uuid NOT NULL REFERENCES koperasi(id),
   nama             text NOT NULL,
   no_hp            text,
-  -- Profil Awal: pengganti slip gaji untuk first-time borrower
-  ktp_hash         text,               -- SHA-256 dari NIK, bukan foto asli
-  id_penjamin      uuid,               -- anggota lain yang menjamin
+  
+  ktp_hash         text,               
+  id_penjamin      uuid,               
   nama_penjamin    text,
-  -- Limit kredit bertahap (Level 1-4)
+  
   limit_level      int DEFAULT 1,
   limit_rupiah     bigint DEFAULT 1000000,
   bergabung_at     timestamptz DEFAULT now()
@@ -49,34 +43,33 @@ CREATE TABLE ternak (
   id                    uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   koperasi_id           uuid NOT NULL REFERENCES koperasi(id),
   kode                  text NOT NULL,
-  jenis                 text NOT NULL,   -- sapi, kambing, ayam, dll
+  jenis                 text NOT NULL,   
   umur_bulan            int,
   status                text DEFAULT 'sehat'
                         CHECK (status IN ('sehat','pantau','sakit','mati')),
   vaksin_terakhir       date,
   nilai_estimasi        bigint DEFAULT 0,
   foto_url              text,
-  -- Verifikasi COCO-SSD (anti-agunan fiktif)
+  
   jumlah_klaim          int DEFAULT 1,
   jumlah_terverifikasi  int DEFAULT 0,
   terverifikasi         boolean DEFAULT false,
-  -- Handle ternak mati
+  
   tanggal_mati          date,
   dicatat_mati_oleh     uuid REFERENCES profiles(id),
   created_at            timestamptz DEFAULT now()
 );
 
--- Aset jaminan non-ternak: lahan & alat produksi
 CREATE TABLE aset_jaminan (
   id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   koperasi_id        uuid NOT NULL REFERENCES koperasi(id),
   anggota_id         uuid NOT NULL REFERENCES anggota(id),
   jenis              text NOT NULL CHECK (jenis IN ('lahan','alat')),
   foto_url           text,
-  deskripsi          text,           -- "Sawah 500m2" / "Traktor Kubota"
+  deskripsi          text,           
   nilai_estimasi     bigint DEFAULT 0,
-  status_kepemilikan text,           -- milik / garap (untuk lahan)
-  kondisi            text,           -- baik / cukup / rusak (untuk alat)
+  status_kepemilikan text,           
+  kondisi            text,           
   created_at         timestamptz DEFAULT now()
 );
 
@@ -106,7 +99,7 @@ CREATE TABLE pinjaman (
   jumlah_pokok       bigint NOT NULL,
   tenor_bulan        int NOT NULL,
   tanggal_mulai      date DEFAULT current_date,
-  angsuran_per_bulan bigint NOT NULL,  -- dihitung di app: jumlah_pokok / tenor_bulan
+  angsuran_per_bulan bigint NOT NULL,  
   status             text DEFAULT 'aktif'
                      CHECK (status IN ('aktif','lunas','macet')),
   created_at         timestamptz DEFAULT now()
@@ -123,19 +116,14 @@ CREATE TABLE angsuran (
                       CHECK (status IN ('pending','lunas','terlambat'))
 );
 
-
--- ============================================================
--- LUMBUNG PASS
--- ============================================================
-
 CREATE TABLE lumbung_pass (
   id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   koperasi_id    uuid NOT NULL REFERENCES koperasi(id),
   tujuan         text NOT NULL,
   mitra          text NOT NULL,
-  fields         jsonb NOT NULL,   -- data agregat yang dibagikan
-  hash           text NOT NULL,    -- SHA-256(fields) — bukti tidak diubah
-  consent        jsonb NOT NULL,   -- { simpanan: true, ternak: true, ... }
+  fields         jsonb NOT NULL,   
+  hash           text NOT NULL,    
+  consent        jsonb NOT NULL,   
   berlaku_sampai date NOT NULL,
   status         text DEFAULT 'aktif'
                  CHECK (status IN ('aktif','kedaluwarsa','dicabut')),
@@ -150,14 +138,6 @@ CREATE TABLE pass_access_log (
   ip          text
 );
 
--- ============================================================
--- CASE A — Cek riwayat kredit LINTAS KOPERASI (mini BI-Checking)
--- SECURITY DEFINER: berjalan di atas RLS sehingga bisa membaca
--- jejak pinjaman di semua koperasi, TAPI hanya mengembalikan
--- sinyal agregat. Tidak ada nama, nominal, atau identitas
--- koperasi lain yang bocor -> privasi anggota lain terjaga.
--- Pencocokan via ktp_hash (SHA-256 NIK), bukan NIK mentah.
--- ============================================================
 CREATE OR REPLACE FUNCTION cek_riwayat_kredit(p_ktp_hash text)
 RETURNS TABLE (
   jumlah_koperasi    int,
@@ -193,13 +173,7 @@ AS $$
          OR EXISTS(SELECT 1 FROM pj WHERE status = 'macet'));
 $$;
 
--- Boleh dipanggil dari klien (anon/authenticated) — outputnya sudah aman
 GRANT EXECUTE ON FUNCTION cek_riwayat_kredit(text) TO anon, authenticated;
-
-
--- ============================================================
--- LUMBUNG GUARD — audit trail otomatis
--- ============================================================
 
 CREATE TABLE audit_log (
   id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -214,7 +188,6 @@ CREATE TABLE audit_log (
   dilakukan_pada timestamptz DEFAULT now()
 );
 
--- Trigger function: catat semua perubahan secara otomatis
 CREATE OR REPLACE FUNCTION fn_audit_log()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -240,7 +213,6 @@ BEGIN
 END;
 $$;
 
--- Pasang trigger ke semua tabel utama
 CREATE TRIGGER trg_audit_ternak
   AFTER INSERT OR UPDATE OR DELETE ON ternak
   FOR EACH ROW EXECUTE FUNCTION fn_audit_log();
@@ -260,11 +232,6 @@ CREATE TRIGGER trg_audit_angsuran
 CREATE TRIGGER trg_audit_simpanan
   AFTER INSERT OR UPDATE OR DELETE ON simpanan
   FOR EACH ROW EXECUTE FUNCTION fn_audit_log();
-
-
--- ============================================================
--- LUMBUNG PASAR — pengadaan bersama (Case B)
--- ============================================================
 
 CREATE TABLE pengadaan (
   id                      uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -289,11 +256,6 @@ CREATE TABLE pengadaan_alokasi (
   catatan          text
 );
 
-
--- ============================================================
--- ATLAS VIEW — agregat untuk pemkab (tanpa data pribadi)
--- ============================================================
-
 CREATE OR REPLACE VIEW atlas_agregat AS
 SELECT
   k.id                                                          AS koperasi_id,
@@ -314,11 +276,6 @@ LEFT JOIN ternak   t ON t.koperasi_id = k.id
 LEFT JOIN pinjaman p ON p.koperasi_id = k.id
 GROUP BY k.id, k.nama, k.fokus_usaha;
 
-
--- ============================================================
--- ROW LEVEL SECURITY (RLS)
--- ============================================================
-
 ALTER TABLE koperasi          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE profiles          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE anggota           ENABLE ROW LEVEL SECURITY;
@@ -334,15 +291,12 @@ ALTER TABLE audit_log         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pengadaan         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE pengadaan_alokasi ENABLE ROW LEVEL SECURITY;
 
--- koperasi: semua role bisa baca (untuk dropdown & referensi)
 CREATE POLICY "koperasi_read" ON koperasi
   FOR SELECT USING (true);
 
--- profiles: user hanya akses profil sendiri
 CREATE POLICY "profiles_self" ON profiles
   FOR ALL USING (id = auth.uid());
 
--- Tabel tenant: hanya akses data koperasi sendiri
 CREATE POLICY "anggota_tenant"      ON anggota      FOR ALL USING (koperasi_id = get_koperasi_id());
 CREATE POLICY "ternak_tenant"       ON ternak       FOR ALL USING (koperasi_id = get_koperasi_id());
 CREATE POLICY "aset_jaminan_tenant" ON aset_jaminan FOR ALL USING (koperasi_id = get_koperasi_id());
@@ -350,7 +304,6 @@ CREATE POLICY "pakan_tenant"        ON pakan        FOR ALL USING (koperasi_id =
 CREATE POLICY "simpanan_tenant"     ON simpanan     FOR ALL USING (koperasi_id = get_koperasi_id());
 CREATE POLICY "pinjaman_tenant"     ON pinjaman     FOR ALL USING (koperasi_id = get_koperasi_id());
 
--- angsuran: akses via pinjaman milik koperasi sendiri
 CREATE POLICY "angsuran_tenant" ON angsuran
   FOR ALL USING (
     pinjaman_id IN (
@@ -358,40 +311,28 @@ CREATE POLICY "angsuran_tenant" ON angsuran
     )
   );
 
--- Pass: koperasi kelola pass miliknya
 CREATE POLICY "pass_tenant" ON lumbung_pass
   FOR ALL USING (koperasi_id = get_koperasi_id());
 
--- Pass: pemodal baca pass aktif via token (tanpa login)
 CREATE POLICY "pass_public_read" ON lumbung_pass
   FOR SELECT USING (status = 'aktif' AND berlaku_sampai >= current_date);
 
--- pass_access_log: siapapun bisa insert (catat akses pemodal)
 CREATE POLICY "pass_log_insert" ON pass_access_log
   FOR INSERT WITH CHECK (true);
 
--- audit_log: pengawas & pengurus baca log koperasinya
 CREATE POLICY "audit_log_read" ON audit_log
   FOR SELECT USING (koperasi_id = get_koperasi_id());
 
--- audit_log: trigger system bisa insert
 CREATE POLICY "audit_log_insert" ON audit_log
   FOR INSERT WITH CHECK (true);
 
--- pengadaan: semua koperasi bisa lihat & buat
 CREATE POLICY "pengadaan_select" ON pengadaan
   FOR SELECT USING (true);
 CREATE POLICY "pengadaan_insert" ON pengadaan
   FOR INSERT WITH CHECK (dibuat_oleh_koperasi_id = get_koperasi_id());
 
--- pengadaan_alokasi: koperasi kelola alokasi miliknya
 CREATE POLICY "alokasi_tenant" ON pengadaan_alokasi
   FOR ALL USING (koperasi_id = get_koperasi_id());
-
-
--- ============================================================
--- SEED: 5 koperasi awal
--- ============================================================
 
 INSERT INTO koperasi (nama, fokus_usaha, lokasi) VALUES
   ('Padiwangi',     'Simpan pinjam + beras',    'Desa Padiwangi, Kab. Sukabumi'),
