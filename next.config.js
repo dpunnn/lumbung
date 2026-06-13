@@ -8,6 +8,7 @@ const withPWA = require('next-pwa')({
 
 module.exports = withPWA({
   turbopack: {},
+  devIndicators: false,
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '*.supabase.co' },

@@ -70,7 +70,7 @@ export default function InsightPage() {
       ] = await Promise.all([
         supabase.from('koperasi').select('id, nama, fokus_usaha, modules').eq('id', kopId).single(),
         supabase.from('anggota').select('id, nama, bergabung_at').eq('koperasi_id', kopId),
-        supabase.from('simpanan').select('id, anggota_id, jumlah, tanggal').eq('koperasi_id', kopId),
+        supabase.from('simpanan').select('id, anggota_id, jumlah, tanggal').eq('koperasi_id', kopId).eq('status', 'confirmed'),
         supabase.from('pinjaman').select('id, anggota_id, jumlah_pokok, created_at').eq('koperasi_id', kopId),
         supabase.from('angsuran').select('id, jumlah_bayar, created_at, pinjaman_id').limit(500),
         supabase.from('pakan').select('id, nama, stok, satuan').eq('koperasi_id', kopId),

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { Beef, Landmark, FileText, Wheat, AlertTriangle, ChevronRight } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -19,35 +19,44 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    async function load() {
-      const { data: ternak } = await supabase.from('ternak').select('status, tanggal_mati')
-      const { data: simpanan } = await supabase.from('simpanan').select('jumlah')
-      const { data: pinjaman } = await supabase.from('pinjaman').select('status')
-      const { data: pakan } = await supabase.from('pakan').select('nama, stok, satuan, batas_minimum')
+  const load = useCallback(async () => {
+    const { data: ternak } = await supabase.from('ternak').select('status, tanggal_mati')
+    const { data: simpanan } = await supabase.from('simpanan').select('jumlah').eq('status', 'confirmed')
+    const { data: pinjaman } = await supabase.from('pinjaman').select('status')
+    const { data: pakan } = await supabase.from('pakan').select('nama, stok, satuan, batas_minimum')
 
-      const now = new Date()
-      const bulanIni = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    const now = new Date()
+    const bulanIni = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 
-      setStats({
-        ternak: {
-          sehat:       ternak?.filter(t => t.status === 'sehat').length ?? 0,
-          pantau:      ternak?.filter(t => t.status === 'pantau').length ?? 0,
-          sakit:       ternak?.filter(t => t.status === 'sakit').length ?? 0,
-          total:       ternak?.filter(t => t.status !== 'mati').length ?? 0,
-          matiBuilan:  ternak?.filter(t => t.status === 'mati' && t.tanggal_mati?.startsWith(bulanIni)).length ?? 0,
-        },
-        simpanan: simpanan?.reduce((s, r) => s + (r.jumlah ?? 0), 0) ?? 0,
-        pinjaman: {
-          aktif: pinjaman?.filter(p => p.status === 'aktif').length ?? 0,
-          macet: pinjaman?.filter(p => p.status === 'macet').length ?? 0,
-        },
-        pakan: (pakan ?? []).filter(p => p.batas_minimum > 0 && p.stok <= p.batas_minimum),
-      })
-      setLoading(false)
-    }
-    load()
+    setStats({
+      ternak: {
+        sehat:      ternak?.filter(t => t.status === 'sehat').length ?? 0,
+        pantau:     ternak?.filter(t => t.status === 'pantau').length ?? 0,
+        sakit:      ternak?.filter(t => t.status === 'sakit').length ?? 0,
+        total:      ternak?.filter(t => t.status !== 'mati').length ?? 0,
+        matiBuilan: ternak?.filter(t => t.status === 'mati' && t.tanggal_mati?.startsWith(bulanIni)).length ?? 0,
+      },
+      simpanan: simpanan?.reduce((s, r) => s + (r.jumlah ?? 0), 0) ?? 0,
+      pinjaman: {
+        aktif: pinjaman?.filter(p => p.status === 'aktif').length ?? 0,
+        macet: pinjaman?.filter(p => p.status === 'macet').length ?? 0,
+      },
+      pakan: (pakan ?? []).filter(p => p.batas_minimum > 0 && p.stok <= p.batas_minimum),
+    })
+    setLoading(false)
   }, [])
+
+  useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    const channel = supabase.channel('dashboard-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ternak' },   () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'simpanan' }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pinjaman' }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pakan' },    () => load())
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [load])
 
   if (loading) return (
     <div className="flex items-center justify-center h-48">

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Pinjaman, Angsuran, Anggota } from '@/types'
-import { AlertTriangle, CheckCircle, Plus } from 'lucide-react'
+import { AlertTriangle, CheckCircle, Plus, Clock, X } from 'lucide-react'
 
 const STATUS_STYLE: Record<string, string> = {
   diajukan: 'bg-amber-50 text-amber-700 border border-amber-200',
@@ -18,6 +18,12 @@ type PinjamanWithMeta = Pinjaman & {
   anggota: { nama: string } | null
 }
 
+type SimpananItem = {
+  id: string; jumlah: number; keterangan: string | null
+  tanggal: string; status: string; disputed_note: string | null
+  anggota: { nama: string } | null
+}
+
 type RiskProfile = {
   user_linked: boolean
   macet: number
@@ -28,34 +34,44 @@ type RiskProfile = {
 
 function RiskBadge({ r }: { r: RiskProfile | null }) {
   if (!r) return null
-  if (r.macet > 0) return (
-    <div className="bg-red-50 border border-red-200 border-l-4 border-l-red-500 rounded-xl p-4 space-y-1.5">
-      <div className="flex items-center gap-2">
-        <span className="text-red-600 font-bold text-sm">Peringatan Risiko Tinggi</span>
-        {r.cross_koperasi && (
-          <span className="bg-red-50 text-red-600 text-xs px-2 py-0.5 rounded-full border border-red-200">Lintas Koperasi</span>
-        )}
-      </div>
-      <p className="text-red-600 text-sm">
-        Anggota ini memiliki <strong>{r.macet} pinjaman macet</strong> dari {r.total} total pinjaman
-        {r.cross_koperasi ? ' di semua koperasi platform.' : ' di koperasi ini.'}
-      </p>
-      <p className="text-red-600 text-xs">Pertimbangkan untuk menolak atau meminta jaminan tambahan.</p>
-    </div>
-  )
-  if (r.aktif > 0) return (
-    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-2 text-amber-700 text-sm">
-      <AlertTriangle className="w-4 h-4 shrink-0" />
-      <span>Memiliki {r.aktif} pinjaman aktif{r.cross_koperasi ? ' di platform' : ''}. Pastikan kapasitas cicilan mencukupi.</span>
-    </div>
-  )
+  const score = r.total === 0 ? 100 : Math.max(0, Math.round((1 - r.macet / r.total) * 100))
+  const level = r.macet > 0 ? 'merah' : r.aktif >= 2 ? 'kuning' : 'hijau'
+  const barColor = level === 'merah' ? 'bg-red-500' : level === 'kuning' ? 'bg-amber-400' : 'bg-green-500'
+  const borderLeft = level === 'merah' ? 'border-l-red-500' : level === 'kuning' ? 'border-l-amber-400' : 'border-l-green-500'
+  const bg = level === 'merah' ? 'bg-red-50 border-red-200' : level === 'kuning' ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'
+  const txt = level === 'merah' ? 'text-red-600' : level === 'kuning' ? 'text-amber-700' : 'text-green-700'
+  const labelText = level === 'merah' ? 'BERISIKO TINGGI' : level === 'kuning' ? 'PERLU PERHATIAN' : 'BAIK'
+  const rec = level === 'merah'
+    ? 'Pertimbangkan untuk menolak atau meminta jaminan tambahan sebelum menyetujui.'
+    : level === 'kuning'
+    ? 'Verifikasi kapasitas cicilan — anggota sudah memiliki pinjaman aktif.'
+    : r.total > 0 ? `${r.total} pinjaman tercatat, semua lunas. Rekam jejak bersih.` : 'Peminjam pertama kali di platform — tidak ada riwayat negatif.'
+
   return (
-    <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-2 text-green-700 text-sm">
-      <CheckCircle className="w-4 h-4 shrink-0" />
-      <span>
-        Rekam jejak bersih{r.cross_koperasi ? ' (dicek lintas koperasi)' : ''}.
-        {r.total > 0 ? ` ${r.total} pinjaman, semua lunas.` : ' Peminjam pertama kali.'}
-      </span>
+    <div className={`${bg} border border-l-4 ${borderLeft} rounded-xl p-4 space-y-2.5`}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={`${txt} font-bold text-sm`}>Skor Kredit: {labelText}</span>
+          {r.cross_koperasi && (
+            <span className="bg-blue-50 text-blue-600 text-xs px-2 py-0.5 rounded-full border border-blue-200 font-medium">
+              Lintas Koperasi
+            </span>
+          )}
+        </div>
+        <span className={`${txt} text-2xl font-black tabular-nums`}>{score}</span>
+      </div>
+      <div className="w-full bg-stone-200 rounded-full h-2">
+        <div className={`${barColor} h-2 rounded-full transition-all duration-500`} style={{ width: `${score}%` }} />
+      </div>
+      <div className="flex items-center gap-4 text-xs text-stone-500 flex-wrap">
+        <span>{r.total} total pinjaman</span>
+        {r.macet > 0 && <span className="text-red-600 font-semibold">{r.macet} macet</span>}
+        {r.aktif > 0 && <span className="text-amber-600">{r.aktif} aktif berjalan</span>}
+        <span className="ml-auto text-stone-400 italic">
+          {r.cross_koperasi ? 'data dari seluruh platform Lumbung' : 'koperasi ini saja'}
+        </span>
+      </div>
+      <p className={`${txt} text-xs border-t border-current border-opacity-20 pt-2`}>{rec}</p>
     </div>
   )
 }
@@ -125,9 +141,11 @@ function PengajuanCard({
 }
 
 export default function SimpanPinjamPage() {
-  const [tab, setTab] = useState<'pinjaman' | 'pengajuan' | 'baru' | 'anggota'>('pinjaman')
+  const [tab, setTab] = useState<'pinjaman' | 'pengajuan' | 'setoran' | 'baru' | 'anggota'>('pinjaman')
   const [data, setData] = useState<PinjamanWithMeta[]>([])
   const [pengajuan, setPengajuan] = useState<PinjamanWithMeta[]>([])
+  const [simpananAksi, setSimpananAksi] = useState<SimpananItem[]>([])
+  const [formSetoran, setFormSetoran] = useState({ anggota_id: '', jumlah: '', keterangan: '' })
   const [anggotaList, setAnggotaList] = useState<Anggota[]>([])
   const [selected, setSelected] = useState<PinjamanWithMeta | null>(null)
   const [loading, setLoading] = useState(true)
@@ -142,18 +160,32 @@ export default function SimpanPinjamPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [{ data: semua }, { data: ag }] = await Promise.all([
+    const [{ data: semua }, { data: ag }, { data: sp }] = await Promise.all([
       supabase.from('pinjaman').select('*, anggota(nama), angsuran(*)').order('created_at', { ascending: false }),
       supabase.from('anggota').select('*').order('nama'),
+      supabase.from('simpanan')
+        .select('id, jumlah, keterangan, tanggal, status, disputed_note, anggota(nama)')
+        .in('status', ['pending_admin_confirm', 'pending_member_confirm', 'disputed', 'claimed'])
+        .order('tanggal', { ascending: false }),
     ])
     const rows = (semua as PinjamanWithMeta[]) ?? []
     setData(rows.filter(r => r.status !== 'diajukan'))
     setPengajuan(rows.filter(r => r.status === 'diajukan'))
     setAnggotaList(ag ?? [])
+    setSimpananAksi((sp ?? []) as unknown as SimpananItem[])
     setLoading(false)
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    const channel = supabase.channel('simpan-pinjam-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pinjaman' },  () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'angsuran' },  () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'simpanan' },  () => load())
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [load])
 
   async function checkRisk(anggotaId: string) {
     if (!anggotaId) { setRisk(null); return }
@@ -229,6 +261,52 @@ export default function SimpanPinjamPage() {
     load()
   }
 
+  async function handleCatatSetoran(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data: profile } = await supabase.from('profiles').select('koperasi_id').eq('id', user!.id).single()
+    await supabase.from('simpanan').insert({
+      koperasi_id: profile!.koperasi_id,
+      anggota_id: formSetoran.anggota_id,
+      jumlah: parseFloat(formSetoran.jumlah),
+      keterangan: formSetoran.keterangan || null,
+      status: 'pending_member_confirm',
+    })
+    setSaving(false)
+    setFormSetoran({ anggota_id: '', jumlah: '', keterangan: '' })
+    load()
+  }
+
+  async function confirmClaimed(id: string) {
+    setSaving(true)
+    await supabase.from('simpanan').update({
+      status: 'confirmed',
+      confirmed_at: new Date().toISOString(),
+    }).eq('id', id)
+    setSaving(false)
+    load()
+  }
+
+  async function rejectClaimed(id: string, nama: string) {
+    if (!confirm(`Tolak klaim dari ${nama}?`)) return
+    setSaving(true)
+    await supabase.from('simpanan').update({ status: 'rejected' }).eq('id', id)
+    setSaving(false)
+    load()
+  }
+
+  async function resolveDisputed(id: string) {
+    setSaving(true)
+    await supabase.from('simpanan').update({
+      status: 'confirmed',
+      confirmed_at: new Date().toISOString(),
+      disputed_note: null,
+    }).eq('id', id)
+    setSaving(false)
+    load()
+  }
+
   async function bayarAngsuran(angsuran: Angsuran) {
     await supabase.from('angsuran').update({
       tanggal_bayar: new Date().toISOString().split('T')[0],
@@ -265,15 +343,24 @@ export default function SimpanPinjamPage() {
         </div>
       </div>
 
-      <div className="flex gap-1 bg-white border border-stone-200 rounded-xl shadow-sm p-1 w-fit">
-        {(['pinjaman', 'pengajuan', 'baru', 'anggota'] as const).map(t => (
+      <div className="flex flex-wrap gap-1 bg-white border border-stone-200 rounded-xl shadow-sm p-1 w-fit">
+        {(['pinjaman', 'pengajuan', 'setoran', 'baru', 'anggota'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-all relative
               ${tab === t ? 'bg-amber-700 text-white' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'}`}>
-            {t === 'baru' ? 'Pinjaman Baru' : t === 'anggota' ? 'Tambah Anggota' : t === 'pengajuan' ? 'Pengajuan' : 'Daftar Pinjaman'}
+            {t === 'baru' ? 'Pinjaman Baru'
+              : t === 'anggota' ? 'Tambah Anggota'
+              : t === 'pengajuan' ? 'Pengajuan Pinjaman'
+              : t === 'setoran' ? 'Setoran Masuk'
+              : 'Daftar Pinjaman'}
             {t === 'pengajuan' && pengajuan.length > 0 && (
               <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
                 {pengajuan.length}
+              </span>
+            )}
+            {t === 'setoran' && simpananAksi.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-amber-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                {simpananAksi.length}
               </span>
             )}
           </button>
@@ -300,7 +387,136 @@ export default function SimpanPinjamPage() {
         </div>
       )}
 
-      {/* TAB: Buat pinjaman baru (pengurus langsung approve) */}
+      {/* TAB: Setoran */}
+      {tab === 'setoran' && (
+        <div className="space-y-5">
+          {/* Form catat setoran baru */}
+          <div className="bg-white border border-stone-200 rounded-xl shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-stone-200">
+              <h2 className="text-stone-900 font-semibold text-sm">Catat Setoran Anggota</h2>
+              <p className="text-stone-400 text-xs mt-0.5">Anggota akan mendapat notifikasi untuk konfirmasi</p>
+            </div>
+            <form onSubmit={handleCatatSetoran} className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2 sm:col-span-1">
+                  <label className="block text-stone-600 text-xs uppercase tracking-wide font-medium mb-1.5">Anggota *</label>
+                  <select required value={formSetoran.anggota_id}
+                    onChange={e => setFormSetoran(f => ({ ...f, anggota_id: e.target.value }))}
+                    className="w-full bg-white border border-stone-300 rounded-lg px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500">
+                    <option value="">Pilih anggota...</option>
+                    {anggotaList.map(a => <option key={a.id} value={a.id}>{a.nama}</option>)}
+                  </select>
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                  <label className="block text-stone-600 text-xs uppercase tracking-wide font-medium mb-1.5">Jumlah (Rp) *</label>
+                  <input required type="number" min="1000" value={formSetoran.jumlah}
+                    onChange={e => setFormSetoran(f => ({ ...f, jumlah: e.target.value }))}
+                    placeholder="100000"
+                    className="w-full bg-white border border-stone-300 rounded-lg px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-stone-600 text-xs uppercase tracking-wide font-medium mb-1.5">Keterangan</label>
+                <input value={formSetoran.keterangan}
+                  onChange={e => setFormSetoran(f => ({ ...f, keterangan: e.target.value }))}
+                  placeholder="Simpanan wajib Juli"
+                  className="w-full bg-white border border-stone-300 rounded-lg px-3 py-2.5 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500" />
+              </div>
+              <button type="submit" disabled={saving}
+                className="w-full bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white font-semibold rounded-lg py-2.5 text-sm transition-colors">
+                {saving ? 'Mencatat...' : 'Catat & Kirim ke Anggota'}
+              </button>
+            </form>
+          </div>
+
+          {/* Item perlu tindakan */}
+          {simpananAksi.length > 0 && (
+            <div className="space-y-3">
+              <p className="text-stone-700 text-sm font-semibold">Perlu tindakan ({simpananAksi.length})</p>
+              {simpananAksi.map(s => {
+                const jamLalu = (Date.now() - new Date(s.tanggal).getTime()) / 3_600_000
+                const isLama = s.status === 'pending_member_confirm' && jamLalu > 24
+                return (
+                  <div key={s.id} className={`bg-white border-l-4 rounded-xl shadow-sm p-4
+                    ${s.status === 'disputed' ? 'border border-red-300 border-l-red-500'
+                      : s.status === 'claimed' ? 'border border-amber-300 border-l-amber-500'
+                      : isLama ? 'border border-red-200 border-l-red-400'
+                      : 'border border-stone-200 border-l-stone-400'}`}>
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-stone-900 font-semibold">{s.anggota?.nama ?? '--'}</p>
+                          {s.status === 'pending_admin_confirm' && (
+                            <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full inline-flex items-center gap-1">
+                              <Clock size={9} /> Diajukan anggota
+                            </span>
+                          )}
+                          {s.status === 'pending_member_confirm' && (
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full border inline-flex items-center gap-1
+                              ${isLama ? 'bg-red-50 text-red-600 border-red-200' : 'bg-stone-50 text-stone-500 border-stone-200'}`}>
+                              <Clock size={9} /> Menunggu konfirmasi anggota {isLama ? `— ${Math.floor(jamLalu)}j` : ''}
+                            </span>
+                          )}
+                          {s.status === 'disputed' && (
+                            <span className="text-[10px] bg-red-50 text-red-600 border border-red-200 px-1.5 py-0.5 rounded-full">
+                              Disengketakan anggota
+                            </span>
+                          )}
+                          {s.status === 'claimed' && (
+                            <span className="text-[10px] bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full">
+                              Klaim tidak tercatat
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-stone-900 font-bold text-lg mt-0.5">Rp {s.jumlah.toLocaleString('id-ID')}</p>
+                        {s.keterangan && <p className="text-stone-500 text-sm">{s.keterangan}</p>}
+                        {s.status === 'disputed' && s.disputed_note && (
+                          <p className="text-red-600 text-xs mt-1 bg-red-50 border border-red-100 rounded px-2 py-1">
+                            Laporan anggota: "{s.disputed_note}"
+                          </p>
+                        )}
+                        {s.status === 'claimed' && (
+                          <p className="text-amber-700 text-xs mt-1">Anggota mengklaim sudah setor tapi belum tercatat.</p>
+                        )}
+                      </div>
+                      <p className="text-stone-400 text-xs shrink-0">
+                        {new Date(s.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                      </p>
+                    </div>
+                    {(s.status === 'pending_admin_confirm' || s.status === 'claimed' || s.status === 'disputed') && (
+                      <div className="flex gap-2">
+                        <button onClick={() => s.status === 'claimed' ? confirmClaimed(s.id) : s.status === 'disputed' ? resolveDisputed(s.id) : confirmClaimed(s.id)}
+                          disabled={saving}
+                          className="flex-1 bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white text-sm font-semibold py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5">
+                          <CheckCircle size={13} />
+                          {s.status === 'pending_admin_confirm' ? 'Konfirmasi Setoran'
+                            : s.status === 'claimed' ? 'Konfirmasi Klaim'
+                            : 'Selesaikan Sengketa'}
+                        </button>
+                        {(s.status === 'claimed' || s.status === 'pending_admin_confirm') && (
+                          <button onClick={() => rejectClaimed(s.id, s.anggota?.nama ?? '')} disabled={saving}
+                            className="flex-1 border border-red-200 hover:bg-red-50 text-red-600 text-sm font-semibold py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5">
+                            <X size={13} /> {s.status === 'pending_admin_confirm' ? 'Tolak' : 'Tolak Klaim'}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {simpananAksi.length === 0 && (
+            <div className="text-center py-12 bg-white border border-stone-200 rounded-xl shadow-sm">
+              <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
+              <p className="text-green-700 font-semibold">Tidak ada item perlu tindakan</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB: Buat pinjaman baru */}
       {tab === 'baru' && (
         <form onSubmit={handleBuatPinjaman} className="bg-white border border-stone-200 rounded-xl shadow-sm overflow-hidden">
           <div className="px-6 py-4 border-b border-stone-200">

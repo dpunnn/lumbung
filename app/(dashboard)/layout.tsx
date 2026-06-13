@@ -18,6 +18,7 @@ type NavItem = {
   label: string
   icon: React.ElementType
   module: string | null
+  roles?: string[]  // jika diisi, hanya role ini yang bisa lihat
 }
 
 const ALL_NAV: NavItem[] = [
@@ -27,10 +28,10 @@ const ALL_NAV: NavItem[] = [
   { href: '/inventori',     label: 'Inventori',      icon: Archive,         module: 'inventori' },
   { href: '/air',           label: 'Utilitas Air',   icon: Droplets,        module: 'air' },
   { href: '/simpan-pinjam', label: 'Simpan Pinjam',  icon: Landmark,        module: 'simpan_pinjam' },
-  { href: '/pass',          label: 'Pass',           icon: CreditCard,      module: 'pass' },
-  { href: '/insight',       label: 'Insight AI',     icon: Lightbulb,       module: 'insight' },
-  { href: '/lens',          label: 'Lens',           icon: TrendingUp,      module: 'lens' },
-  { href: '/guard',         label: 'Guard',          icon: ShieldCheck,     module: 'guard' },
+  { href: '/pass',          label: 'Pass',           icon: CreditCard,      module: 'pass',    roles: ['pengurus', 'pemkab', 'pengawas'] },
+  { href: '/insight',       label: 'Insight AI',     icon: Lightbulb,       module: 'insight', roles: ['pengurus', 'pemkab', 'pengawas'] },
+  { href: '/lens',          label: 'Lens',           icon: TrendingUp,      module: 'lens',    roles: ['pengurus', 'pemkab', 'pengawas'] },
+  { href: '/guard',         label: 'Guard',          icon: ShieldCheck,     module: 'guard',   roles: ['pengurus', 'pemkab', 'pengawas'] },
   { href: '/pengadaan',     label: 'Pasar',          icon: ShoppingBag,     module: 'pasar' },
   { href: '/atlas',         label: 'Atlas',          icon: Map,             module: 'atlas' },
 ]
@@ -66,7 +67,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const visibleNav = ALL_NAV.filter(n => {
     if (n.module === null) return true
     if (n.module === 'atlas') return profile?.role === 'pemkab' || profile?.role === 'pengawas'
-    return modules.includes(n.module)
+    if (!modules.includes(n.module)) return false
+    if (n.roles && profile?.role) return n.roles.includes(profile.role)
+    return true
   })
 
   async function handleLogout() {

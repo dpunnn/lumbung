@@ -43,7 +43,7 @@ export default function AtlasPage() {
     const rows: AtasRow[] = await Promise.all(kops.map(async k => {
       const [{ count: anggota }, { data: simpanan }, { data: ternak }, { count: pinjaman }] = await Promise.all([
         supabase.from('anggota').select('*', { count: 'exact', head: true }).eq('koperasi_id', k.id),
-        supabase.from('simpanan').select('jumlah').eq('koperasi_id', k.id),
+        supabase.from('simpanan').select('jumlah').eq('koperasi_id', k.id).eq('status', 'confirmed'),
         supabase.from('ternak').select('status').eq('koperasi_id', k.id),
         supabase.from('pinjaman').select('*', { count: 'exact', head: true }).eq('koperasi_id', k.id).eq('status', 'aktif'),
       ])

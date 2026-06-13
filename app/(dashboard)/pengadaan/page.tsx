@@ -44,6 +44,8 @@ export default function PengadaanPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [confirmId, setConfirmId] = useState<string | null>(null)
+  const [finalisasiError, setFinalisasiError] = useState<string | null>(null)
   const [form, setForm] = useState({ judul: '', item: '', satuan: 'kg', kebutuhan: '' })
   const [ajukanForm, setAjukanForm] = useState<Record<string, { kebutuhan: string; status_rekening: string }>>({})
 
@@ -85,6 +87,31 @@ export default function PengadaanPage() {
     setForm({ judul: '', item: '', satuan: 'kg', kebutuhan: '' })
     setTab('daftar')
     loadData()
+  }
+
+  async function handleFinalisasi(pengadaanId: string) {
+    setSaving(true)
+    setFinalisasiError(null)
+    const { data: allocs } = await supabase
+      .from('pengadaan_alokasi').select('id, kebutuhan').eq('pengadaan_id', pengadaanId)
+    for (const a of allocs ?? []) {
+      await supabase.from('pengadaan_alokasi')
+        .update({ alokasi_dapat: a.kebutuhan }).eq('id', a.id)
+    }
+    const { error } = await supabase.from('pengadaan').update({ status: 'selesai' }).eq('id', pengadaanId)
+    if (error) {
+      setFinalisasiError('Gagal memperbarui status: ' + error.message)
+      setSaving(false)
+      return
+    }
+    // Optimistic update — langsung ubah state lokal tanpa tunggu reload
+    setData(prev => prev.map(p =>
+      p.id === pengadaanId
+        ? { ...p, status: 'selesai', pengadaan_alokasi: p.pengadaan_alokasi.map(a => ({ ...a, alokasi_dapat: a.kebutuhan })) }
+        : p
+    ))
+    setConfirmId(null)
+    setSaving(false)
   }
 
   async function handleAjukan(pengadaanId: string) {
@@ -274,6 +301,64 @@ export default function PengadaanPage() {
                         <p className="text-green-600 text-xs flex items-center gap-1">
                           <CheckCircle size={12} /> Koperasimu sudah terdaftar di pengadaan ini
                         </p>
+                      )}
+
+                      {/* Progress rekening */}
+                      {p.pengadaan_alokasi.length > 0 && (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between text-xs text-stone-500">
+                            <span>Rekening terhubung</span>
+                            <span className="font-medium text-stone-700">
+                              {p.pengadaan_alokasi.filter(a => a.status_rekening === 'terhubung').length} / {p.pengadaan_alokasi.length} koperasi
+                            </span>
+                          </div>
+                          <div className="w-full bg-stone-200 rounded-full h-1.5">
+                            <div
+                              className="bg-green-500 h-1.5 rounded-full transition-all"
+                              style={{ width: `${(p.pengadaan_alokasi.filter(a => a.status_rekening === 'terhubung').length / p.pengadaan_alokasi.length) * 100}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Finalisasi — hanya creator */}
+                      {p.dibuat_oleh_koperasi_id === myKoperasiId && p.status === 'aktif' && confirmId !== p.id && (
+                        <button onClick={() => { setConfirmId(p.id); setFinalisasiError(null) }}
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors">
+                          Finalisasi & Tetapkan Alokasi
+                        </button>
+                      )}
+
+                      {/* Inline confirmation modal */}
+                      {confirmId === p.id && p.status === 'aktif' && (
+                        <div className="bg-blue-50 border border-blue-300 rounded-xl p-4 space-y-3">
+                          <p className="text-blue-900 font-semibold text-sm">Konfirmasi Finalisasi</p>
+                          <p className="text-blue-700 text-xs leading-relaxed">
+                            Status pengadaan akan diubah menjadi <strong>selesai</strong> dan alokasi untuk setiap koperasi
+                            akan ditetapkan sesuai kebutuhan yang sudah didaftarkan. Tindakan ini tidak dapat dibatalkan.
+                          </p>
+                          {finalisasiError && (
+                            <p className="text-red-600 text-xs bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                              {finalisasiError}
+                            </p>
+                          )}
+                          <div className="flex gap-2">
+                            <button onClick={() => handleFinalisasi(p.id)} disabled={saving}
+                              className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold py-2 rounded-lg transition-colors">
+                              {saving ? 'Memproses...' : 'Ya, Finalisasi'}
+                            </button>
+                            <button onClick={() => { setConfirmId(null); setFinalisasiError(null) }} disabled={saving}
+                              className="flex-1 border border-stone-300 hover:border-stone-400 text-stone-600 text-sm py-2 rounded-lg transition-colors">
+                              Batal
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {p.status === 'selesai' && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-blue-700 text-xs font-medium flex items-center gap-1.5">
+                          <CheckCircle size={13} /> Pengadaan selesai — alokasi sudah ditetapkan
+                        </div>
                       )}
                     </div>
                   )}

@@ -41,10 +41,6 @@ function countPerBulan(items: { ts: string }[], bulanBack = 6): number[] {
   });
 }
 
-/**
- * Anomaly analyzer yang data-driven dari InsightInput nyata.
- * Tidak ada switch per koperasi ID — works untuk semua tenant.
- */
 export const anomalyAnalyzer: Analyzer = (input) => {
   const { koperasi, transaksi, ternak, stok } = input;
   const signals: Signal[] = [];
@@ -86,7 +82,6 @@ export const anomalyAnalyzer: Analyzer = (input) => {
   // ── 2. Pinjaman: angsuran macet terkonsentrasi ────────────────────────────
   if (koperasi.modules.includes("simpan_pinjam")) {
     const pinjamanTx = transaksi.filter(t => t.tipe === "pinjaman");
-    // Hitung berapa pinjaman baru per bulan (proxy untuk aktivitas kredit)
     const series = countPerBulan(pinjamanTx.map(t => ({ ts: t.ts })));
     const r = detectAnomali(series, 2.5);
     if (r.isAnomaly && r.value > r.mean * 2) {
@@ -133,13 +128,12 @@ export const anomalyAnalyzer: Analyzer = (input) => {
       });
     }
 
-    // Deteksi ternak tidak divaksin dalam waktu lama
     const now = Date.now();
     const perluVaksin = ternak.filter(t => {
       if (t.status === "mati") return false;
       if (!t.vaksin || t.vaksin.length === 0) return true;
       const last = new Date(t.vaksin[t.vaksin.length - 1]).getTime();
-      return (now - last) > 90 * 24 * 60 * 60 * 1000; // > 90 hari
+      return (now - last) > 90 * 24 * 60 * 60 * 1000;
     });
     if (perluVaksin.length >= 3) {
       signals.push({
@@ -159,8 +153,8 @@ export const anomalyAnalyzer: Analyzer = (input) => {
     }
   }
 
-  // ── 4. Inventori: stok menipis ≥ 3 item sekaligus (cluster alert) ─────────
-  if (koperasi.modules.includes("inventori") || koperasi.modules.includes("pakan")) {
+  // ── 4. Inventori: stok menipis ≥ 2 item sekaligus (cluster alert) ─────────
+  if (koperasi.modules.includes("inventori") || (koperasi.modules as string[]).includes("pakan")) {
     const itemMenipis = stok.filter(s => s.qty <= 50 && (s.kondisi ?? "baik") === "baik");
     if (itemMenipis.length >= 2) {
       signals.push({

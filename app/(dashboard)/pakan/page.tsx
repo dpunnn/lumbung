@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Plus, Pencil, Trash2, AlertTriangle, Wheat } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import type { Pakan } from '@/types'
@@ -15,14 +15,21 @@ export default function PakanPage() {
   const [form, setForm] = useState({ nama: '', stok: '', satuan: 'kg', batas_minimum: '' })
   const [saving, setSaving] = useState(false)
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true)
     const { data: rows } = await supabase.from('pakan').select('*').order('nama')
     setData(rows ?? [])
     setLoading(false)
-  }
+  }, [])
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    const channel = supabase.channel('pakan-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pakan' }, () => load())
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [load])
 
   function set(k: string, v: string) { setForm(f => ({ ...f, [k]: v })) }
 

@@ -53,3 +53,4 @@ export interface Ternak {
   vaksin: string[];
   status: "sehat" | "perlu_vaksin" | "sakit" | "mati";
 }
+

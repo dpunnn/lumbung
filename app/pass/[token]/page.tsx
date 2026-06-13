@@ -36,6 +36,22 @@ export default function PassPublicPage() {
       })
     }
     load()
+
+    // Realtime: kalau admin cabut pass saat lender sedang buka, langsung berubah
+    const channel = supabase
+      .channel(`pass-watch-${token}`)
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'lumbung_pass',
+        filter: `id=eq.${token}`,
+      }, (payload) => {
+        const updated = payload.new as LumbungPass
+        setPass(updated)
+        const expired = new Date(updated.berlaku_sampai) < new Date() || updated.status !== 'aktif'
+        if (expired) setStatus('expired')
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [token])
 
   if (status === 'loading') {

@@ -1,191 +1,218 @@
 -- ============================================================
--- LUMBUNG SEED DATA — Demo TechnoScape 9.0
--- Jalankan di Supabase SQL Editor
--- PERHATIAN: Jalankan hanya sekali. Kalau mau ulang, truncate dulu.
+-- LUMBUNG — SEED DATA OPERASIONAL (Phase 11.1) — GABUNGAN
+-- Jalankan SETELAH schema.sql, di Supabase SQL Editor.
+-- Aman dijalankan berulang: data operasional lama dihapus dulu,
+-- tabel koperasi & profiles TIDAK disentuh.
 -- ============================================================
+
+-- pgcrypto untuk digest() (hash NIK). Aman bila sudah ada.
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- ---------- Helper: generate angsuran untuk satu pinjaman ----------
+CREATE OR REPLACE FUNCTION _seed_angsuran(
+  p uuid, mulai date, tenor int, perbulan bigint,
+  lunas_sampai int, terlambat_sampai int
+) RETURNS void LANGUAGE plpgsql AS $$
+DECLARE b int; jt date;
+BEGIN
+  FOR b IN 1..tenor LOOP
+    jt := (mulai + (b || ' month')::interval)::date;
+    IF b <= lunas_sampai THEN
+      INSERT INTO angsuran(pinjaman_id, bulan_ke, tanggal_jatuh_tempo, tanggal_bayar, jumlah_bayar, status)
+      VALUES (p, b, jt, jt, perbulan, 'lunas');
+    ELSIF b <= terlambat_sampai THEN
+      INSERT INTO angsuran(pinjaman_id, bulan_ke, tanggal_jatuh_tempo, status)
+      VALUES (p, b, jt, 'terlambat');
+    ELSE
+      INSERT INTO angsuran(pinjaman_id, bulan_ke, tanggal_jatuh_tempo, status)
+      VALUES (p, b, jt, 'pending');
+    END IF;
+  END LOOP;
+END $$;
+
+-- ---------- Helper: simpanan bulanan 6 bulan (trend naik) ----------
+CREATE OR REPLACE FUNCTION _seed_simpanan(kop uuid, base bigint) RETURNS void LANGUAGE plpgsql AS $$
+DECLARE m int; a record; tgl date;
+BEGIN
+  FOR m IN 0..5 LOOP
+    tgl := (date_trunc('month', current_date) - (m || ' month')::interval)::date + 4;
+    FOR a IN SELECT id FROM anggota WHERE koperasi_id = kop LOOP
+      INSERT INTO simpanan(koperasi_id, anggota_id, jumlah, tanggal, keterangan)
+      VALUES (kop, a.id, base + (5 - m) * 25000, tgl, 'Simpanan wajib');
+    END LOOP;
+  END LOOP;
+END $$;
+
 
 DO $$
 DECLARE
-  -- Koperasi
-  v_harapan   uuid;
-  v_padiwangi uuid;
-  v_melati    uuid;
-  v_sumber    uuid;
-  v_tirta     uuid;
-
-  -- Anggota Harapan Baru
-  v_joko  uuid := gen_random_uuid();
-  v_marni uuid := gen_random_uuid();
-  v_budi  uuid := gen_random_uuid();
-  v_siti  uuid := gen_random_uuid();
-  v_andi  uuid := gen_random_uuid();
-  v_rini  uuid := gen_random_uuid();
-
-  -- Anggota Padiwangi
-  v_hendra uuid := gen_random_uuid();
-  v_wati   uuid := gen_random_uuid();
-
-  -- Pinjaman
-  v_pin1 uuid := gen_random_uuid();
-  v_pin2 uuid := gen_random_uuid();
-  v_pin3 uuid := gen_random_uuid();
-  v_pin4 uuid := gen_random_uuid();
-  v_pin5 uuid := gen_random_uuid();
-
-  -- Pengadaan
-  v_pgd  uuid := gen_random_uuid();
-
-  -- Kasir untuk anomali (ambil profile pertama yang ada)
-  v_kasir uuid;
-
+  k_padi uuid; k_melati uuid; k_sumber uuid; k_tirta uuid; k_harapan uuid;
+  pid uuid;
+  a_asep uuid; a_budi uuid; a_cucu uuid; a_dedi uuid; a_eli uuid;
+  hendra_padi uuid; hendra_tirta uuid;
+  prg uuid;
+  v_kasir uuid;   -- profile untuk demo anomali Case D
 BEGIN
-  -- Ambil ID koperasi
-  SELECT id INTO v_harapan   FROM koperasi WHERE nama ILIKE '%Harapan Baru%'    LIMIT 1;
-  SELECT id INTO v_padiwangi FROM koperasi WHERE nama ILIKE '%Padiwangi%'        LIMIT 1;
-  SELECT id INTO v_melati    FROM koperasi WHERE nama ILIKE '%Melati%'           LIMIT 1;
-  SELECT id INTO v_sumber    FROM koperasi WHERE nama ILIKE '%Sumber Makmur%'    LIMIT 1;
-  SELECT id INTO v_tirta     FROM koperasi WHERE nama ILIKE '%Tirta%'            LIMIT 1;
+  SELECT id INTO k_padi    FROM koperasi WHERE nama = 'Padiwangi';
+  SELECT id INTO k_melati  FROM koperasi WHERE nama = 'Melati Jaya';
+  SELECT id INTO k_sumber  FROM koperasi WHERE nama = 'Sumber Makmur';
+  SELECT id INTO k_tirta   FROM koperasi WHERE nama = 'Tirta Bersama';
+  SELECT id INTO k_harapan FROM koperasi WHERE nama = 'Harapan Baru';
 
-  -- Ambil satu profile yang ada (untuk kasir anomali demo)
+  -- ===== Bersihkan data operasional lama (urut anak -> induk) =====
+  DELETE FROM angsuran;
+  DELETE FROM pinjaman;
+  DELETE FROM simpanan;
+  DELETE FROM aset_jaminan;
+  DELETE FROM ternak;
+  DELETE FROM pakan;
+  DELETE FROM pengadaan_alokasi;
+  DELETE FROM pengadaan;
+  DELETE FROM anggota;
+  DELETE FROM audit_log;   -- bersihkan jejak audit lama (termasuk Case D) agar tidak dobel
+
+  -- ============================================================
+  -- HARAPAN BARU (Ternak & pakan) — koperasi paling lengkap
+  -- ============================================================
+  INSERT INTO anggota(koperasi_id, nama) VALUES
+    (k_harapan,'Asep'),(k_harapan,'Budi'),(k_harapan,'Cucu'),(k_harapan,'Dedi'),
+    (k_harapan,'Eli'),(k_harapan,'Fitri'),(k_harapan,'Gilang'),(k_harapan,'Hesti'),
+    (k_harapan,'Imam'),(k_harapan,'Joko'),(k_harapan,'Kiki'),(k_harapan,'Lina');
+
+  SELECT id INTO a_asep FROM anggota WHERE koperasi_id=k_harapan AND nama='Asep';
+  SELECT id INTO a_budi FROM anggota WHERE koperasi_id=k_harapan AND nama='Budi';
+  SELECT id INTO a_cucu FROM anggota WHERE koperasi_id=k_harapan AND nama='Cucu';
+  SELECT id INTO a_dedi FROM anggota WHERE koperasi_id=k_harapan AND nama='Dedi';
+  SELECT id INTO a_eli  FROM anggota WHERE koperasi_id=k_harapan AND nama='Eli';
+
+  -- Ternak: 6 sehat / 1 pantau / 1 sakit
+  INSERT INTO ternak(koperasi_id, kode, jenis, umur_bulan, status, nilai_estimasi, jumlah_klaim, jumlah_terverifikasi, terverifikasi) VALUES
+    (k_harapan,'TRN-01','Sapi',24,'sehat',15000000,1,1,true),
+    (k_harapan,'TRN-02','Sapi',20,'sehat',14000000,1,1,true),
+    (k_harapan,'TRN-03','Sapi',30,'sehat',16000000,1,1,true),
+    (k_harapan,'TRN-04','Kambing',12,'sehat',2500000,1,1,true),
+    (k_harapan,'TRN-05','Kambing',10,'sehat',2400000,1,0,false),
+    (k_harapan,'TRN-06','Kambing',14,'sehat',2600000,1,0,false),
+    (k_harapan,'TRN-07','Kambing',8 ,'pantau',2000000,1,0,false),
+    (k_harapan,'TRN-08','Sapi',18,'sakit',12000000,1,0,false);
+
+  -- Pakan: 3 jenis, 1 di bawah batas minimum (Konsentrat)
+  INSERT INTO pakan(koperasi_id, nama, stok, satuan, batas_minimum) VALUES
+    (k_harapan,'Konsentrat',40 ,'kg',50),   -- MENIPIS
+    (k_harapan,'Hijauan'   ,250,'kg',100),
+    (k_harapan,'Dedak'     ,90 ,'kg',60);
+
+  -- Aset jaminan (untuk demo Pass / Profil Awal)
+  INSERT INTO aset_jaminan(koperasi_id, anggota_id, jenis, deskripsi, nilai_estimasi, status_kepemilikan) VALUES
+    (k_harapan, a_asep, 'lahan', 'Sawah 500 m2', 30000000, 'milik');
+  INSERT INTO aset_jaminan(koperasi_id, anggota_id, jenis, deskripsi, nilai_estimasi, kondisi) VALUES
+    (k_harapan, a_budi, 'alat', 'Traktor mini', 18000000, 'baik');
+
+  -- 5 pinjaman: 4 lancar / 1 macet; 2 sudah berjalan 5 bulan
+  -- (Asep & Budi: berjalan 5 bulan -> demo input angsuran bulan ke-6)
+  INSERT INTO pinjaman(koperasi_id,anggota_id,jumlah_pokok,tenor_bulan,tanggal_mulai,angsuran_per_bulan,status)
+    VALUES (k_harapan,a_asep,6000000,12,(current_date - interval '5 month')::date,500000,'aktif') RETURNING id INTO pid;
+  PERFORM _seed_angsuran(pid,(current_date - interval '5 month')::date,12,500000,5,5);
+
+  INSERT INTO pinjaman(koperasi_id,anggota_id,jumlah_pokok,tenor_bulan,tanggal_mulai,angsuran_per_bulan,status)
+    VALUES (k_harapan,a_budi,4800000,12,(current_date - interval '5 month')::date,400000,'aktif') RETURNING id INTO pid;
+  PERFORM _seed_angsuran(pid,(current_date - interval '5 month')::date,12,400000,5,5);
+
+  INSERT INTO pinjaman(koperasi_id,anggota_id,jumlah_pokok,tenor_bulan,tanggal_mulai,angsuran_per_bulan,status)
+    VALUES (k_harapan,a_cucu,3600000,12,(current_date - interval '3 month')::date,300000,'aktif') RETURNING id INTO pid;
+  PERFORM _seed_angsuran(pid,(current_date - interval '3 month')::date,12,300000,3,3);
+
+  INSERT INTO pinjaman(koperasi_id,anggota_id,jumlah_pokok,tenor_bulan,tanggal_mulai,angsuran_per_bulan,status)
+    VALUES (k_harapan,a_dedi,2400000,12,(current_date - interval '3 month')::date,200000,'aktif') RETURNING id INTO pid;
+  PERFORM _seed_angsuran(pid,(current_date - interval '3 month')::date,12,200000,3,3);
+
+  -- Eli: MACET (bayar 2 bulan, lalu nunggak 3 bulan)
+  INSERT INTO pinjaman(koperasi_id,anggota_id,jumlah_pokok,tenor_bulan,tanggal_mulai,angsuran_per_bulan,status)
+    VALUES (k_harapan,a_eli,4200000,12,(current_date - interval '5 month')::date,350000,'macet') RETURNING id INTO pid;
+  PERFORM _seed_angsuran(pid,(current_date - interval '5 month')::date,12,350000,2,5);
+
+  PERFORM _seed_simpanan(k_harapan, 100000);
+
+  -- ============================================================
+  -- PADIWANGI (Simpan pinjam + beras) — Pak Hendra LANCAR
+  -- ============================================================
+  INSERT INTO anggota(koperasi_id, nama) VALUES
+    (k_padi,'Pak Hendra'),(k_padi,'Rina'),(k_padi,'Sari'),(k_padi,'Tono');
+  SELECT id INTO hendra_padi FROM anggota WHERE koperasi_id=k_padi AND nama='Pak Hendra';
+
+  -- Pak Hendra di Padiwangi = track record bagus -> limit Level 4 (untuk demo Pass)
+  UPDATE anggota SET limit_level = 4, limit_rupiah = 20000000
+    WHERE id = hendra_padi;
+
+  INSERT INTO pinjaman(koperasi_id,anggota_id,jumlah_pokok,tenor_bulan,tanggal_mulai,angsuran_per_bulan,status)
+    VALUES (k_padi,hendra_padi,5000000,12,(current_date - interval '5 month')::date,420000,'aktif') RETURNING id INTO pid;
+  PERFORM _seed_angsuran(pid,(current_date - interval '5 month')::date,12,420000,5,5); -- semua lancar
+
+  PERFORM _seed_simpanan(k_padi, 150000);
+
+  -- ============================================================
+  -- TIRTA BERSAMA (Air + simpan pinjam) — Pak Hendra ada TUNGGAKAN
+  -- ============================================================
+  INSERT INTO anggota(koperasi_id, nama) VALUES
+    (k_tirta,'Pak Hendra'),(k_tirta,'Wawan'),(k_tirta,'Yani');
+  SELECT id INTO hendra_tirta FROM anggota WHERE koperasi_id=k_tirta AND nama='Pak Hendra';
+
+  INSERT INTO pinjaman(koperasi_id,anggota_id,jumlah_pokok,tenor_bulan,tanggal_mulai,angsuran_per_bulan,status)
+    VALUES (k_tirta,hendra_tirta,3000000,12,(current_date - interval '4 month')::date,250000,'aktif') RETURNING id INTO pid;
+  PERFORM _seed_angsuran(pid,(current_date - interval '4 month')::date,12,250000,3,4); -- bulan ke-4 terlambat
+
+  PERFORM _seed_simpanan(k_tirta, 120000);
+
+  -- Case A: NIK yang sama menghubungkan Pak Hendra di Padiwangi & Tirta.
+  -- ktp_hash = SHA-256(NIK) — NIK '3273010101900001' dipakai untuk demo cek kelayakan.
+  UPDATE anggota SET ktp_hash = encode(digest('3273010101900001', 'sha256'), 'hex')
+    WHERE id IN (hendra_padi, hendra_tirta);
+
+  -- ============================================================
+  -- MELATI JAYA (Sayuran) & SUMBER MAKMUR (Pupuk)
+  -- Modul komoditas utamanya belum ada tabel -> hanya anggota + simpanan
+  -- ============================================================
+  INSERT INTO anggota(koperasi_id, nama) VALUES
+    (k_melati,'Nina'),(k_melati,'Oki'),(k_melati,'Pia');
+  PERFORM _seed_simpanan(k_melati, 80000);
+
+  INSERT INTO anggota(koperasi_id, nama) VALUES
+    (k_sumber,'Qori'),(k_sumber,'Rudi'),(k_sumber,'Sinta');
+  PERFORM _seed_simpanan(k_sumber, 90000);
+
+  -- ============================================================
+  -- CASE D — Anomali kasir Padiwangi (5x batal/ubah setelah jam 18)
+  -- Ambil 1 profile sebagai "kasir". Kalau belum ada akun, blok dilewati.
+  -- ============================================================
   SELECT id INTO v_kasir FROM profiles LIMIT 1;
-
-  -- ============================================================
-  -- ANGGOTA
-  -- ============================================================
-  INSERT INTO anggota (id, koperasi_id, nama, bergabung_at, limit_level, limit_rupiah) VALUES
-    (v_joko,  v_harapan, 'Pak Joko Santoso',  now() - interval '400 days', 3, 7000000),
-    (v_marni, v_harapan, 'Bu Marni',           now() - interval '350 days', 2, 3000000),
-    (v_budi,  v_harapan, 'Pak Budi',           now() - interval '300 days', 2, 5000000),
-    (v_siti,  v_harapan, 'Bu Siti Rahayu',     now() - interval '250 days', 1, 2000000),
-    (v_andi,  v_harapan, 'Pak Andi',           now() - interval '200 days', 1, 1500000),
-    (v_rini,  v_harapan, 'Bu Rini',            now() - interval '180 days', 1, 1000000),
-    (gen_random_uuid(), v_harapan, 'Pak Surya',     now() - interval '150 days', 1, 1000000),
-    (gen_random_uuid(), v_harapan, 'Bu Dewi',       now() - interval '120 days', 1, 1000000),
-    (gen_random_uuid(), v_harapan, 'Pak Agus',      now() - interval  '90 days', 1, 1000000),
-    (gen_random_uuid(), v_harapan, 'Bu Nani',       now() - interval  '60 days', 1, 1000000),
-    (gen_random_uuid(), v_harapan, 'Pak Wahyu',     now() - interval  '45 days', 1, 1000000),
-    (gen_random_uuid(), v_harapan, 'Bu Lastri',     now() - interval  '30 days', 1, 1000000);
-
-  -- Anggota Padiwangi (Pak Hendra = cross-koperasi hero Case A)
-  INSERT INTO anggota (id, koperasi_id, nama, bergabung_at, limit_level, limit_rupiah) VALUES
-    (v_hendra, v_padiwangi, 'Pak Hendra Kurniawan', now() - interval '500 days', 4, 20000000),
-    (v_wati,   v_padiwangi, 'Bu Wati',               now() - interval '280 days', 2,  5000000);
-
-  -- Pak Hendra juga di Tirta Bersama (ada tunggakan — Case A bisa demo cross-koperasi)
-  INSERT INTO anggota (koperasi_id, nama, bergabung_at, limit_level, limit_rupiah) VALUES
-    (v_tirta, 'Pak Hendra Kurniawan', now() - interval '300 days', 2, 3000000),
-    (v_tirta, 'Bu Wati',              now() - interval '150 days', 1, 1000000);
-
-  -- Anggota Melati Jaya
-  INSERT INTO anggota (koperasi_id, nama, bergabung_at) VALUES
-    (v_melati, 'Pak Darto', now() - interval '200 days'),
-    (v_melati, 'Bu Ayu',    now() - interval '100 days');
-
-  -- Anggota Sumber Makmur
-  INSERT INTO anggota (koperasi_id, nama, bergabung_at) VALUES
-    (v_sumber, 'Pak Slamet', now() - interval '180 days'),
-    (v_sumber, 'Bu Ika',     now() - interval  '90 days');
-
-  -- ============================================================
-  -- TERNAK Harapan Baru (8 ekor: 6 sehat, 1 pantau, 1 sakit)
-  -- ============================================================
-  INSERT INTO ternak (koperasi_id, kode, jenis, umur_bulan, status, vaksin_terakhir, nilai_estimasi, jumlah_klaim, jumlah_terverifikasi, terverifikasi) VALUES
-    (v_harapan, 'SAPI-001', 'Sapi',    36, 'sehat',  '2026-03-15', 15000000, 1, 1, true),
-    (v_harapan, 'SAPI-002', 'Sapi',    28, 'sehat',  '2026-04-01', 14000000, 1, 1, true),
-    (v_harapan, 'SAPI-003', 'Sapi',    20, 'sehat',  '2026-05-10', 12000000, 1, 1, true),
-    (v_harapan, 'SAPI-004', 'Sapi',    18, 'sehat',  '2026-05-10', 11000000, 1, 1, true),
-    (v_harapan, 'KMBG-001', 'Kambing', 14, 'sehat',  '2026-04-20',  3500000, 1, 1, true),
-    (v_harapan, 'KMBG-002', 'Kambing', 10, 'sehat',  '2026-04-20',  3000000, 1, 0, false),
-    (v_harapan, 'SAPI-005', 'Sapi',    24, 'pantau', '2026-01-15', 13000000, 1, 1, true),
-    (v_harapan, 'KMBG-003', 'Kambing',  8, 'sakit',   NULL,          2500000, 1, 0, false);
-
-  -- ============================================================
-  -- PAKAN (3 item, 1 di bawah minimum → alert beranda)
-  -- ============================================================
-  INSERT INTO pakan (koperasi_id, nama, stok, satuan, batas_minimum) VALUES
-    (v_harapan, 'Pakan Konsentrat', 15, 'sak', 20),   -- BAWAH MINIMUM
-    (v_harapan, 'Jerami Kering',    80, 'ikat', 30),
-    (v_harapan, 'Dedak Padi',       45, 'kg',   25);
-
-  -- ============================================================
-  -- SIMPANAN
-  -- ============================================================
-  INSERT INTO simpanan (koperasi_id, anggota_id, jumlah, tanggal) VALUES
-    (v_harapan, v_joko,  1500000, current_date - 60),
-    (v_harapan, v_joko,   500000, current_date - 30),
-    (v_harapan, v_marni,  800000, current_date - 45),
-    (v_harapan, v_budi,  1200000, current_date - 30),
-    (v_harapan, v_siti,   300000, current_date - 20),
-    (v_harapan, v_andi,   250000, current_date - 15),
-    (v_harapan, v_rini,   200000, current_date - 10),
-    (v_padiwangi, v_hendra, 5000000, current_date - 90),
-    (v_padiwangi, v_hendra, 2000000, current_date - 30),
-    (v_padiwangi, v_wati,   1500000, current_date - 20);
-
-  -- ============================================================
-  -- PINJAMAN (5 aktif di Harapan Baru: 4 lancar, 1 macet)
-  -- Pin1 & Pin2 sudah berjalan 5 bulan → demo input angsuran ke-6
-  -- ============================================================
-  INSERT INTO pinjaman (id, koperasi_id, anggota_id, jumlah_pokok, tenor_bulan, tanggal_mulai, angsuran_per_bulan, status) VALUES
-    (v_pin1, v_harapan, v_joko,  7000000, 12, current_date - 150, 583333, 'aktif'),
-    (v_pin2, v_harapan, v_marni, 3000000, 12, current_date - 150, 250000, 'aktif'),
-    (v_pin3, v_harapan, v_budi,  5000000, 12, current_date -  90, 416666, 'aktif'),
-    (v_pin4, v_harapan, v_siti,  2000000, 12, current_date -  60, 166666, 'aktif'),
-    (v_pin5, v_harapan, v_andi,  1500000,  6, current_date - 120, 250000, 'macet');
-
-  -- Pinjaman Padiwangi (Pak Hendra lancar)
-  INSERT INTO pinjaman (koperasi_id, anggota_id, jumlah_pokok, tenor_bulan, tanggal_mulai, angsuran_per_bulan, status) VALUES
-    (v_padiwangi, v_hendra, 10000000, 12, current_date - 200, 833333, 'aktif');
-
-  -- ============================================================
-  -- ANGSURAN — pin1 & pin2 lunas bulan 1-5, bulan ke-6 pending
-  -- ============================================================
-  INSERT INTO angsuran (pinjaman_id, bulan_ke, tanggal_jatuh_tempo, tanggal_bayar, jumlah_bayar, status) VALUES
-    (v_pin1, 1, current_date - 120, current_date - 122, 583333, 'lunas'),
-    (v_pin1, 2, current_date -  90, current_date -  92, 583333, 'lunas'),
-    (v_pin1, 3, current_date -  60, current_date -  61, 583333, 'lunas'),
-    (v_pin1, 4, current_date -  30, current_date -  31, 583333, 'lunas'),
-    (v_pin1, 5, current_date,       current_date -   2, 583333, 'lunas'),
-    (v_pin1, 6, current_date +  30, NULL,               NULL,   'pending'),
-
-    (v_pin2, 1, current_date - 120, current_date - 121, 250000, 'lunas'),
-    (v_pin2, 2, current_date -  90, current_date -  90, 250000, 'lunas'),
-    (v_pin2, 3, current_date -  60, current_date -  59, 250000, 'lunas'),
-    (v_pin2, 4, current_date -  30, current_date -  28, 250000, 'lunas'),
-    (v_pin2, 5, current_date,       current_date -   1, 250000, 'lunas'),
-    (v_pin2, 6, current_date +  30, NULL,               NULL,   'pending'),
-
-    -- Pin3 berjalan 3 bulan
-    (v_pin3, 1, current_date -  60, current_date -  62, 416666, 'lunas'),
-    (v_pin3, 2, current_date -  30, current_date -  31, 416666, 'lunas'),
-    (v_pin3, 3, current_date,       NULL,               NULL,   'pending');
-
-  -- ============================================================
-  -- AUDIT LOG — Kasir Padiwangi 5x cancel/delete setelah jam 18
-  -- (Demo Case D: Guard anomali)
-  -- ============================================================
-  IF v_kasir IS NOT NULL AND v_padiwangi IS NOT NULL THEN
+  IF v_kasir IS NOT NULL AND k_padi IS NOT NULL THEN
     INSERT INTO audit_log (koperasi_id, tabel_nama, row_id, aksi, dilakukan_oleh, dilakukan_pada) VALUES
-      (v_padiwangi, 'simpanan', gen_random_uuid(), 'DELETE', v_kasir, (current_date - 1)::timestamptz + interval '19 hours'),
-      (v_padiwangi, 'simpanan', gen_random_uuid(), 'DELETE', v_kasir, (current_date - 2)::timestamptz + interval '20 hours 15 minutes'),
-      (v_padiwangi, 'angsuran', gen_random_uuid(), 'UPDATE', v_kasir, (current_date - 3)::timestamptz + interval '21 hours'),
-      (v_padiwangi, 'angsuran', gen_random_uuid(), 'DELETE', v_kasir, (current_date - 4)::timestamptz + interval '19 hours 30 minutes'),
-      (v_padiwangi, 'simpanan', gen_random_uuid(), 'DELETE', v_kasir, (current_date - 5)::timestamptz + interval '22 hours');
+      (k_padi, 'simpanan', gen_random_uuid(), 'DELETE', v_kasir, (current_date - 1)::timestamptz + interval '19 hours'),
+      (k_padi, 'simpanan', gen_random_uuid(), 'DELETE', v_kasir, (current_date - 2)::timestamptz + interval '20 hours 15 minutes'),
+      (k_padi, 'angsuran', gen_random_uuid(), 'UPDATE', v_kasir, (current_date - 3)::timestamptz + interval '21 hours'),
+      (k_padi, 'angsuran', gen_random_uuid(), 'DELETE', v_kasir, (current_date - 4)::timestamptz + interval '19 hours 30 minutes'),
+      (k_padi, 'simpanan', gen_random_uuid(), 'DELETE', v_kasir, (current_date - 5)::timestamptz + interval '22 hours');
   END IF;
 
   -- ============================================================
-  -- PENGADAAN BERSAMA (Case B: pupuk, 3 koperasi)
-  -- Padiwangi + Melati Jaya rekening terhubung
-  -- Sumber Makmur belum punya rekening → badge merah
+  -- LUMBUNG PASAR (Case B) — pengadaan pupuk bersama 3 koperasi
   -- ============================================================
-  IF v_padiwangi IS NOT NULL THEN
-    INSERT INTO pengadaan (id, judul, item, satuan, total_kebutuhan, status, dibuat_oleh_koperasi_id) VALUES
-      (v_pgd, 'Pengadaan Pupuk Urea Juni 2026', 'Pupuk Urea', 'sak', 100, 'aktif', v_padiwangi);
+  INSERT INTO pengadaan(judul, item, satuan, total_kebutuhan, status, dibuat_oleh_koperasi_id)
+    VALUES ('Pengadaan Pupuk Urea Bersama','Pupuk Urea','sak',100,'aktif',k_padi) RETURNING id INTO prg;
 
-    INSERT INTO pengadaan_alokasi (pengadaan_id, koperasi_id, kebutuhan, status_rekening) VALUES
-      (v_pgd, v_padiwangi, 50, 'terhubung'),
-      (v_pgd, v_melati,    30, 'terhubung'),
-      (v_pgd, v_sumber,    20, 'belum_terhubung');
-  END IF;
-
+  INSERT INTO pengadaan_alokasi(pengadaan_id, koperasi_id, kebutuhan, status_rekening, catatan) VALUES
+    (prg, k_padi,   50, 'terhubung',       'Rekening aktif'),
+    (prg, k_melati, 30, 'terhubung',       'Rekening aktif'),
+    (prg, k_sumber, 20, 'belum_terhubung', 'Belum punya rekening — perlu diurus'); -- Case B
 END $$;
+
+-- Bersihkan helper
+DROP FUNCTION _seed_angsuran(uuid, date, int, bigint, int, int);
+DROP FUNCTION _seed_simpanan(uuid, bigint);
+
+
+-- ============================================================
+-- CEK HASIL
+-- ============================================================
+SELECT nama, fokus_usaha, jumlah_anggota, total_simpanan, jumlah_ternak, pinjaman_aktif
+FROM atlas_agregat ORDER BY nama;

@@ -65,6 +65,14 @@ export default function AirPage() {
 
   useEffect(() => { load() }, [load])
 
+  useEffect(() => {
+    const channel = supabase.channel('air-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tagihan_air' }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'meteran_air' }, () => load())
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [load])
+
   async function handleSaveMeteran(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { db } from '@/lib/db'
@@ -18,20 +18,26 @@ export default function TernakPage() {
   const [data, setData] = useState<Ternak[]>([])
   const [loading, setLoading] = useState(true)
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true)
     const [{ data: rows }, localRows] = await Promise.all([
       supabase.from('ternak').select('*').order('created_at', { ascending: false }),
       db.ternak.where('synced').equals(0).toArray(),
     ])
-    // Merge: local pending di atas, server di bawah (dedup by id)
     const serverIds = new Set((rows ?? []).map((r: Ternak) => r.id))
     const localOnly = localRows.filter(r => !serverIds.has(r.id))
     setData([...localOnly as unknown as Ternak[], ...(rows ?? [])])
     setLoading(false)
-  }
+  }, [])
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    const channel = supabase.channel('ternak-rt')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'ternak' }, () => load())
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [load])
 
   const counts = { sehat: 0, pantau: 0, sakit: 0, mati: 0 }
   data.forEach(t => counts[t.status]++)
