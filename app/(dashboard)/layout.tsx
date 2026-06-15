@@ -8,7 +8,8 @@ import {
   CreditCard, Lightbulb, TrendingUp, ShieldCheck, ShoppingBag,
   Map, LogOut, Menu, X, Wifi, WifiOff,
 } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import api from '@/lib/api'
+import { getMe, logout } from '@/lib/auth'
 import { useOnlineStatus } from '@/hooks/useOnlineStatus'
 import { useSync } from '@/hooks/useSync'
 import type { Profile } from '@/types'
@@ -47,19 +48,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useSync(() => refreshPending())
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) { router.push('/login'); return }
-      const { data: p } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-      if (!p) return
+    getMe().then(async (me) => {
+      if (!me) { router.push('/login'); return }
+      // getMe mengembalikan UserProfile dari auth-svc; map ke bentuk Profile yang dipakai UI.
+      const p = {
+        id: me.id,
+        nama: me.username,
+        role: me.role,
+        koperasi_id: me.koperasi_id,
+      } as unknown as Profile
       setProfile(p)
-      const { data: kop } = await supabase.from('koperasi').select('nama, modules').eq('id', p.koperasi_id).single()
-      if (kop) {
+      if (!me.koperasi_id) return
+      try {
+        const kop = await api.get<{ nama: string; modules?: string[] }>(`/api/koperasi/${me.koperasi_id}`)
         setKoperasiNama(kop.nama)
-        if (p.role === 'pemkab') {
+        if (me.role === 'pemkab') {
           setModules(['atlas', 'lens'])
         } else {
           setModules(kop.modules ?? [])
         }
+      } catch {
+        // Koperasi gagal dimuat — biarkan modul kosong, nav minimal tetap tampil.
+        if (me.role === 'pemkab') setModules(['atlas', 'lens'])
       }
     })
   }, [router])
@@ -73,7 +83,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   })
 
   async function handleLogout() {
-    await supabase.auth.signOut()
+    await logout()
     router.push('/login')
   }
 

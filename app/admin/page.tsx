@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Building2, Users, UserCheck } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import api from '@/lib/api'
 
 type KopStat = {
   id: string; nama: string; fokus_usaha: string; modules: string[]
@@ -32,23 +32,23 @@ export default function AdminPage() {
 
   async function loadData() {
     setLoading(true)
-    const [{ data: kop }, { count: userCount }, { count: anggotaCount }] = await Promise.all([
-      supabase.from('koperasi').select('id, nama, fokus_usaha, modules').order('nama'),
-      supabase.from('profiles').select('*', { count: 'exact', head: true }),
-      supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'anggota'),
-    ])
-    if (!kop) { setLoading(false); return }
+    // /api/koperasi list — tenant-svc
+    const kop = await api.get<{ id: string; nama: string; fokus_usaha: string; modules: string[] }[]>('/api/koperasi').catch(() => [])
 
-    const { data: profiles } = await supabase.from('profiles').select('koperasi_id')
+    // TODO: /api/auth/users count dan /api/anggota count belum ada endpoint aggregate — gunakan panjang array sebagai fallback
+    const [users, anggota] = await Promise.all([
+      api.get<{ id: string; role: string; koperasi_id: string | null }[]>('/api/auth/users').catch(() => []),
+      api.get<{ koperasi_id: string }[]>('/api/anggota').catch(() => []),
+    ])
+
     const userPerKop = new Map<string, number>()
-    for (const p of profiles ?? []) {
-      if (p.koperasi_id) userPerKop.set(p.koperasi_id, (userPerKop.get(p.koperasi_id) ?? 0) + 1)
+    for (const u of users) {
+      if (u.koperasi_id) userPerKop.set(u.koperasi_id, (userPerKop.get(u.koperasi_id) ?? 0) + 1)
     }
 
-    const { data: junctions } = await supabase.from('anggota_koperasi').select('koperasi_id')
     const anggotaPerKop = new Map<string, number>()
-    for (const j of junctions ?? []) {
-      anggotaPerKop.set(j.koperasi_id, (anggotaPerKop.get(j.koperasi_id) ?? 0) + 1)
+    for (const a of anggota) {
+      if (a.koperasi_id) anggotaPerKop.set(a.koperasi_id, (anggotaPerKop.get(a.koperasi_id) ?? 0) + 1)
     }
 
     setKoperasiList(kop.map(k => ({
@@ -57,7 +57,8 @@ export default function AdminPage() {
       anggota_count: anggotaPerKop.get(k.id) ?? 0,
     })))
 
-    setStats({ koperasi: kop.length, users: userCount ?? 0, anggota: anggotaCount ?? 0 })
+    const anggotaCount = anggota.filter(a => a.koperasi_id).length
+    setStats({ koperasi: kop.length, users: users.length, anggota: anggotaCount })
     setLoading(false)
   }
 

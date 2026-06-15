@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { Plus, Pencil, Trash2, AlertTriangle, Wheat } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import api from '@/lib/api'
+import { getMe } from '@/lib/auth'
 import type { Pakan } from '@/types'
 
 const inputCls = 'w-full bg-white border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500 transition-colors'
@@ -17,18 +18,17 @@ export default function PakanPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data: rows } = await supabase.from('pakan').select('*').order('nama')
-    setData(rows ?? [])
+    const rows = await api.get<Pakan[]>('/api/stok/pakan').catch(() => [] as Pakan[])
+    setData(rows)
     setLoading(false)
   }, [])
 
   useEffect(() => { load() }, [load])
 
+  // backend Go belum punya realtime — polling
   useEffect(() => {
-    const channel = supabase.channel('pakan-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pakan' }, () => load())
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
+    const timer = setInterval(() => load(), 30_000)
+    return () => clearInterval(timer)
   }, [load])
 
   function set(k: string, v: string) { setForm(f => ({ ...f, [k]: v })) }
@@ -48,8 +48,7 @@ export default function PakanPage() {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    const { data: profile } = await supabase.from('profiles').select('koperasi_id').eq('id', user!.id).single()
+    const me = await getMe()
     const payload = {
       nama: form.nama,
       stok: parseFloat(form.stok),
@@ -58,9 +57,9 @@ export default function PakanPage() {
       updated_at: new Date().toISOString(),
     }
     if (editId) {
-      await supabase.from('pakan').update(payload).eq('id', editId)
+      await api.put(`/api/stok/pakan/${editId}`, payload).catch(() => null)
     } else {
-      await supabase.from('pakan').insert({ ...payload, koperasi_id: profile!.koperasi_id })
+      await api.post('/api/stok/pakan', { ...payload, koperasi_id: me?.koperasi_id }).catch(() => null)
     }
     setSaving(false)
     setShowForm(false)
@@ -69,7 +68,7 @@ export default function PakanPage() {
 
   async function handleHapus(id: string) {
     if (!confirm('Hapus data pakan ini?')) return
-    await supabase.from('pakan').delete().eq('id', id)
+    await api.delete(`/api/stok/pakan/${id}`).catch(() => null)
     load()
   }
 

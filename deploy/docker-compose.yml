@@ -1,0 +1,333 @@
+name: lumbung
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: lumbung-postgres
+    environment:
+      POSTGRES_USER: lumbung
+      POSTGRES_PASSWORD: lumbung_dev
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lumbung"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lumbung_net
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: lumbung-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: lumbung
+      RABBITMQ_DEFAULT_PASS: lumbung_dev
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - lumbung_net
+
+  minio:
+    image: minio/minio:latest
+    container_name: lumbung-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: lumbung
+      MINIO_ROOT_PASSWORD: lumbung_dev
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - lumbung_net
+
+  redis:
+    image: redis:7-alpine
+    container_name: lumbung-redis
+    command: redis-server --requirepass lumbung_dev
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "lumbung_dev", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lumbung_net
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: gateway/Dockerfile
+    container_name: lumbung-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      SERVICE_NAME: gateway
+      HTTP_PORT: "8080"
+      JWT_SECRET: "dev-secret-lumbung-32bytesminimum!!"
+      RABBITMQ_URL: amqp://lumbung:lumbung_dev@rabbitmq:5672/
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: lumbung_dev
+      APP_ENV: dev
+      AUTH_SVC_URL: http://auth-svc:8081
+      TENANT_SVC_URL: http://tenant-svc:8082
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - lumbung_net
+
+  auth-svc:
+    build:
+      context: ..
+      dockerfile: services/auth-svc/Dockerfile
+    container_name: lumbung-auth-svc
+    ports:
+      - "8081:8081"
+    environment:
+      SERVICE_NAME: auth-svc
+      HTTP_PORT: "8081"
+      DB_DSN: postgres://lumbung_app:lumbung_app_dev@postgres:5432/lumbung_auth?sslmode=disable
+      JWT_SECRET: "dev-secret-lumbung-32bytesminimum!!"
+      RABBITMQ_URL: amqp://lumbung:lumbung_dev@rabbitmq:5672/
+      REDIS_ADDR: redis:6379
+      REDIS_PASSWORD: lumbung_dev
+      APP_ENV: dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - lumbung_net
+
+  tenant-svc:
+    build:
+      context: ..
+      dockerfile: services/tenant-svc/Dockerfile
+    container_name: lumbung-tenant-svc
+    ports:
+      - "8082:8082"
+    environment:
+      SERVICE_NAME: tenant-svc
+      HTTP_PORT: "8082"
+      DB_DSN: postgres://lumbung_app:lumbung_app_dev@postgres:5432/lumbung_tenant?sslmode=disable
+      JWT_SECRET: "dev-secret-lumbung-32bytesminimum!!"
+      APP_ENV: dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - lumbung_net
+
+  member-svc:
+    build:
+      context: ..
+      dockerfile: services/member-svc/Dockerfile
+    container_name: lumbung-member-svc
+    ports:
+      - "8083:8083"
+    environment:
+      SERVICE_NAME: member-svc
+      HTTP_PORT: "8083"
+      DB_DSN: postgres://lumbung_app:lumbung_app_dev@postgres:5432/lumbung_member?sslmode=disable
+      JWT_SECRET: "dev-secret-lumbung-32bytesminimum!!"
+      APP_ENV: dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - lumbung_net
+
+  simpanpinjam-svc:
+    build:
+      context: ..
+      dockerfile: services/simpanpinjam-svc/Dockerfile
+    container_name: lumbung-simpanpinjam-svc
+    ports:
+      - "8084:8084"
+    environment:
+      SERVICE_NAME: simpanpinjam-svc
+      HTTP_PORT: "8084"
+      DB_DSN: postgres://lumbung_app:lumbung_app_dev@postgres:5432/lumbung_simpanpinjam?sslmode=disable
+      JWT_SECRET: "dev-secret-lumbung-32bytesminimum!!"
+      RABBITMQ_URL: amqp://lumbung:lumbung_dev@rabbitmq:5672/
+      APP_ENV: dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - lumbung_net
+
+  inventori-svc:
+    build:
+      context: ..
+      dockerfile: services/inventori-svc/Dockerfile
+    container_name: lumbung-inventori-svc
+    ports:
+      - "8085:8085"
+    environment:
+      SERVICE_NAME: inventori-svc
+      HTTP_PORT: "8085"
+      DB_DSN: postgres://lumbung_app:lumbung_app_dev@postgres:5432/lumbung_inventori?sslmode=disable
+      JWT_SECRET: "dev-secret-lumbung-32bytesminimum!!"
+      RABBITMQ_URL: amqp://lumbung:lumbung_dev@rabbitmq:5672/
+      APP_ENV: dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - lumbung_net
+
+  ai-svc:
+    build:
+      context: ..
+      dockerfile: ai/Dockerfile
+    container_name: lumbung-ai-svc
+    ports:
+      - "8099:8000"
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      YOLO_MODEL_PATH: yolov8n.pt
+    restart: unless-stopped
+    networks:
+      - lumbung_net
+
+  pass-svc:
+    build:
+      context: ..
+      dockerfile: services/pass-svc/Dockerfile
+    container_name: lumbung-pass-svc
+    ports:
+      - "8086:8086"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      SERVICE_NAME: pass-svc
+      HTTP_PORT: "8086"
+      DB_DSN: postgres://lumbung_app:lumbung_app_dev@postgres:5432/lumbung_pass?sslmode=disable
+      JWT_SECRET: "dev-secret-lumbung-32bytesminimum!!"
+      HMAC_SECRET: "dev-hmac-secret-lumbung-32bytes!!"
+      RABBITMQ_URL: amqp://lumbung:lumbung_dev@rabbitmq:5672/
+      APP_ENV: dev
+    restart: unless-stopped
+    networks:
+      - lumbung_net
+
+  guard-svc:
+    build:
+      context: ..
+      dockerfile: services/guard-svc/Dockerfile
+    container_name: lumbung-guard-svc
+    ports:
+      - "8087:8087"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      SERVICE_NAME: guard-svc
+      HTTP_PORT: "8087"
+      DB_DSN: postgres://lumbung_app:lumbung_app_dev@postgres:5432/lumbung_guard?sslmode=disable
+      JWT_SECRET: "dev-secret-lumbung-32bytesminimum!!"
+      RABBITMQ_URL: amqp://lumbung:lumbung_dev@rabbitmq:5672/
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      APP_ENV: dev
+    restart: unless-stopped
+    networks:
+      - lumbung_net
+
+  marketplace-svc:
+    build:
+      context: ..
+      dockerfile: services/marketplace-svc/Dockerfile
+    container_name: lumbung-marketplace-svc
+    ports:
+      - "8088:8088"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      SERVICE_NAME: marketplace-svc
+      HTTP_PORT: "8088"
+      DB_DSN: postgres://lumbung_app:lumbung_app_dev@postgres:5432/lumbung_marketplace?sslmode=disable
+      JWT_SECRET: "dev-secret-lumbung-32bytesminimum!!"
+      RABBITMQ_URL: amqp://lumbung:lumbung_dev@rabbitmq:5672/
+      APP_ENV: dev
+    restart: unless-stopped
+    networks:
+      - lumbung_net
+
+  notif-svc:
+    build:
+      context: ..
+      dockerfile: services/notif-svc/Dockerfile
+    container_name: lumbung-notif-svc
+    ports:
+      - "8089:8089"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      SERVICE_NAME: notif-svc
+      HTTP_PORT: "8089"
+      DB_DSN: postgres://lumbung_app:lumbung_app_dev@postgres:5432/lumbung_notif?sslmode=disable
+      JWT_SECRET: "dev-secret-lumbung-32bytesminimum!!"
+      RABBITMQ_URL: amqp://lumbung:lumbung_dev@rabbitmq:5672/
+      APP_ENV: dev
+    restart: unless-stopped
+    networks:
+      - lumbung_net
+
+volumes:
+  pgdata:
+  miniodata:
+  rabbitmq_data:
+
+networks:
+  lumbung_net:
+    driver: bridge

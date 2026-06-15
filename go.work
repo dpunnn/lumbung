@@ -1,0 +1,15 @@
+go 1.23
+
+use (
+	./gateway
+	./services/auth-svc
+	./services/guard-svc
+	./services/inventori-svc
+	./services/marketplace-svc
+	./services/member-svc
+	./services/notif-svc
+	./services/pass-svc
+	./services/simpanpinjam-svc
+	./services/tenant-svc
+	./shared
+)

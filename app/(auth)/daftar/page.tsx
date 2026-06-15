@@ -4,9 +4,10 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { User, Building2, ChevronLeft } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { register } from '@/lib/auth'
+import api from '@/lib/api'
 
-type Koperasi = { id: string; nama: string; fokus_usaha: string }
+type Koperasi = { id: string; nama: string; komoditas?: string; jenis: string }
 type Tier = 'anggota' | 'pengurus'
 
 const inputCls = 'w-full bg-white border border-stone-300 rounded-lg px-3 py-2.5 text-stone-900 text-sm placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500 transition-colors'
@@ -20,8 +21,9 @@ export default function DaftarPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    supabase.from('koperasi').select('id, nama, fokus_usaha').order('nama')
-      .then(({ data }) => setKoperasiList(data ?? []))
+    api.get<Koperasi[]>('/api/koperasi')
+      .then(d => setKoperasiList(Array.isArray(d) ? d : []))
+      .catch(() => setKoperasiList([]))
   }, [])
 
   function set(k: string, v: string) { setForm(f => ({ ...f, [k]: v })) }
@@ -34,22 +36,20 @@ export default function DaftarPage() {
     if (tier === 'pengurus' && !form.koperasi_id) { setError('Pilih koperasi terlebih dahulu.'); return }
     setLoading(true)
 
-    const { data, error: signUpError } = await supabase.auth.signUp({ email: form.email, password: form.password })
-    if (signUpError || !data.user) {
-      setError(signUpError?.message ?? 'Gagal membuat akun.')
-      setLoading(false); return
+    try {
+      await register({
+        username: form.nama,
+        email: form.email,
+        password: form.password,
+        koperasi_id: tier === 'pengurus' ? form.koperasi_id : undefined,
+        role: tier === 'anggota' ? 'anggota' : form.role,
+      })
+      router.push(tier === 'anggota' ? '/member' : '/dashboard')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Gagal membuat akun.'
+      setError(msg)
+      setLoading(false)
     }
-
-    const profilePayload = tier === 'anggota'
-      ? { id: data.user.id, role: 'anggota', nama: form.nama, koperasi_id: null }
-      : { id: data.user.id, role: form.role, nama: form.nama, koperasi_id: form.koperasi_id }
-
-    const { error: profileError } = await supabase.from('profiles').insert(profilePayload)
-    if (profileError) {
-      setError('Akun dibuat tapi profil gagal: ' + profileError.message)
-      setLoading(false); return
-    }
-    router.push(tier === 'anggota' ? '/member' : '/dashboard')
   }
 
   if (!tier) {
@@ -121,7 +121,7 @@ export default function DaftarPage() {
               <select required value={form.koperasi_id} onChange={e => set('koperasi_id', e.target.value)} className={inputCls}>
                 <option value="">Pilih koperasi...</option>
                 {koperasiList.map(k => (
-                  <option key={k.id} value={k.id}>{k.nama} — {k.fokus_usaha}</option>
+                  <option key={k.id} value={k.id}>{k.nama}{k.komoditas ? ` — ${k.komoditas}` : ''}</option>
                 ))}
               </select>
             </div>

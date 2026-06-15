@@ -8,16 +8,15 @@ import {
   TrendingUp, ShoppingBag, Map, Sparkles, ArrowRight, ChevronDown,
   Wifi, WifiOff, BarChart3, Users, CheckCircle, Zap, Globe,
 } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { getMe } from '@/lib/auth'
 
 function useAuthState() {
   const [state, setState] = useState<'loading' | 'guest' | 'authed'>('loading')
   const [role, setRole] = useState('')
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) { setState('guest'); return }
-      const { data: p } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-      setRole(p?.role ?? '')
+    getMe().then((me) => {
+      if (!me) { setState('guest'); return }
+      setRole(me.role ?? '')
       setState('authed')
     })
   }, [])

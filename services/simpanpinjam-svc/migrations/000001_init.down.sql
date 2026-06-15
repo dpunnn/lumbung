@@ -1,0 +1,4 @@
+DROP TABLE IF EXISTS riwayat_kredit;
+DROP TABLE IF EXISTS angsuran;
+DROP TABLE IF EXISTS pinjaman;
+DROP TABLE IF EXISTS simpanan;

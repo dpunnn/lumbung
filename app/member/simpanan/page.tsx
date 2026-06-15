@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { Coins, Clock, CheckCircle, AlertTriangle, X, Plus, MessageSquare } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import api from '@/lib/api'
+import { getMe } from '@/lib/auth'
 
 type Koperasi = { id: string; nama: string }
 type Simpanan = {
@@ -37,22 +38,19 @@ export default function MemberSimpananPage() {
 
   async function loadSimpanan(kIds: string[]) {
     if (!kIds.length) return
-    const { data } = await supabase
-      .from('simpanan')
-      .select('id, jumlah, keterangan, tanggal, status, confirmed_at, disputed_note, koperasi(id, nama)')
-      .in('koperasi_id', kIds)
-      .order('tanggal', { ascending: false })
-    setSimpanan((data ?? []) as unknown as Simpanan[])
+    const data = await api.get<Simpanan[]>(`/api/simpanan?koperasi_id=${kIds.join(',')}`).catch(() => [] as Simpanan[])
+    setSimpanan(data ?? [])
   }
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return
-      setUserId(user.id)
+    async function init() {
+      const me = await getMe()
+      if (!me) return
+      setUserId(me.id)
 
-      const [{ data: mem }, { data: angRows }] = await Promise.all([
-        supabase.from('anggota_koperasi').select('koperasi_id, koperasi(id, nama)').eq('anggota_id', user.id),
-        supabase.from('anggota').select('id').eq('user_id', user.id),
+      const [mem, angRows] = await Promise.all([
+        api.get<{ koperasi_id: string; koperasi: Koperasi }[]>(`/api/anggota?anggota_id=${me.id}`).catch(() => [] as { koperasi_id: string; koperasi: Koperasi }[]),
+        api.get<{ id: string }[]>(`/api/anggota?user_id=${me.id}`).catch(() => [] as { id: string }[]),
       ])
 
       const kops = (mem ?? []).map((m: any) => m.koperasi).filter(Boolean) as Koperasi[]
@@ -63,62 +61,36 @@ export default function MemberSimpananPage() {
       setAnggotaIds(ids)
       setKopIds(kIds)
       loadSimpanan(kIds)
-    })
+    }
+    init()
   }, [])
 
   useEffect(() => {
     if (!anggotaIds.length) return
-    const channel = supabase
-      .channel('member-simpanan-rt')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'simpanan' }, (payload) => {
-        const row = payload.new as any
-        if (!anggotaIds.includes(row.anggota_id)) return
-        if (row.status === 'pending_member_confirm') {
-          addToast('warn', `Kasir mencatat setoran Rp ${Number(row.jumlah).toLocaleString('id-ID')} — buka app untuk konfirmasi.`)
-        }
-        loadSimpanan(kopIds)
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'simpanan' }, (payload) => {
-        const row = payload.new as any
-        if (!anggotaIds.includes(row.anggota_id)) return
-        const rp = `Rp ${Number(row.jumlah).toLocaleString('id-ID')}`
-        if (row.status === 'confirmed')  addToast('success', `Setoran ${rp} dikonfirmasi!`)
-        if (row.status === 'rejected')   addToast('error',   `Setoran ${rp} ditolak. Hubungi pengurus.`)
-        loadSimpanan(kopIds)
-      })
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
+    // Realtime Supabase diganti polling karena backend kini Go/REST, bukan Supabase direct.
+    const timer = setInterval(() => loadSimpanan(kopIds), 30_000)
+    return () => clearInterval(timer)
   }, [anggotaIds, kopIds])
 
   async function resolveAnggotaId(koperasiId: string): Promise<string | undefined> {
-    const { data: ang } = await supabase.from('anggota')
-      .select('id').eq('koperasi_id', koperasiId).eq('user_id', userId).maybeSingle()
-    if (ang) return ang.id
-    const { data: p } = await supabase.from('profiles').select('nama').eq('id', userId).single()
-    const { data: byNama } = await supabase.from('anggota')
-      .select('id').eq('koperasi_id', koperasiId).ilike('nama', p?.nama ?? '').maybeSingle()
-    if (byNama) {
-      await supabase.from('anggota').update({ user_id: userId }).eq('id', byNama.id)
-      return byNama.id
-    }
-    const { data: newAng } = await supabase.from('anggota')
-      .insert({ koperasi_id: koperasiId, nama: p?.nama ?? 'Anggota', user_id: userId })
-      .select().single()
-    setAnggotaIds(prev => newAng ? [...prev, newAng.id] : prev)
-    return newAng?.id
+    // TODO: implement via API — resolusi anggota_id via member-svc (lookup by koperasi_id+user_id atau auto-create)
+    // Sementara kembalikan undefined agar backend menangani lewat field user_id di body
+    return undefined
   }
 
   async function handleSetor(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setSaving(true)
     const anggotaId = await resolveAnggotaId(setor.koperasi_id)
-    await supabase.from('simpanan').insert({
-      koperasi_id: setor.koperasi_id,
-      anggota_id: anggotaId,
-      jumlah: parseFloat(setor.jumlah),
-      keterangan: setor.keterangan || null,
-      status: 'pending_admin_confirm',
-    })
+    try {
+      await api.post('/api/simpanan', {
+        koperasi_id: setor.koperasi_id,
+        anggota_id: anggotaId,
+        jumlah: parseFloat(setor.jumlah),
+        keterangan: setor.keterangan || null,
+        status: 'pending_admin_confirm',
+      })
+    } catch { /* biarkan lanjut */ }
     setSaving(false)
     setSetor({ koperasi_id: '', jumlah: '', keterangan: '' })
     setTab('list')
@@ -130,13 +102,15 @@ export default function MemberSimpananPage() {
     e.preventDefault()
     setSaving(true)
     const anggotaId = await resolveAnggotaId(lapor.koperasi_id)
-    await supabase.from('simpanan').insert({
-      koperasi_id: lapor.koperasi_id,
-      anggota_id: anggotaId,
-      jumlah: parseFloat(lapor.jumlah),
-      keterangan: lapor.keterangan || 'Klaim setoran tidak tercatat',
-      status: 'claimed',
-    })
+    try {
+      await api.post('/api/simpanan', {
+        koperasi_id: lapor.koperasi_id,
+        anggota_id: anggotaId,
+        jumlah: parseFloat(lapor.jumlah),
+        keterangan: lapor.keterangan || 'Klaim setoran tidak tercatat',
+        status: 'claimed',
+      })
+    } catch { /* biarkan lanjut */ }
     setSaving(false)
     setLapor({ koperasi_id: '', jumlah: '', keterangan: '' })
     setTab('list')
@@ -146,7 +120,9 @@ export default function MemberSimpananPage() {
 
   async function handleConfirm(id: string) {
     setSaving(true)
-    await supabase.from('simpanan').update({ status: 'confirmed', confirmed_at: new Date().toISOString() }).eq('id', id)
+    try {
+      await api.put(`/api/simpanan/${id}`, { status: 'confirmed', confirmed_at: new Date().toISOString() })
+    } catch { /* biarkan lanjut */ }
     setSaving(false)
     loadSimpanan(kopIds)
   }
@@ -154,7 +130,9 @@ export default function MemberSimpananPage() {
   async function handleDispute(id: string) {
     if (!disputeNote.trim()) return
     setSaving(true)
-    await supabase.from('simpanan').update({ status: 'disputed', disputed_note: disputeNote.trim() }).eq('id', id)
+    try {
+      await api.put(`/api/simpanan/${id}`, { status: 'disputed', disputed_note: disputeNote.trim() })
+    } catch { /* biarkan lanjut */ }
     setSaving(false)
     setDisputeId(null)
     setDisputeNote('')

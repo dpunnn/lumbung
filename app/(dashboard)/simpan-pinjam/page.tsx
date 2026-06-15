@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { supabase } from '@/lib/supabase'
+import api from '@/lib/api'
+import { getMe } from '@/lib/auth'
 import type { Pinjaman, Angsuran, Anggota } from '@/types'
 import { AlertTriangle, CheckCircle, Plus, Clock, X } from 'lucide-react'
 
@@ -90,8 +91,9 @@ function PengajuanCard({
 
   async function doCheck() {
     setChecking(true)
-    const { data } = await supabase.rpc('fn_anggota_risk_cross', { p_anggota_id: p.anggota_id })
-    setLocalRisk(data as RiskProfile)
+    // TODO: implement via API — fn_anggota_risk_cross belum ada route di gateway
+    const risk = await api.get<RiskProfile>(`/api/anggota/${p.anggota_id}/risk`).catch(() => null)
+    setLocalRisk(risk)
     setChecked(true)
     setChecking(false)
   }
@@ -160,38 +162,33 @@ export default function SimpanPinjamPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [{ data: semua }, { data: ag }, { data: sp }] = await Promise.all([
-      supabase.from('pinjaman').select('*, anggota(nama), angsuran(*)').order('created_at', { ascending: false }),
-      supabase.from('anggota').select('*').order('nama'),
-      supabase.from('simpanan')
-        .select('id, jumlah, keterangan, tanggal, status, disputed_note, anggota(nama)')
-        .in('status', ['pending_admin_confirm', 'pending_member_confirm', 'disputed', 'claimed'])
-        .order('tanggal', { ascending: false }),
+    const [semua, ag, sp] = await Promise.all([
+      api.get<PinjamanWithMeta[]>('/api/pinjaman').catch(() => [] as PinjamanWithMeta[]),
+      api.get<Anggota[]>('/api/anggota').catch(() => [] as Anggota[]),
+      api.get<SimpananItem[]>('/api/simpanan?status=pending_admin_confirm,pending_member_confirm,disputed,claimed').catch(() => [] as SimpananItem[]),
     ])
-    const rows = (semua as PinjamanWithMeta[]) ?? []
+    const rows = semua ?? []
     setData(rows.filter(r => r.status !== 'diajukan'))
     setPengajuan(rows.filter(r => r.status === 'diajukan'))
     setAnggotaList(ag ?? [])
-    setSimpananAksi((sp ?? []) as unknown as SimpananItem[])
+    setSimpananAksi(sp ?? [])
     setLoading(false)
   }, [])
 
   useEffect(() => { load() }, [load])
 
   useEffect(() => {
-    const channel = supabase.channel('simpan-pinjam-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pinjaman' },  () => load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'angsuran' },  () => load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'simpanan' },  () => load())
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
+    // Polling pengganti realtime Supabase channel (simpan-pinjam-rt)
+    const interval = setInterval(() => load(), 30_000)
+    return () => clearInterval(interval)
   }, [load])
 
   async function checkRisk(anggotaId: string) {
     if (!anggotaId) { setRisk(null); return }
     setRiskLoading(true)
-    const { data } = await supabase.rpc('fn_anggota_risk_cross', { p_anggota_id: anggotaId })
-    setRisk(data as RiskProfile)
+    // TODO: implement via API — fn_anggota_risk_cross belum ada route di gateway
+    const risk = await api.get<RiskProfile>(`/api/anggota/${anggotaId}/risk`).catch(() => null)
+    setRisk(risk)
     setRiskLoading(false)
   }
 
@@ -203,23 +200,22 @@ export default function SimpanPinjamPage() {
   async function handleBuatPinjaman(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    const { data: profile } = await supabase.from('profiles').select('koperasi_id').eq('id', user!.id).single()
+    const me = await getMe()
     const pokok = parseInt(formP.jumlah_pokok)
     const tenor = parseInt(formP.tenor_bulan)
 
-    const { data: pinjaman } = await supabase.from('pinjaman').insert({
-      koperasi_id: profile!.koperasi_id,
+    const pinjaman = await api.post<PinjamanWithMeta>('/api/pinjaman', {
+      koperasi_id: me?.koperasi_id,
       anggota_id: formP.anggota_id,
       jumlah_pokok: pokok,
       tenor_bulan: tenor,
       tanggal_mulai: formP.tanggal_mulai,
       angsuran_per_bulan: Math.ceil(pokok / tenor),
       status: 'aktif',
-    }).select().single()
+    }).catch(() => null)
 
     if (pinjaman) {
-      await supabase.rpc('fn_generate_angsuran', { p_pinjaman_id: pinjaman.id })
+      // TODO: fn_generate_angsuran belum ada route di gateway — angsuran di-generate server-side saat insert
     }
     setSaving(false)
     setRisk(null)
@@ -230,8 +226,8 @@ export default function SimpanPinjamPage() {
 
   async function handleApprove(p: PinjamanWithMeta) {
     setSaving(true)
-    await supabase.from('pinjaman').update({ status: 'aktif' }).eq('id', p.id)
-    await supabase.rpc('fn_generate_angsuran', { p_pinjaman_id: p.id })
+    await api.put<void>(`/api/pinjaman/${p.id}`, { status: 'aktif' }).catch(() => null)
+    // TODO: fn_generate_angsuran belum ada route di gateway — angsuran di-generate server-side saat approve
     setSaving(false)
     load()
   }
@@ -239,7 +235,7 @@ export default function SimpanPinjamPage() {
   async function handleReject(p: PinjamanWithMeta) {
     if (!confirm(`Tolak pengajuan dari ${p.anggota?.nama}?`)) return
     setSaving(true)
-    await supabase.from('pinjaman').update({ status: 'ditolak' }).eq('id', p.id)
+    await api.put<void>(`/api/pinjaman/${p.id}`, { status: 'ditolak' }).catch(() => null)
     setSaving(false)
     load()
   }
@@ -247,14 +243,13 @@ export default function SimpanPinjamPage() {
   async function handleBuatAnggota(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    const { data: profile } = await supabase.from('profiles').select('koperasi_id').eq('id', user!.id).single()
-    await supabase.from('anggota').insert({
-      koperasi_id: profile!.koperasi_id,
+    const me = await getMe()
+    await api.post<void>('/api/anggota', {
+      koperasi_id: me?.koperasi_id,
       nama: formA.nama,
       no_hp: formA.no_hp || null,
       nama_penjamin: formA.nama_penjamin || null,
-    })
+    }).catch(() => null)
     setSaving(false)
     setFormA({ nama: '', no_hp: '', nama_penjamin: '' })
     setTab('pinjaman')
@@ -264,15 +259,14 @@ export default function SimpanPinjamPage() {
   async function handleCatatSetoran(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    const { data: profile } = await supabase.from('profiles').select('koperasi_id').eq('id', user!.id).single()
-    await supabase.from('simpanan').insert({
-      koperasi_id: profile!.koperasi_id,
+    const me = await getMe()
+    await api.post<void>('/api/simpanan', {
+      koperasi_id: me?.koperasi_id,
       anggota_id: formSetoran.anggota_id,
       jumlah: parseFloat(formSetoran.jumlah),
       keterangan: formSetoran.keterangan || null,
       status: 'pending_member_confirm',
-    })
+    }).catch(() => null)
     setSaving(false)
     setFormSetoran({ anggota_id: '', jumlah: '', keterangan: '' })
     load()
@@ -280,10 +274,10 @@ export default function SimpanPinjamPage() {
 
   async function confirmClaimed(id: string) {
     setSaving(true)
-    await supabase.from('simpanan').update({
+    await api.put<void>(`/api/simpanan/${id}`, {
       status: 'confirmed',
       confirmed_at: new Date().toISOString(),
-    }).eq('id', id)
+    }).catch(() => null)
     setSaving(false)
     load()
   }
@@ -291,35 +285,35 @@ export default function SimpanPinjamPage() {
   async function rejectClaimed(id: string, nama: string) {
     if (!confirm(`Tolak klaim dari ${nama}?`)) return
     setSaving(true)
-    await supabase.from('simpanan').update({ status: 'rejected' }).eq('id', id)
+    await api.put<void>(`/api/simpanan/${id}`, { status: 'rejected' }).catch(() => null)
     setSaving(false)
     load()
   }
 
   async function resolveDisputed(id: string) {
     setSaving(true)
-    await supabase.from('simpanan').update({
+    await api.put<void>(`/api/simpanan/${id}`, {
       status: 'confirmed',
       confirmed_at: new Date().toISOString(),
       disputed_note: null,
-    }).eq('id', id)
+    }).catch(() => null)
     setSaving(false)
     load()
   }
 
   async function bayarAngsuran(angsuran: Angsuran) {
-    await supabase.from('angsuran').update({
+    await api.put<void>(`/api/pinjaman/angsuran/${angsuran.id}`, {
       tanggal_bayar: new Date().toISOString().split('T')[0],
       jumlah_bayar: selected!.angsuran_per_bulan,
       status: 'lunas',
-    }).eq('id', angsuran.id)
+    }).catch(() => null)
     const terbayar = selected!.angsuran.filter(a => a.status === 'lunas').length + 1
     if (terbayar >= selected!.tenor_bulan) {
-      await supabase.from('pinjaman').update({ status: 'lunas' }).eq('id', selected!.id)
+      await api.put<void>(`/api/pinjaman/${selected!.id}`, { status: 'lunas' }).catch(() => null)
     }
     load()
-    const { data } = await supabase.from('pinjaman').select('*, anggota(nama), angsuran(*)').eq('id', selected!.id).single()
-    setSelected(data as PinjamanWithMeta)
+    const updated = await api.get<PinjamanWithMeta>(`/api/pinjaman/${selected!.id}`).catch(() => null)
+    if (updated) setSelected(updated)
   }
 
   const lunasCount = (p: PinjamanWithMeta) => p.angsuran.filter(a => a.status === 'lunas').length

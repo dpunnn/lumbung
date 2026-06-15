@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import api from '@/lib/api'
 
 type UserRow = {
   id: string; nama: string; role: string
@@ -24,13 +24,11 @@ export default function AdminUsersPage() {
   const [filter, setFilter] = useState('')
 
   useEffect(() => {
-    supabase.from('profiles')
-      .select('id, nama, role, koperasi_id, koperasi(nama)')
-      .order('role')
-      .then(({ data }) => {
-        setUsers((data as UserRow[]) ?? [])
-        setLoading(false)
-      })
+    // TODO: /api/auth/users — endpoint admin users; jika belum tersedia, fallback ke empty
+    api.get<UserRow[]>('/api/auth/users').catch(() => [] as UserRow[]).then(data => {
+      setUsers(data)
+      setLoading(false)
+    })
   }, [])
 
   const filtered = filter ? users.filter(u => u.role === filter) : users

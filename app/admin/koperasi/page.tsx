@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Pencil, X, Check } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import api from '@/lib/api'
 
 type Koperasi = { id: string; nama: string; fokus_usaha: string; modules: string[] }
 
@@ -29,8 +29,8 @@ export default function AdminKoperasiPage() {
   useEffect(() => { load() }, [])
 
   async function load() {
-    const { data } = await supabase.from('koperasi').select('id, nama, fokus_usaha, modules').order('nama')
-    setList((data ?? []).map(k => ({ ...k, modules: k.modules ?? [] })))
+    const data = await api.get<Koperasi[]>('/api/koperasi').catch(() => [])
+    setList(data.map(k => ({ ...k, modules: k.modules ?? [] })))
   }
 
   function startEdit(k: Koperasi) {
@@ -44,7 +44,7 @@ export default function AdminKoperasiPage() {
 
   async function saveModules(id: string) {
     setSaving(true)
-    await supabase.from('koperasi').update({ modules: editModules }).eq('id', id)
+    await api.put(`/api/koperasi/${id}`, { modules: editModules }).catch(() => null)
     setList(prev => prev.map(k => k.id === id ? { ...k, modules: editModules } : k))
     setEditing(null)
     setSaving(false)

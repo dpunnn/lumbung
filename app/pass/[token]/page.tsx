@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { ShieldCheck, Clock, Search } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import api from '@/lib/api'
 import { hitungSkor } from '@/lib/pass'
 import type { LumbungPass } from '@/types'
 import type { PassFields } from '@/lib/pass'
@@ -16,41 +16,32 @@ export default function PassPublicPage() {
 
   useEffect(() => {
     async function load() {
-      const { data, error } = await supabase
-        .from('lumbung_pass')
-        .select('*')
-        .eq('id', token)
-        .single()
+      // Halaman publik — akses via token tanpa login, skipAuth: true
+      const data = await api.get<LumbungPass>(`/api/pass/${token}`, { skipAuth: true }).catch(() => null)
 
-      if (error || !data) { setStatus('notfound'); return }
+      if (!data) { setStatus('notfound'); return }
 
       const expired = new Date(data.berlaku_sampai) < new Date() || data.status !== 'aktif'
-      if (expired) { setPass(data as LumbungPass); setStatus('expired'); return }
+      if (expired) { setPass(data); setStatus('expired'); return }
 
-      setPass(data as LumbungPass)
+      setPass(data)
       setStatus('ok')
 
-      await supabase.from('pass_access_log').insert({
-        pass_id: data.id,
-        mitra: data.mitra,
-      })
+      // Catat akses log — best effort, bukan auth-gated
+      api.post('/api/pass/access-log', { pass_id: data.id, mitra: data.mitra }, { skipAuth: true }).catch(() => {})
     }
     load()
 
-    const channel = supabase
-      .channel(`pass-watch-${token}`)
-      .on('postgres_changes', {
-        event: 'UPDATE', schema: 'public', table: 'lumbung_pass',
-        filter: `id=eq.${token}`,
-      }, (payload) => {
-        const updated = payload.new as LumbungPass
-        setPass(updated)
-        const expired = new Date(updated.berlaku_sampai) < new Date() || updated.status !== 'aktif'
-        if (expired) setStatus('expired')
-      })
-      .subscribe()
+    // Realtime Supabase diganti polling ringan karena backend kini Go/REST, bukan Supabase direct.
+    const timer = setInterval(async () => {
+      const data = await api.get<LumbungPass>(`/api/pass/${token}`, { skipAuth: true }).catch(() => null)
+      if (!data) return
+      setPass(data)
+      const expired = new Date(data.berlaku_sampai) < new Date() || data.status !== 'aktif'
+      if (expired) setStatus('expired')
+    }, 30_000)
 
-    return () => { supabase.removeChannel(channel) }
+    return () => clearInterval(timer)
   }, [token])
 
   if (status === 'loading') {

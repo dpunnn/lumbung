@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { CreditCard, Copy, ExternalLink } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import api from '@/lib/api'
+import { getMe } from '@/lib/auth'
 import { hitungSkor } from '@/lib/pass'
 
 type Pass = {
@@ -25,35 +26,28 @@ export default function MemberPassPage() {
 
   const loadPasses = useCallback(async (kIds: string[]) => {
     if (!kIds.length) return
-    const { data } = await supabase
-      .from('lumbung_pass')
-      .select('id, tujuan, mitra, fields, status, berlaku_sampai, created_at, koperasi(nama)')
-      .in('koperasi_id', kIds)
-      .order('created_at', { ascending: false })
-    setPasses((data ?? []) as Pass[])
+    const data = await api.get<Pass[]>(`/api/pass?koperasi_id=${kIds.join(',')}`).catch(() => [] as Pass[])
+    setPasses(data ?? [])
   }, [])
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return
-      const { data: mem } = await supabase
-        .from('anggota_koperasi').select('koperasi_id').eq('anggota_id', user.id)
+    async function init() {
+      const me = await getMe()
+      if (!me) return
+      const mem = await api.get<{ koperasi_id: string }[]>(`/api/anggota?anggota_id=${me.id}`).catch(() => [] as { koperasi_id: string }[])
       const kIds = (mem ?? []).map((m: any) => m.koperasi_id)
       setKopIds(kIds)
       await loadPasses(kIds)
       setLoading(false)
-    })
+    }
+    init()
   }, [loadPasses])
 
   useEffect(() => {
     if (!kopIds.length) return
-    const channel = supabase
-      .channel('member-pass-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'lumbung_pass' }, () => {
-        loadPasses(kopIds)
-      })
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
+    // Realtime Supabase diganti polling karena backend kini Go/REST, bukan Supabase direct.
+    const timer = setInterval(() => loadPasses(kopIds), 30_000)
+    return () => clearInterval(timer)
   }, [kopIds, loadPasses])
 
   const ORIGIN = typeof window !== 'undefined' ? window.location.origin : ''

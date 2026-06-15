@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { Plus, ShoppingBag, AlertTriangle, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import api from '@/lib/api'
+import { getMe } from '@/lib/auth'
 
 type Koperasi = { id: string; nama: string }
 
@@ -51,10 +52,8 @@ export default function PengadaanPage() {
 
   useEffect(() => {
     async function init() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-      const { data: p } = await supabase.from('profiles').select('koperasi_id').eq('id', user.id).single()
-      if (p) setMyKoperasiId(p.koperasi_id)
+      const me = await getMe()
+      if (me?.koperasi_id) setMyKoperasiId(me.koperasi_id)
     }
     init()
     loadData()
@@ -62,26 +61,24 @@ export default function PengadaanPage() {
 
   async function loadData() {
     setLoading(true)
-    const { data: rows } = await supabase
-      .from('pengadaan')
-      .select('*, koperasi(id, nama), pengadaan_alokasi(*, koperasi(id, nama))')
-      .order('created_at', { ascending: false })
-    setData((rows as Pengadaan[]) ?? [])
+    // TODO: query nested join (pengadaan + alokasi + koperasi) — best-guess route /api/pengadaan
+    const rows = await api.get<Pengadaan[]>('/api/pengadaan').catch(() => [] as Pengadaan[])
+    setData(rows ?? [])
     setLoading(false)
   }
 
   async function handleBuat(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    const { data: pengadaan } = await supabase.from('pengadaan').insert({
+    const pengadaan = await api.post<Pengadaan>('/api/pengadaan', {
       judul: form.judul, item: form.item, satuan: form.satuan,
       status: 'aktif', dibuat_oleh_koperasi_id: myKoperasiId,
-    }).select().single()
+    }).catch(() => null)
     if (pengadaan) {
-      await supabase.from('pengadaan_alokasi').insert({
-        pengadaan_id: pengadaan.id, koperasi_id: myKoperasiId,
+      await api.post<void>(`/api/pengadaan/${pengadaan.id}/alokasi`, {
+        koperasi_id: myKoperasiId,
         kebutuhan: parseFloat(form.kebutuhan) || 0, status_rekening: 'terhubung',
-      })
+      }).catch(() => null)
     }
     setSaving(false)
     setForm({ judul: '', item: '', satuan: 'kg', kebutuhan: '' })
@@ -92,15 +89,14 @@ export default function PengadaanPage() {
   async function handleFinalisasi(pengadaanId: string) {
     setSaving(true)
     setFinalisasiError(null)
-    const { data: allocs } = await supabase
-      .from('pengadaan_alokasi').select('id, kebutuhan').eq('pengadaan_id', pengadaanId)
+    // Ambil alokasi lalu update masing-masing alokasi_dapat = kebutuhan
+    const allocs = await api.get<Alokasi[]>(`/api/pengadaan/${pengadaanId}/alokasi`).catch(() => [] as Alokasi[])
     for (const a of allocs ?? []) {
-      await supabase.from('pengadaan_alokasi')
-        .update({ alokasi_dapat: a.kebutuhan }).eq('id', a.id)
+      await api.put<void>(`/api/pengadaan/${pengadaanId}/alokasi/${a.id}`, { alokasi_dapat: a.kebutuhan }).catch(() => null)
     }
-    const { error } = await supabase.from('pengadaan').update({ status: 'selesai' }).eq('id', pengadaanId)
-    if (error) {
-      setFinalisasiError('Gagal memperbarui status: ' + error.message)
+    const err = await api.put<void>(`/api/pengadaan/${pengadaanId}`, { status: 'selesai' }).catch((e: Error) => e)
+    if (err instanceof Error) {
+      setFinalisasiError('Gagal memperbarui status: ' + err.message)
       setSaving(false)
       return
     }
@@ -118,21 +114,21 @@ export default function PengadaanPage() {
     const f = ajukanForm[pengadaanId]
     if (!f?.kebutuhan) return
     setSaving(true)
-    const { data: existing } = await supabase.from('pengadaan_alokasi').select('id')
-      .eq('pengadaan_id', pengadaanId).eq('koperasi_id', myKoperasiId).single()
+    // Cek apakah koperasi sudah daftar di alokasi ini
+    const allocs = await api.get<Alokasi[]>(`/api/pengadaan/${pengadaanId}/alokasi`).catch(() => [] as Alokasi[])
+    const existing = (allocs ?? []).find(a => a.koperasi_id === myKoperasiId)
     if (existing) {
-      await supabase.from('pengadaan_alokasi')
-        .update({ kebutuhan: parseFloat(f.kebutuhan), status_rekening: f.status_rekening })
-        .eq('id', existing.id)
+      await api.put<void>(`/api/pengadaan/${pengadaanId}/alokasi/${existing.id}`, {
+        kebutuhan: parseFloat(f.kebutuhan), status_rekening: f.status_rekening,
+      }).catch(() => null)
     } else {
-      await supabase.from('pengadaan_alokasi').insert({
-        pengadaan_id: pengadaanId, koperasi_id: myKoperasiId,
+      await api.post<void>(`/api/pengadaan/${pengadaanId}/alokasi`, {
+        koperasi_id: myKoperasiId,
         kebutuhan: parseFloat(f.kebutuhan), status_rekening: f.status_rekening ?? 'terhubung',
-      })
+      }).catch(() => null)
     }
-    const { data: alloc } = await supabase.from('pengadaan_alokasi').select('kebutuhan').eq('pengadaan_id', pengadaanId)
-    const total = (alloc ?? []).reduce((s, r) => s + (r.kebutuhan ?? 0), 0)
-    await supabase.from('pengadaan').update({ total_kebutuhan: total }).eq('id', pengadaanId)
+    const total = (allocs ?? []).reduce((s: number, r: Alokasi) => s + (r.kebutuhan ?? 0), 0) + parseFloat(f.kebutuhan)
+    await api.put<void>(`/api/pengadaan/${pengadaanId}`, { total_kebutuhan: total }).catch(() => null)
     setSaving(false)
     setAjukanForm(f => ({ ...f, [pengadaanId]: { kebutuhan: '', status_rekening: 'terhubung' } }))
     loadData()

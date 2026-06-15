@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { supabase } from '@/lib/supabase'
+import api from '@/lib/api'
+import { getMe } from '@/lib/auth'
 import { buildFields, hashFields } from '@/lib/pass'
 import { cekKelayakan } from '@/lib/credit'
 import type { ConsentMap, PassFields } from '@/lib/pass'
@@ -25,27 +26,23 @@ export default function PassPage() {
   const [loadingCek, setLoadingCek] = useState(false)
 
   const loadPasses = useCallback(async () => {
-    const { data } = await supabase.from('lumbung_pass').select('*').order('created_at', { ascending: false })
+    const data = await api.get<LumbungPass[]>('/api/pass').catch(() => [] as LumbungPass[])
     setPassList(data ?? [])
   }, [])
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return
-      const { data: p } = await supabase.from('profiles').select('koperasi_id').eq('id', user.id).single()
-      if (p) setKoperasiId(p.koperasi_id)
-    })
+    async function init() {
+      const me = await getMe()
+      if (me?.koperasi_id) setKoperasiId(me.koperasi_id)
+    }
+    init()
     loadPasses()
   }, [loadPasses])
 
   useEffect(() => {
-    const channel = supabase
-      .channel('dashboard-pass-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'lumbung_pass' }, () => {
-        loadPasses()
-      })
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
+    // Realtime Supabase diganti polling karena backend kini Go/REST, bukan Supabase direct.
+    const timer = setInterval(() => loadPasses(), 30_000)
+    return () => clearInterval(timer)
   }, [loadPasses])
 
   async function handlePreview() {
@@ -64,28 +61,31 @@ export default function PassPage() {
     const berlakuSampai = new Date()
     berlakuSampai.setDate(berlakuSampai.getDate() + parseInt(form.hari))
 
-    const { data, error } = await supabase.from('lumbung_pass').insert({
-      koperasi_id: koperasiId,
-      tujuan: form.tujuan,
-      mitra: form.mitra,
-      fields: preview,
-      hash,
-      consent,
-      berlaku_sampai: berlakuSampai.toISOString().split('T')[0],
-      status: 'aktif',
-    }).select().single()
-
-    if (!error && data) {
-      setGenerated(data as LumbungPass)
-      setTab('daftar')
-      loadPasses()
-    }
+    try {
+      const data = await api.post<LumbungPass>('/api/pass', {
+        koperasi_id: koperasiId,
+        tujuan: form.tujuan,
+        mitra: form.mitra,
+        fields: preview,
+        hash,
+        consent,
+        berlaku_sampai: berlakuSampai.toISOString().split('T')[0],
+        status: 'aktif',
+      })
+      if (data) {
+        setGenerated(data)
+        setTab('daftar')
+        loadPasses()
+      }
+    } catch { /* biarkan lanjut */ }
     setLoading(false)
   }
 
   async function handleCabut(id: string) {
     if (!confirm('Cabut pass ini? Pemodal tidak bisa lagi mengaksesnya.')) return
-    await supabase.from('lumbung_pass').update({ status: 'dicabut' }).eq('id', id)
+    try {
+      await api.put(`/api/pass/${id}`, { status: 'dicabut' })
+    } catch { /* biarkan lanjut */ }
     loadPasses()
   }
 

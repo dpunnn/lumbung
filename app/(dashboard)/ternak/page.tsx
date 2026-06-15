@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase'
+import api from '@/lib/api'
 import { db } from '@/lib/db'
 import type { Ternak } from '@/types'
 import { Beef, Plus, Pencil, CheckCircle } from 'lucide-react'
@@ -20,23 +20,22 @@ export default function TernakPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [{ data: rows }, localRows] = await Promise.all([
-      supabase.from('ternak').select('*').order('created_at', { ascending: false }),
+    const [rows, localRows] = await Promise.all([
+      api.get<Ternak[]>('/api/stok/ternak').catch(() => [] as Ternak[]),
       db.ternak.where('synced').equals(0).toArray(),
     ])
-    const serverIds = new Set((rows ?? []).map((r: Ternak) => r.id))
+    const serverIds = new Set(rows.map((r: Ternak) => r.id))
     const localOnly = localRows.filter(r => !serverIds.has(r.id))
-    setData([...localOnly as unknown as Ternak[], ...(rows ?? [])])
+    setData([...localOnly as unknown as Ternak[], ...rows])
     setLoading(false)
   }, [])
 
   useEffect(() => { load() }, [load])
 
+  // backend Go belum punya realtime — polling
   useEffect(() => {
-    const channel = supabase.channel('ternak-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ternak' }, () => load())
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
+    const timer = setInterval(() => load(), 30_000)
+    return () => clearInterval(timer)
   }, [load])
 
   const counts = { sehat: 0, pantau: 0, sakit: 0, mati: 0 }

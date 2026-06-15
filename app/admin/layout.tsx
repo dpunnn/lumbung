@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { LayoutDashboard, Building2, Users, LogOut } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import { getMe, logout } from '@/lib/auth'
 
 const NAV = [
   { href: '/admin',           label: 'Overview',  icon: LayoutDashboard },
@@ -18,16 +18,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [nama, setNama] = useState('')
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) { router.push('/login'); return }
-      const { data: p } = await supabase.from('profiles').select('nama, role').eq('id', user.id).single()
-      if (!p || p.role !== 'superadmin') { router.push('/login'); return }
-      setNama(p.nama)
+    getMe().then((me) => {
+      if (!me) { router.push('/login'); return }
+      if (me.role !== 'superadmin') { router.push('/login'); return }
+      setNama(me.username)
     })
   }, [router])
 
   async function handleLogout() {
-    await supabase.auth.signOut()
+    await logout()
     router.push('/login')
   }
 

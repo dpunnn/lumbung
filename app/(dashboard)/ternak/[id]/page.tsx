@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft, Trash2, AlertTriangle } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import api from '@/lib/api'
+import { getMe } from '@/lib/auth'
 import type { Ternak } from '@/types'
 
 const inputCls = 'w-full bg-white border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500 transition-colors'
@@ -19,7 +20,7 @@ export default function EditTernakPage() {
   const [confirmMati, setConfirmMati] = useState(false)
 
   useEffect(() => {
-    supabase.from('ternak').select('*').eq('id', id).single().then(({ data }) => {
+    api.get<Ternak>(`/api/stok/ternak/${id}`).then(data => {
       if (data) {
         setTernak(data)
         setForm({
@@ -30,7 +31,7 @@ export default function EditTernakPage() {
           vaksin_terakhir: data.vaksin_terakhir ?? '',
         })
       }
-    })
+    }).catch(() => null)
   }, [id])
 
   function set(k: string, v: string) { setForm(f => ({ ...f, [k]: v })) }
@@ -40,7 +41,7 @@ export default function EditTernakPage() {
     if (form.status === 'mati' && !confirmMati) { setConfirmMati(true); return }
     setError('')
     setSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
+    const me = await getMe()
     const updates: Record<string, unknown> = {
       kode: form.kode.toUpperCase(), jenis: form.jenis,
       umur_bulan: form.umur_bulan ? parseInt(form.umur_bulan) : null,
@@ -50,16 +51,20 @@ export default function EditTernakPage() {
     }
     if (form.status === 'mati' && ternak?.status !== 'mati') {
       updates.tanggal_mati = new Date().toISOString().split('T')[0]
-      updates.dicatat_mati_oleh = user?.id ?? null
+      updates.dicatat_mati_oleh = me?.id ?? null
     }
-    const { error: err } = await supabase.from('ternak').update(updates).eq('id', id)
-    if (err) { setError(err.message); setSaving(false); return }
-    router.push('/ternak')
+    try {
+      await api.put(`/api/stok/ternak/${id}`, updates)
+      router.push('/ternak')
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Gagal menyimpan')
+      setSaving(false)
+    }
   }
 
   async function handleHapus() {
     if (!confirm('Hapus data ternak ini?')) return
-    await supabase.from('ternak').delete().eq('id', id)
+    await api.delete(`/api/stok/ternak/${id}`).catch(() => null)
     router.push('/ternak')
   }
 

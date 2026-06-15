@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import api from './api'
 
 export interface RiwayatKredit {
   jumlah_koperasi: number
@@ -29,10 +29,15 @@ export async function hashNik(nik: string): Promise<string> {
 
 export async function cekKelayakan(nik: string): Promise<HasilKelayakan> {
   const ktpHash = await hashNik(nik)
-  const { data, error } = await supabase.rpc('cek_riwayat_kredit', { p_ktp_hash: ktpHash })
-  const r = (data?.[0] ?? null) as RiwayatKredit | null
+  // Riwayat kredit lintas koperasi kini disediakan pass-svc (sebelumnya RPC Supabase cek_riwayat_kredit).
+  let r: RiwayatKredit | null = null
+  try {
+    r = await api.post<RiwayatKredit | null>('/api/pass/riwayat-kredit', { ktp_hash: ktpHash })
+  } catch {
+    r = null
+  }
 
-  if (error || !r || r.jumlah_koperasi === 0) {
+  if (!r || r.jumlah_koperasi === 0) {
     return {
       ditemukan: false,
       skor: 0,

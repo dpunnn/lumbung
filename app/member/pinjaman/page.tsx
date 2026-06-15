@@ -2,7 +2,8 @@
 
 import { Suspense, useEffect, useState, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import api from '@/lib/api'
+import { getMe } from '@/lib/auth'
 import { Landmark, Plus, ChevronDown, ChevronUp, CheckCircle, Clock, AlertTriangle } from 'lucide-react'
 
 type Koperasi = { id: string; nama: string }
@@ -188,29 +189,21 @@ function PinjamanContent() {
 
   const loadPinjaman = useCallback(async (ids: string[]) => {
     if (!ids.length) return
-    const { data: pin } = await supabase
-      .from('pinjaman')
-      .select('id, jumlah_pokok, tenor_bulan, angsuran_per_bulan, status, created_at, koperasi(id, nama), angsuran(id, bulan_ke, tanggal_jatuh_tempo, jumlah_bayar, status, tanggal_bayar)')
-      .in('anggota_id', ids)
-      .order('created_at', { ascending: false })
-    setPinjaman((pin ?? []) as unknown as Pinjaman[])
+    const pin = await api.get<Pinjaman[]>(`/api/pinjaman?anggota_id=${ids.join(',')}`).catch(() => [] as Pinjaman[])
+    setPinjaman(pin ?? [])
   }, [])
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return
-      setUserId(user.id)
+    async function init() {
+      const me = await getMe()
+      if (!me) return
+      setUserId(me.id)
 
-      const { data: mem } = await supabase
-        .from('anggota_koperasi').select('koperasi_id, koperasi(id, nama)').eq('anggota_id', user.id)
+      const mem = await api.get<{ koperasi_id: string; koperasi: Koperasi }[]>(`/api/anggota?anggota_id=${me.id}`).catch(() => [] as { koperasi_id: string; koperasi: Koperasi }[])
       const kops = (mem ?? []).map((m: any) => m.koperasi).filter(Boolean) as Koperasi[]
       setJoinedKoperasi(kops)
 
-      const { data: prof } = await supabase.from('profiles').select('nama').eq('id', user.id).single()
-      if (!prof?.nama) return
-
-      const { data: anggotaRows } = await supabase
-        .from('anggota').select('id, koperasi_id, koperasi(id, nama)').ilike('nama', prof.nama)
+      const anggotaRows = await api.get<{ id: string; koperasi_id: string; koperasi: Koperasi }[]>(`/api/anggota?user_id=${me.id}`).catch(() => [] as { id: string; koperasi_id: string; koperasi: Koperasi }[])
       if (!anggotaRows?.length) return
 
       const extraKops = (anggotaRows as any[])
@@ -221,16 +214,15 @@ function PinjamanContent() {
       const ids = anggotaRows.map((a: any) => a.id)
       setAnggotaIds(ids)
       loadPinjaman(ids)
-    })
+    }
+    init()
   }, [loadPinjaman])
 
   useEffect(() => {
     if (!anggotaIds.length) return
-    const channel = supabase.channel('member-pinjaman-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pinjaman' },  () => loadPinjaman(anggotaIds))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'angsuran' },  () => loadPinjaman(anggotaIds))
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
+    // Realtime Supabase diganti polling karena backend kini Go/REST, bukan Supabase direct.
+    const timer = setInterval(() => loadPinjaman(anggotaIds), 30_000)
+    return () => clearInterval(timer)
   }, [anggotaIds, loadPinjaman])
 
   async function handleAjukan(e: React.FormEvent) {
@@ -240,50 +232,30 @@ function PinjamanContent() {
     if (!form.koperasi_id) { setError('Pilih koperasi terlebih dahulu'); return }
     setSaving(true)
 
-    const { data: existingAng } = await supabase
-      .from('anggota')
-      .select('id')
-      .eq('koperasi_id', form.koperasi_id)
-      .eq('user_id', userId)
-      .maybeSingle()
-
-    let anggotaId = existingAng?.id
-
-    if (!anggotaId) {
-      const { data: p } = await supabase.from('profiles').select('nama').eq('id', userId).single()
-      const { data: newAng, error: angErr } = await supabase.from('anggota').insert({
-        koperasi_id: form.koperasi_id,
-        nama: p?.nama ?? 'Anggota',
-        user_id: userId,
-      }).select('id').single()
-      if (angErr || !newAng) { setError('Gagal mendaftarkan profil anggota. Coba lagi.'); setSaving(false); return }
-      anggotaId = newAng.id
-      await supabase.from('anggota_koperasi').upsert({
-        anggota_id: userId,
-        koperasi_id: form.koperasi_id,
-      }, { onConflict: 'anggota_id,koperasi_id' })
-    }
-
     const jumlah = parseFloat(form.jumlah)
     const tenor = parseInt(form.tenor_bulan)
 
-    const { error: pinErr } = await supabase.from('pinjaman').insert({
-      koperasi_id: form.koperasi_id,
-      anggota_id: anggotaId,
-      jumlah_pokok: jumlah,
-      tenor_bulan: tenor,
-      angsuran_per_bulan: Math.ceil(jumlah / tenor),
-      tanggal_mulai: new Date().toISOString().split('T')[0],
-      status: 'diajukan',
-    })
+    try {
+      await api.post('/api/pinjaman', {
+        koperasi_id: form.koperasi_id,
+        jumlah_pokok: jumlah,
+        tenor_bulan: tenor,
+        angsuran_per_bulan: Math.ceil(jumlah / tenor),
+        tanggal_mulai: new Date().toISOString().split('T')[0],
+        status: 'diajukan',
+      })
+    } catch (err: any) {
+      setError(err?.message ?? 'Gagal mengirim pengajuan. Coba lagi.')
+      setSaving(false)
+      return
+    }
 
-    if (pinErr) { setError(pinErr.message); setSaving(false); return }
     setSuccess(true)
     setTab('list')
     setForm(f => ({ ...f, jumlah: '', tenor_bulan: '12' }))
     setSaving(false)
 
-    const { data: anggotaRows } = await supabase.from('anggota').select('id').eq('user_id', userId)
+    const anggotaRows = await api.get<{ id: string }[]>(`/api/anggota?user_id=${userId}`).catch(() => [] as { id: string }[])
     loadPinjaman((anggotaRows ?? []).map((a: any) => a.id))
   }
 

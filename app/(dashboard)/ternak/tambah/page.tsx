@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import api from '@/lib/api'
+import { getMe } from '@/lib/auth'
 import { db, addToOutbox } from '@/lib/db'
 
 const inputCls = 'w-full bg-white border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500 transition-colors'
@@ -25,15 +26,13 @@ export default function TambahTernakPage() {
     setError('')
     setSaving(true)
 
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setError('Sesi habis'); setSaving(false); return }
-    const { data: profile } = await supabase.from('profiles').select('koperasi_id').eq('id', user.id).single()
-    if (!profile) { setError('Profil tidak ditemukan'); setSaving(false); return }
+    const me = await getMe()
+    if (!me) { setError('Sesi habis'); setSaving(false); return }
 
     const row_id = crypto.randomUUID()
     const payload = {
       id: row_id,
-      koperasi_id: profile.koperasi_id,
+      koperasi_id: me.koperasi_id,
       kode: form.kode.toUpperCase(),
       jenis: form.jenis,
       umur_bulan: form.umur_bulan ? parseInt(form.umur_bulan) : null,
@@ -50,12 +49,11 @@ export default function TambahTernakPage() {
       return
     }
 
-    const { error: err } = await supabase.from('ternak').insert(payload)
-    if (err) {
+    try {
+      await api.post('/api/stok/ternak', payload)
+    } catch {
       await db.ternak.add({ ...payload, terverifikasi: false, synced: false, created_at: new Date().toISOString() })
       await addToOutbox('ternak', 'INSERT', row_id, payload)
-      router.push('/ternak')
-      return
     }
     router.push('/ternak')
   }

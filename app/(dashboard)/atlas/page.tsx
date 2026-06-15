@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Lock, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import api from '@/lib/api'
 
 type AtasRow = {
   koperasi_id: string
@@ -28,34 +28,39 @@ export default function AtlasPage() {
   const [sortAsc, setSortAsc] = useState(false)
 
   useEffect(() => {
-    supabase.from('atlas_agregat').select('*')
-      .then(({ data: rows, error }) => {
-        if (error) { loadManual(); return }
-        setData((rows as AtasRow[]) ?? [])
+    // Coba endpoint agregat dulu; jika gagal fallback ke loadManual
+    api.get<AtasRow[]>('/api/koperasi/atlas').catch(() => null).then(rows => {
+      if (rows && rows.length > 0) {
+        setData(rows)
         setLoading(false)
-      })
+      } else {
+        loadManual()
+      }
+    })
   }, [])
 
   async function loadManual() {
-    const { data: kops } = await supabase.from('koperasi').select('id, nama')
-    if (!kops) { setLoading(false); return }
+    // TODO: endpoint agregat lintas koperasi belum tersedia — susun dari data per koperasi
+    const kops = await api.get<{ id: string; nama: string }[]>('/api/koperasi').catch(() => [] as { id: string; nama: string }[])
+    if (!kops.length) { setLoading(false); return }
 
     const rows: AtasRow[] = await Promise.all(kops.map(async k => {
-      const [{ count: anggota }, { data: simpanan }, { data: ternak }, { count: pinjaman }] = await Promise.all([
-        supabase.from('anggota').select('*', { count: 'exact', head: true }).eq('koperasi_id', k.id),
-        supabase.from('simpanan').select('jumlah').eq('koperasi_id', k.id).eq('status', 'confirmed'),
-        supabase.from('ternak').select('status').eq('koperasi_id', k.id),
-        supabase.from('pinjaman').select('*', { count: 'exact', head: true }).eq('koperasi_id', k.id).eq('status', 'aktif'),
+      const [anggotaArr, simpanan, ternak, pinjamanArr] = await Promise.all([
+        api.get<{ id: string }[]>(`/api/anggota?koperasi_id=${k.id}`).catch(() => []),
+        api.get<{ jumlah: number }[]>(`/api/simpanan?koperasi_id=${k.id}&status=confirmed`).catch(() => []),
+        api.get<{ status: string }[]>(`/api/stok/ternak?koperasi_id=${k.id}`).catch(() => []),
+        api.get<{ id: string }[]>(`/api/pinjaman?koperasi_id=${k.id}&status=aktif`).catch(() => []),
       ])
-      const totalSimpanan = (simpanan ?? []).reduce((s, r) => s + (r.jumlah ?? 0), 0)
-      const sehat = (ternak ?? []).filter(t => t.status === 'sehat').length
-      const pctSehat = ternak?.length ? Math.round((sehat / ternak.length) * 100) : 0
+      const anggota = anggotaArr.length
+      const totalSimpanan = simpanan.reduce((s, r) => s + (r.jumlah ?? 0), 0)
+      const sehat = ternak.filter(t => t.status === 'sehat').length
+      const pctSehat = ternak.length ? Math.round((sehat / ternak.length) * 100) : 0
       const skor = Math.min(100, Math.round(
         0.35 * Math.min(1, totalSimpanan / 10_000_000) * 100 +
         0.35 * pctSehat +
-        0.3 * Math.min(1, (anggota ?? 0) / 20) * 100
+        0.3 * Math.min(1, anggota / 20) * 100
       ))
-      return { koperasi_id: k.id, nama: k.nama, jumlah_anggota: anggota ?? 0, total_simpanan: totalSimpanan, jumlah_ternak: ternak?.length ?? 0, pct_sehat: pctSehat, pinjaman_aktif: pinjaman ?? 0, skor }
+      return { koperasi_id: k.id, nama: k.nama, jumlah_anggota: anggota, total_simpanan: totalSimpanan, jumlah_ternak: ternak.length, pct_sehat: pctSehat, pinjaman_aktif: pinjamanArr.length, skor }
     }))
     setData(rows)
     setLoading(false)

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { Building2, CheckCircle, ChevronRight } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import api from '@/lib/api'
+import { getMe } from '@/lib/auth'
 
 type Koperasi = { id: string; nama: string; fokus_usaha: string; modules: string[] }
 type Membership = { koperasi_id: string; status: string; tanggal_bergabung: string }
@@ -25,29 +26,33 @@ export default function MemberPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return
-      setUserId(user.id)
-      const [{ data: kop }, { data: mem }] = await Promise.all([
-        supabase.from('koperasi').select('id, nama, fokus_usaha, modules').order('nama'),
-        supabase.from('anggota_koperasi').select('koperasi_id, status, tanggal_bergabung').eq('anggota_id', user.id),
+    async function load() {
+      const me = await getMe()
+      if (!me) return
+      setUserId(me.id)
+      const [kop, mem] = await Promise.all([
+        api.get<Koperasi[]>('/api/koperasi').catch(() => [] as Koperasi[]),
+        api.get<Membership[]>(`/api/anggota?anggota_id=${me.id}`).catch(() => [] as Membership[]),
       ])
       setAllKoperasi((kop ?? []).map(k => ({ ...k, modules: k.modules ?? [] })))
       setMemberships(mem ?? [])
       setLoading(false)
-    })
+    }
+    load()
   }, [])
 
   async function joinKoperasi(koperasiId: string) {
     setJoining(koperasiId)
-    const { error } = await supabase.from('anggota_koperasi').insert({
-      anggota_id: userId, koperasi_id: koperasiId, status: 'aktif',
-    })
-    if (!error) {
+    try {
+      await api.post('/api/anggota', {
+        anggota_id: userId, koperasi_id: koperasiId, status: 'aktif',
+      })
       setMemberships(prev => [...prev, {
         koperasi_id: koperasiId, status: 'aktif',
         tanggal_bergabung: new Date().toISOString(),
       }])
+    } catch {
+      // gagal join — biarkan user coba lagi
     }
     setJoining(null)
   }

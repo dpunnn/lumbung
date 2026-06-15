@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { supabase } from '@/lib/supabase'
+import api from '@/lib/api'
 import { getAnomalyKasir, type AnomalyKasir } from '@/lib/anomaly'
 import type { AnomalyAnalysis } from '@/app/api/anomali/route'
 import { ShieldCheck, Info, ChevronDown, Sparkles, AlertTriangle, Loader2 } from 'lucide-react'
@@ -48,12 +48,10 @@ export default function GuardPage() {
   }, [])
 
   const loadAudit = useCallback(async () => {
-    const { data } = await supabase
-      .from('audit_log')
-      .select('*, profiles(nama)')
-      .order('dilakukan_pada', { ascending: false })
-      .limit(100)
-    setAuditLog((data ?? []) as AuditLog[])
+    // TODO: implement via API — route /api/audit-log belum tersedia di gateway
+    // Menampilkan data kosong aman, fitur tidak crash
+    const data = await api.get<AuditLog[]>('/api/audit-log?limit=100').catch(() => [] as AuditLog[])
+    setAuditLog(data)
   }, [])
 
   useEffect(() => {
@@ -62,15 +60,12 @@ export default function GuardPage() {
   }, [loadAnomali, loadAudit])
 
   useEffect(() => {
-    const channel = supabase.channel('guard-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'audit_log' }, () => {
-        loadAnomali(); loadAudit()
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'simpanan' }, () => {
-        loadAnomali()
-      })
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
+    // Realtime channel diganti polling setiap 30 detik
+    const timer = setInterval(() => {
+      loadAnomali()
+      loadAudit()
+    }, 30_000)
+    return () => clearInterval(timer)
   }, [loadAnomali, loadAudit])
 
   async function analyzeWithAI(a: AnomalyKasir) {

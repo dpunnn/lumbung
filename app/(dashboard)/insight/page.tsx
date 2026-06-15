@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import api from '@/lib/api'
+import { getMe } from '@/lib/auth'
 import { loadModel, hitungTernak, type HasilDeteksi } from '@/lib/vision'
 import { runInsight } from '@/lib/insight/engine'
 import { hitungSkorKoperasi } from '@/lib/insight/scoring'
@@ -41,13 +42,10 @@ export default function InsightPage() {
   }, [])
 
   useEffect(() => {
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) return
-      const { data: p } = await supabase.from('profiles').select('koperasi_id').eq('id', user.id).single()
-      if (p?.koperasi_id) {
-        setKoperasiId(p.koperasi_id)
-        loadEngine(p.koperasi_id)
-      }
+    getMe().then(me => {
+      if (!me?.koperasi_id) return
+      setKoperasiId(me.koperasi_id)
+      loadEngine(me.koperasi_id)
     })
   }, [])
 
@@ -55,22 +53,21 @@ export default function InsightPage() {
     setLoadingEngine(true)
     try {
       const [
-        { data: kopData },
-        { data: anggotaRows },
-        { data: simpananRows },
-        { data: pinjamanRows },
-        { data: angsuranRows },
-
-        { data: pakanRows },
-        { data: ternakRows },
+        kopData,
+        anggotaRows,
+        simpananRows,
+        pinjamanRows,
+        angsuranRows,
+        pakanRows,
+        ternakRows,
       ] = await Promise.all([
-        supabase.from('koperasi').select('id, nama, fokus_usaha, modules').eq('id', kopId).single(),
-        supabase.from('anggota').select('id, nama, bergabung_at').eq('koperasi_id', kopId),
-        supabase.from('simpanan').select('id, anggota_id, jumlah, tanggal').eq('koperasi_id', kopId).eq('status', 'confirmed'),
-        supabase.from('pinjaman').select('id, anggota_id, jumlah_pokok, created_at').eq('koperasi_id', kopId),
-        supabase.from('angsuran').select('id, jumlah_bayar, created_at, pinjaman_id').limit(500),
-        supabase.from('pakan').select('id, nama, stok, satuan').eq('koperasi_id', kopId),
-        supabase.from('ternak').select('id, kode, jenis, umur_bulan, status, vaksin_terakhir, jumlah_terverifikasi').eq('koperasi_id', kopId),
+        api.get<{ id: string; nama: string; fokus_usaha: string; modules: string[] }>(`/api/koperasi/${kopId}`).catch(() => null),
+        api.get<{ id: string; nama: string; bergabung_at: string }[]>(`/api/anggota?koperasi_id=${kopId}`).catch(() => []),
+        api.get<{ id: string; anggota_id: string; jumlah: number; tanggal: string }[]>(`/api/simpanan?koperasi_id=${kopId}&status=confirmed`).catch(() => []),
+        api.get<{ id: string; anggota_id: string; jumlah_pokok: number; created_at: string }[]>(`/api/pinjaman?koperasi_id=${kopId}`).catch(() => []),
+        api.get<{ id: string; jumlah_bayar: number; created_at: string; pinjaman_id: string }[]>(`/api/angsuran?koperasi_id=${kopId}&limit=500`).catch(() => []),
+        api.get<{ id: string; nama: string; stok: number; satuan: string }[]>(`/api/stok?koperasi_id=${kopId}`).catch(() => []),
+        api.get<{ id: string; kode: string; jenis: string; umur_bulan: number; status: string; vaksin_terakhir: string; jumlah_terverifikasi: number }[]>(`/api/stok/ternak?koperasi_id=${kopId}`).catch(() => []),
       ])
 
       if (!kopData) return
@@ -84,7 +81,7 @@ export default function InsightPage() {
         lokasi: '',
       }
 
-      const anggota: Anggota[] = (anggotaRows ?? []).map(a => ({
+      const anggota: Anggota[] = anggotaRows.map(a => ({
         id: a.id,
         tenantId: kopId,
         nama: a.nama,
@@ -92,28 +89,28 @@ export default function InsightPage() {
       }))
 
       const transaksi: Transaksi[] = [
-        ...(simpananRows ?? []).map(s => ({
+        ...simpananRows.map(s => ({
           id: s.id, tenantId: kopId, tipe: 'simpanan' as const,
           anggotaId: s.anggota_id, jumlah: s.jumlah,
           ts: s.tanggal ? new Date(s.tanggal).toISOString() : new Date().toISOString(),
         })),
-        ...(pinjamanRows ?? []).map(p => ({
+        ...pinjamanRows.map(p => ({
           id: p.id, tenantId: kopId, tipe: 'pinjaman' as const,
           anggotaId: p.anggota_id, jumlah: p.jumlah_pokok,
           ts: p.created_at,
         })),
-        ...(angsuranRows ?? []).map(a => ({
+        ...angsuranRows.map(a => ({
           id: a.id, tenantId: kopId, tipe: 'angsuran' as const,
           jumlah: a.jumlah_bayar ?? 0, ts: a.created_at,
         })),
       ]
 
-      const stok: StokItem[] = (pakanRows ?? []).map(p => ({
+      const stok: StokItem[] = pakanRows.map(p => ({
         id: p.id, tenantId: kopId, nama: p.nama,
         qty: p.stok, satuan: p.satuan, kondisi: 'baik' as const,
       }))
 
-      const ternak: Ternak[] = (ternakRows ?? []).map(t => ({
+      const ternak: Ternak[] = ternakRows.map(t => ({
         id: t.id, tenantId: kopId, tag: t.kode, jenis: t.jenis,
         umurBulan: t.umur_bulan ?? 0, bobotKg: 0,
         vaksin: t.vaksin_terakhir ? [t.vaksin_terakhir] : [],

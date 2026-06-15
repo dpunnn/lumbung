@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { Beef, Landmark, FileText, Wheat, AlertTriangle, ChevronRight } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import api from '@/lib/api'
 
 type Stats = {
   ternak: { sehat: number; pantau: number; sakit: number; total: number; matiBuilan: number }
@@ -20,10 +20,17 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
-    const { data: ternak } = await supabase.from('ternak').select('status, tanggal_mati')
-    const { data: simpanan } = await supabase.from('simpanan').select('jumlah').eq('status', 'confirmed')
-    const { data: pinjaman } = await supabase.from('pinjaman').select('status')
-    const { data: pakan } = await supabase.from('pakan').select('nama, stok, satuan, batas_minimum')
+    type TernakRow = { status: string; tanggal_mati?: string | null }
+    type SimpananRow = { jumlah: number }
+    type PinjamanRow = { status: string }
+    type PakanRow = { nama: string; stok: number; satuan: string; batas_minimum: number }
+
+    const [ternak, simpanan, pinjaman, pakan] = await Promise.all([
+      api.get<TernakRow[]>('/api/stok/ternak').catch(() => [] as TernakRow[]),
+      api.get<SimpananRow[]>('/api/simpanan?status=confirmed').catch(() => [] as SimpananRow[]),
+      api.get<PinjamanRow[]>('/api/pinjaman').catch(() => [] as PinjamanRow[]),
+      api.get<PakanRow[]>('/api/stok/pakan').catch(() => [] as PakanRow[]),
+    ])
 
     const now = new Date()
     const bulanIni = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -49,13 +56,9 @@ export default function DashboardPage() {
   useEffect(() => { load() }, [load])
 
   useEffect(() => {
-    const channel = supabase.channel('dashboard-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ternak' },   () => load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'simpanan' }, () => load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pinjaman' }, () => load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pakan' },    () => load())
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
+    // Backend Go belum punya realtime (Supabase channels dihapus) — polling ringan tiap 30 detik.
+    const id = setInterval(() => load(), 30_000)
+    return () => clearInterval(id)
   }, [load])
 
   if (loading) return (

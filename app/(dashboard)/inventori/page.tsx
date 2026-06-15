@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { supabase } from '@/lib/supabase'
+import api from '@/lib/api'
+import { getMe } from '@/lib/auth'
 import { Package, Plus, Pencil, Trash2, AlertTriangle, Calendar, Truck, Star } from 'lucide-react'
 
 type Item = {
@@ -95,7 +96,7 @@ export default function InventoriPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const { data } = await supabase.from('inventori').select('*').order('nama')
+    const data = await api.get<Item[]>('/api/stok').catch(() => [] as Item[])
     setItems(data ?? [])
     setLoading(false)
   }, [])
@@ -103,10 +104,9 @@ export default function InventoriPage() {
   useEffect(() => { load() }, [load])
 
   useEffect(() => {
-    const channel = supabase.channel('inventori-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventori' }, () => load())
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
+    // Polling pengganti realtime Supabase channel (inventori-rt)
+    const interval = setInterval(() => load(), 30_000)
+    return () => clearInterval(interval)
   }, [load])
 
   function set(k: string, v: string) { setForm(f => ({ ...f, [k]: v })) }
@@ -131,8 +131,7 @@ export default function InventoriPage() {
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    const { data: profile } = await supabase.from('profiles').select('koperasi_id').eq('id', user!.id).single()
+    const me = await getMe()
 
     const payload = {
       nama: form.nama, kategori: form.kategori,
@@ -145,9 +144,9 @@ export default function InventoriPage() {
     }
 
     if (editId) {
-      await supabase.from('inventori').update(payload).eq('id', editId)
+      await api.put<void>(`/api/stok/${editId}`, payload).catch(() => null)
     } else {
-      await supabase.from('inventori').insert({ ...payload, koperasi_id: profile!.koperasi_id })
+      await api.post<void>('/api/stok', { ...payload, koperasi_id: me?.koperasi_id }).catch(() => null)
     }
 
     setSaving(false)
@@ -158,7 +157,7 @@ export default function InventoriPage() {
 
   async function handleHapus(id: string) {
     if (!confirm('Hapus item ini?')) return
-    await supabase.from('inventori').delete().eq('id', id)
+    await api.delete<void>(`/api/stok/${id}`).catch(() => null)
     load()
   }
 

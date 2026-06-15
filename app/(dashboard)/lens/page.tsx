@@ -7,7 +7,8 @@ import {
   ReferenceLine, CartesianGrid,
 } from 'recharts'
 import { AlertTriangle, ArrowDown, ArrowUp, BarChart2, TrendingUp, Minus } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
+import api from '@/lib/api'
+import { getMe } from '@/lib/auth'
 import { narasiTemplate, type RingkasanLens } from '@/lib/narasi'
 
 const WARNA_TERNAK: Record<string, string> = {
@@ -172,26 +173,24 @@ export default function LensPage() {
 
   useEffect(() => {
     async function load() {
-      const { data: auth } = await supabase.auth.getUser()
-      const { data: profile } = await supabase
-        .from('profiles').select('koperasi_id').eq('id', auth.user!.id).single()
-      const kopId = profile!.koperasi_id
-      const { data: kop } = await supabase
-        .from('koperasi').select('nama, fokus_usaha').eq('id', kopId).single()
+      const me = await getMe()
+      if (!me?.koperasi_id) return
+      const kopId = me.koperasi_id
+      const kop = await api.get<{ nama: string; fokus_usaha: string }>(`/api/koperasi/${kopId}`).catch(() => null)
 
-      const [{ data: simpanan }, { data: ternak }, { data: pakan }, { data: pinjaman }, { data: angsuran }] =
+      const [simpanan, ternak, pakan, pinjaman, angsuran] =
         await Promise.all([
-          supabase.from('simpanan').select('jumlah, tanggal').eq('status', 'confirmed').eq('koperasi_id', kopId),
-          supabase.from('ternak').select('status').eq('koperasi_id', kopId),
-          supabase.from('pakan').select('nama, stok, batas_minimum').eq('koperasi_id', kopId),
-          supabase.from('pinjaman').select('id').eq('koperasi_id', kopId),
-          supabase.from('angsuran').select('status, tanggal_jatuh_tempo'),
+          api.get<{ jumlah: number; tanggal: string }[]>(`/api/simpanan?koperasi_id=${kopId}&status=confirmed`).catch(() => []),
+          api.get<{ status: string }[]>(`/api/stok/ternak?koperasi_id=${kopId}`).catch(() => []),
+          api.get<{ nama: string; stok: number; batas_minimum: number }[]>(`/api/stok?koperasi_id=${kopId}`).catch(() => []),
+          api.get<{ id: string }[]>(`/api/pinjaman?koperasi_id=${kopId}`).catch(() => []),
+          api.get<{ status: string; tanggal_jatuh_tempo: string }[]>(`/api/angsuran?koperasi_id=${kopId}`).catch(() => []),
         ])
 
       const modul = {
-        simpanPinjam: (simpanan?.length ?? 0) > 0 || (pinjaman?.length ?? 0) > 0,
-        ternak: (ternak?.length ?? 0) > 0,
-        pakan: (pakan?.length ?? 0) > 0,
+        simpanPinjam: simpanan.length > 0 || pinjaman.length > 0,
+        ternak: ternak.length > 0,
+        pakan: pakan.length > 0,
       }
 
       const now = new Date()
@@ -205,7 +204,7 @@ export default function LensPage() {
       const totals = bulanList.map((b) => ({
         key: b.key,
         bulan: b.bulan,
-        total: (simpanan ?? []).filter((s) => s.tanggal?.startsWith(b.key)).reduce((sum, s) => sum + (s.jumlah ?? 0), 0),
+        total: simpanan.filter((s) => s.tanggal?.startsWith(b.key)).reduce((sum, s) => sum + (s.jumlah ?? 0), 0),
       }))
 
       const simpananTrend = totals.map((t, i) => ({
@@ -214,17 +213,17 @@ export default function LensPage() {
 
       const bulanIniKey = ymKey(now)
       const bulanLaluKey = ymKey(new Date(now.getFullYear(), now.getMonth() - 1, 1))
-      const simpananBulanIni = (simpanan ?? []).filter(s => s.tanggal?.startsWith(bulanIniKey)).reduce((s, x) => s + (x.jumlah ?? 0), 0)
-      const simpananBulanLalu = (simpanan ?? []).filter(s => s.tanggal?.startsWith(bulanLaluKey)).reduce((s, x) => s + (x.jumlah ?? 0), 0)
+      const simpananBulanIni = simpanan.filter(s => s.tanggal?.startsWith(bulanIniKey)).reduce((s, x) => s + (x.jumlah ?? 0), 0)
+      const simpananBulanLalu = simpanan.filter(s => s.tanggal?.startsWith(bulanLaluKey)).reduce((s, x) => s + (x.jumlah ?? 0), 0)
 
-      const hitung = (st: string) => (ternak ?? []).filter((t) => t.status === st).length
+      const hitung = (st: string) => ternak.filter((t) => t.status === st).length
       const ternakChart = (['sehat', 'pantau', 'sakit', 'mati'] as const)
         .map((st) => ({ name: st, value: hitung(st) })).filter((x) => x.value > 0)
-      const pakanChart = (pakan ?? []).map((p) => ({ nama: p.nama, stok: p.stok, minimum: p.batas_minimum }))
-      const pakanMenipis = (pakan ?? []).filter((p) => p.batas_minimum > 0 && p.stok <= p.batas_minimum).map((p) => p.nama)
+      const pakanChart = pakan.map((p) => ({ nama: p.nama, stok: p.stok, minimum: p.batas_minimum }))
+      const pakanMenipis = pakan.filter((p) => p.batas_minimum > 0 && p.stok <= p.batas_minimum).map((p) => p.nama)
 
       const angsuranChart = bulanList.map((b) => {
-        const baris = (angsuran ?? []).filter((a) => a.tanggal_jatuh_tempo?.startsWith(b.key))
+        const baris = angsuran.filter((a) => a.tanggal_jatuh_tempo?.startsWith(b.key))
         return {
           bulan: b.bulan,
           tepat: baris.filter((a) => a.status === 'lunas').length,
@@ -240,7 +239,7 @@ export default function LensPage() {
         ternak: modul.ternak ? {
           sehat: hitung('sehat'), pantau: hitung('pantau'),
           sakit: hitung('sakit'), mati: hitung('mati'),
-          total: (ternak ?? []).filter((t) => t.status !== 'mati').length,
+          total: ternak.filter((t) => t.status !== 'mati').length,
         } : undefined,
         angsuran: { tepatWaktu: totTepat, terlambat: totTerlambat, total: totTepat + totTerlambat },
         modul,
@@ -273,24 +272,19 @@ export default function LensPage() {
     const now = new Date()
     const bulanIniKey = ymKey(now)
     const bulanLaluKey = ymKey(new Date(now.getFullYear(), now.getMonth() - 1, 1))
-    const [simpananIni, simpananLalu, angsuranRes, ternakRes, pakanRes] = await Promise.all([
-      supabase.from('simpanan').select('id, jumlah, tanggal, anggota:anggota_id(nama)')
-        .eq('koperasi_id', kopId).eq('status', 'confirmed')
-        .gte('tanggal', bulanIniKey + '-01').order('tanggal', { ascending: false }),
-      supabase.from('simpanan').select('jumlah').eq('koperasi_id', kopId).eq('status', 'confirmed')
-        .gte('tanggal', bulanLaluKey + '-01').lte('tanggal', bulanLaluKey + '-31'),
-      supabase.from('angsuran')
-        .select('id, status, tanggal_jatuh_tempo, jumlah_bayar, pinjaman:pinjaman_id(jumlah_pokok, anggota:anggota_id(nama))')
-        .order('tanggal_jatuh_tempo', { ascending: false }).limit(100),
-      supabase.from('ternak').select('id, kode, jenis, status, umur_bulan').eq('koperasi_id', kopId).order('status'),
-      supabase.from('pakan').select('id, nama, stok, batas_minimum, satuan').eq('koperasi_id', kopId).order('nama'),
+    const [simpananIni, simpananLaluArr, angsuranRes, ternakRes, pakanRes] = await Promise.all([
+      api.get<RinciSimpanan[]>(`/api/simpanan?koperasi_id=${kopId}&status=confirmed&tanggal_gte=${bulanIniKey}-01`).catch(() => [] as RinciSimpanan[]),
+      api.get<{ jumlah: number }[]>(`/api/simpanan?koperasi_id=${kopId}&status=confirmed&tanggal_gte=${bulanLaluKey}-01&tanggal_lte=${bulanLaluKey}-31`).catch(() => []),
+      api.get<RinciAngsuran[]>(`/api/angsuran?koperasi_id=${kopId}&limit=100`).catch(() => [] as RinciAngsuran[]),
+      api.get<RinciTernak[]>(`/api/stok/ternak?koperasi_id=${kopId}`).catch(() => [] as RinciTernak[]),
+      api.get<RinciPakan[]>(`/api/stok?koperasi_id=${kopId}`).catch(() => [] as RinciPakan[]),
     ])
     setRinciData({
-      simpananBulanIni: (simpananIni.data ?? []) as unknown as RinciSimpanan[],
-      simpananBulanLalu: (simpananLalu.data ?? []).reduce((s, x) => s + (x.jumlah ?? 0), 0),
-      angsuranAll: (angsuranRes.data ?? []) as unknown as RinciAngsuran[],
-      ternakAll: (ternakRes.data ?? []) as RinciTernak[],
-      pakanAll: (pakanRes.data ?? []) as RinciPakan[],
+      simpananBulanIni: simpananIni,
+      simpananBulanLalu: simpananLaluArr.reduce((s, x) => s + (x.jumlah ?? 0), 0),
+      angsuranAll: angsuranRes,
+      ternakAll: ternakRes,
+      pakanAll: pakanRes,
     })
     setRinciLoading(false)
   }, [rinciData])

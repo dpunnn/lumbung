@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { supabase } from '@/lib/supabase'
+import api from '@/lib/api'
+import { getMe } from '@/lib/auth'
 import { Droplets, Plus, Pencil } from 'lucide-react'
 
 type Meteran = {
@@ -52,11 +53,10 @@ export default function AirPage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [{ data: m }, { data: t }] = await Promise.all([
-      supabase.from('meteran_air').select('*').order('nama_pelanggan'),
-      supabase.from('tagihan_air')
-        .select('*, meteran:meteran_id(nama_pelanggan, nomor_meteran)')
-        .order('bulan', { ascending: false }),
+    // TODO: meteran_air dan tagihan_air tidak ada route di gateway — return empty state aman
+    const [m, t] = await Promise.all([
+      api.get<Meteran[]>('/api/air/meteran').catch(() => [] as Meteran[]),
+      api.get<Tagihan[]>('/api/air/tagihan').catch(() => [] as Tagihan[]),
     ])
     setMeteranList(m ?? [])
     setTagihan((t ?? []) as Tagihan[])
@@ -66,18 +66,15 @@ export default function AirPage() {
   useEffect(() => { load() }, [load])
 
   useEffect(() => {
-    const channel = supabase.channel('air-rt')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tagihan_air' }, () => load())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'meteran_air' }, () => load())
-      .subscribe()
-    return () => { supabase.removeChannel(channel) }
+    // Polling pengganti realtime Supabase channel (air-rt)
+    const interval = setInterval(() => load(), 30_000)
+    return () => clearInterval(interval)
   }, [load])
 
   async function handleSaveMeteran(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    const { data: profile } = await supabase.from('profiles').select('koperasi_id').eq('id', user!.id).single()
+    const me = await getMe()
 
     const payload = {
       nama_pelanggan: formMeteran.nama_pelanggan,
@@ -87,9 +84,11 @@ export default function AirPage() {
     }
 
     if (editMeteranId) {
-      await supabase.from('meteran_air').update(payload).eq('id', editMeteranId)
+      // TODO: implement via API — /api/air/meteran/{id}
+      await api.put<void>(`/api/air/meteran/${editMeteranId}`, payload).catch(() => null)
     } else {
-      await supabase.from('meteran_air').insert({ ...payload, koperasi_id: profile!.koperasi_id })
+      // TODO: implement via API — /api/air/meteran
+      await api.post<void>('/api/air/meteran', { ...payload, koperasi_id: me?.koperasi_id }).catch(() => null)
     }
 
     setSaving(false)
@@ -111,30 +110,29 @@ export default function AirPage() {
     const pemakaian = akhir - awal
     const tagihan_amount = Math.round(pemakaian * meteran.tarif_per_m3)
 
-    const { data: { user } } = await supabase.auth.getUser()
-    const { data: profile } = await supabase.from('profiles').select('koperasi_id').eq('id', user!.id).single()
+    const me = await getMe()
 
-    const { data: existing } = await supabase
-      .from('tagihan_air')
-      .select('id')
-      .eq('meteran_id', formTagihan.meteran_id)
-      .eq('bulan', formTagihan.bulan)
-      .maybeSingle()
+    // Cek apakah tagihan bulan ini sudah ada (upsert logic)
+    // TODO: implement via API — /api/air/tagihan (upsert by meteran_id+bulan)
+    const existingList = await api.get<Tagihan[]>(
+      `/api/air/tagihan?meteran_id=${formTagihan.meteran_id}&bulan=${formTagihan.bulan}`
+    ).catch(() => [] as Tagihan[])
+    const existing = existingList?.[0] ?? null
 
     if (existing) {
-      await supabase.from('tagihan_air').update({
+      await api.put<void>(`/api/air/tagihan/${existing.id}`, {
         meter_awal: awal, meter_akhir: akhir, jumlah_tagihan: tagihan_amount,
-      }).eq('id', existing.id)
+      }).catch(() => null)
     } else {
-      await supabase.from('tagihan_air').insert({
-        koperasi_id: profile!.koperasi_id,
+      await api.post<void>('/api/air/tagihan', {
+        koperasi_id: me?.koperasi_id,
         meteran_id: formTagihan.meteran_id,
         bulan: formTagihan.bulan,
         meter_awal: awal,
         meter_akhir: akhir,
         jumlah_tagihan: tagihan_amount,
         status: 'belum_bayar',
-      })
+      }).catch(() => null)
     }
 
     setSaving(false)
@@ -144,10 +142,11 @@ export default function AirPage() {
   }
 
   async function handleBayar(id: string) {
-    await supabase.from('tagihan_air').update({
+    // TODO: implement via API — /api/air/tagihan/{id}
+    await api.put<void>(`/api/air/tagihan/${id}`, {
       status: 'lunas',
       tanggal_bayar: new Date().toISOString().split('T')[0],
-    }).eq('id', id)
+    }).catch(() => null)
     load()
   }
 

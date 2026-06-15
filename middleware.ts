@@ -1,78 +1,52 @@
-import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Auth gate berbasis cookie refresh_token (httpOnly, di-set auth-svc).
+// Access token disimpan in-memory di client, jadi middleware (server-side) hanya
+// memakai keberadaan refresh_token sebagai proxy "sudah login".
+// Verifikasi JWT yang sebenarnya tetap dilakukan Gateway pada tiap request API.
 export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request })
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return request.cookies.getAll() },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({ request })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
-        },
-      },
-    }
-  )
-
-  const { data: { user } } = await supabase.auth.getUser()
   const path = request.nextUrl.pathname
 
+  // Pass public: /pass/[token] bisa diakses siapa saja
   const isPassPublic = /^\/pass\/[^/]+$/.test(path)
+  // Auth routes
   const isAuthRoute = path === '/login' || path === '/daftar'
+  // Marketplace publik
+  const isMarketplace = path.startsWith('/produk') || path === '/toko'
 
-  const isDashboard = path.startsWith('/dashboard') ||
-    ['/ternak', '/pakan', '/simpan-pinjam', '/pass', '/insight', '/lens', '/guard', '/pengadaan']
-      .some(p => path.startsWith(p))
-  const isAdmin = path.startsWith('/admin')
-  const isMember = path.startsWith('/member')
-  const isAtlas = path.startsWith('/atlas')
+  // Protected routes
+  const isProtected = !isPassPublic && !isAuthRoute && !isMarketplace && (
+    path.startsWith('/dashboard') ||
+    path.startsWith('/admin') ||
+    path.startsWith('/member') ||
+    path.startsWith('/ternak') ||
+    path.startsWith('/pakan') ||
+    path.startsWith('/simpan-pinjam') ||
+    path.startsWith('/pass') ||
+    path.startsWith('/insight') ||
+    path.startsWith('/lens') ||
+    path.startsWith('/guard') ||
+    path.startsWith('/pengadaan') ||
+    path.startsWith('/atlas')
+  )
 
-  const isProtected = !isPassPublic && (isDashboard || isAdmin || isMember || isAtlas)
+  const hasRefreshCookie = request.cookies.has('refresh_token')
 
-  if (!user && isProtected) {
+  // Di dev (HTTP), cookie Secure tidak tersimpan browser → skip server-side check.
+  // Proteksi route ditangani client-side di dashboard layout (getMe() → redirect /login).
+  const isDev = process.env.NODE_ENV === 'development'
+
+  if (!isDev && isProtected && !hasRefreshCookie) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  if (user && isAuthRoute) {
-    const { data: profile } = await supabase
-      .from('profiles').select('role').eq('id', user.id).single()
-
-    const role = profile?.role ?? 'anggota'
-
-    if (role === 'superadmin') return NextResponse.redirect(new URL('/admin', request.url))
-    if (role === 'anggota') return NextResponse.redirect(new URL('/member', request.url))
+  if (!isDev && isAuthRoute && hasRefreshCookie) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 
-  if (user && isProtected) {
-    const { data: profile } = await supabase
-      .from('profiles').select('role').eq('id', user.id).single()
-
-    const role = profile?.role ?? 'anggota'
-
-    if (role === 'superadmin' && !isAdmin) {
-      return NextResponse.redirect(new URL('/admin', request.url))
-    }
-
-    if (role === 'anggota' && !isMember) {
-      return NextResponse.redirect(new URL('/member', request.url))
-    }
-
-    if ((role === 'pengurus' || role === 'kasir') && isAdmin) {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
-    }
-  }
-
-  return supabaseResponse
+  return NextResponse.next()
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|manifest.json|icons).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|manifest.json|icons|public).*)'],
 }

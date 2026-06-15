@@ -12,6 +12,9 @@ module.exports = withPWA({
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '*.supabase.co' },
+      // MinIO dev (foto produk marketplace + intake)
+      { protocol: 'http', hostname: 'localhost', port: '9000' },
+      { protocol: 'http', hostname: 'minio', port: '9000' },
     ],
   },
 })

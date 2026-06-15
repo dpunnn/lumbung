@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import api from './api'
 
 export type PassFields = {
   jumlah_ternak?: number
@@ -20,13 +20,18 @@ export type ConsentMap = {
 export async function buildFields(koperasiId: string, consent: ConsentMap): Promise<PassFields> {
   const fields: PassFields = { timestamp: new Date().toISOString() }
 
-  const [{ data: ternak }, { data: simpanan }, { data: pinjaman }, { data: anggota }] =
-    await Promise.all([
-      supabase.from('ternak').select('status, nilai_estimasi, terverifikasi').eq('koperasi_id', koperasiId),
-      supabase.from('simpanan').select('jumlah').eq('koperasi_id', koperasiId),
-      supabase.from('pinjaman').select('status').eq('koperasi_id', koperasiId),
-      supabase.from('anggota').select('id').eq('koperasi_id', koperasiId),
-    ])
+  type TernakRow = { status: string; nilai_estimasi?: number | null; terverifikasi?: boolean }
+  type SimpananRow = { jumlah: number }
+  type PinjamanRow = { status: string }
+  type AnggotaRow = { id: string }
+
+  const q = `?koperasi_id=${encodeURIComponent(koperasiId)}`
+  const [ternak, simpanan, pinjaman, anggota] = await Promise.all([
+    api.get<TernakRow[]>(`/api/stok/ternak${q}`).catch(() => [] as TernakRow[]),
+    api.get<SimpananRow[]>(`/api/simpanan${q}`).catch(() => [] as SimpananRow[]),
+    api.get<PinjamanRow[]>(`/api/pinjaman${q}`).catch(() => [] as PinjamanRow[]),
+    api.get<AnggotaRow[]>(`/api/anggota${q}`).catch(() => [] as AnggotaRow[]),
+  ])
 
   fields.jumlah_anggota = anggota?.length ?? 0
 
