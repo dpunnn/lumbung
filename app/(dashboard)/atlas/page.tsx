@@ -15,10 +15,24 @@ type AtasRow = {
   skor: number
 }
 
+const glass: React.CSSProperties = {
+  background: 'rgba(255,255,255,.62)',
+  backdropFilter: 'blur(16px)',
+  WebkitBackdropFilter: 'blur(16px)',
+  border: '1px solid rgba(255,255,255,.7)',
+  boxShadow: '0 10px 26px rgba(26,71,49,.08)',
+}
+
+const thStyle: React.CSSProperties = {
+  fontSize: 11.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: '#9aa39c',
+  padding: '13px 16px', textAlign: 'left', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap',
+}
+
 function Badge({ skor }: { skor: number }) {
-  if (skor >= 75) return <span className="bg-green-50 text-green-700 border border-green-200 text-xs px-2 py-0.5 rounded-full font-medium">Sehat</span>
-  if (skor >= 50) return <span className="bg-amber-50 text-amber-700 border border-amber-200 text-xs px-2 py-0.5 rounded-full font-medium">Cukup</span>
-  return <span className="bg-red-50 text-red-600 border border-red-200 text-xs px-2 py-0.5 rounded-full font-medium">Perhatian</span>
+  const base: React.CSSProperties = { padding: '3px 10px', borderRadius: 999, fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }
+  if (skor >= 75) return <span style={{ ...base, background: 'rgba(47,158,99,.14)', color: '#1d7a4d', border: '1px solid rgba(47,158,99,.3)' }}>Sehat</span>
+  if (skor >= 50) return <span style={{ ...base, background: 'rgba(201,150,58,.14)', color: '#8a6420', border: '1px solid rgba(201,150,58,.3)' }}>Cukup</span>
+  return <span style={{ ...base, background: 'rgba(214,87,69,.12)', color: '#c0392b', border: '1px solid rgba(214,87,69,.28)' }}>Perhatian</span>
 }
 
 export default function AtlasPage() {
@@ -81,117 +95,113 @@ export default function AtlasPage() {
   const avgSkor = data.length ? Math.round(data.reduce((s, r) => s + r.skor, 0) / data.length) : 0
 
   function SortIcon({ k }: { k: keyof AtasRow }) {
-    if (sortKey !== k) return <ArrowUpDown size={12} className="inline ml-1 text-stone-400" />
-    return sortAsc ? <ArrowUp size={12} className="inline ml-1 text-amber-700" /> : <ArrowDown size={12} className="inline ml-1 text-amber-700" />
+    if (sortKey !== k) return <ArrowUpDown size={12} style={{ display: 'inline', marginLeft: 5, color: '#9aa39c', verticalAlign: 'middle' }} />
+    return sortAsc
+      ? <ArrowUp size={12} style={{ display: 'inline', marginLeft: 5, color: '#c9963a', verticalAlign: 'middle' }} />
+      : <ArrowDown size={12} style={{ display: 'inline', marginLeft: 5, color: '#c9963a', verticalAlign: 'middle' }} />
   }
 
+  const scoreColor = (s: number) => s >= 75 ? '#1d7a4d' : s >= 50 ? '#8a6420' : '#c0392b'
+
   return (
-    <div className="max-w-5xl mx-auto space-y-5">
-      <div>
-        <h1 className="text-stone-900 text-xl font-bold">Lumbung Atlas</h1>
-        <p className="text-stone-500 text-sm">Ringkasan agregat semua koperasi — Dinas Koperasi Kabupaten</p>
+    <div style={{ maxWidth: 1024, margin: '0 auto', animation: 'lmbFade .7s cubic-bezier(.2,.7,.2,1) both' }}>
+      <div style={{ marginBottom: 18 }}>
+        <h1 style={{ fontSize: 23, fontWeight: 800, color: '#0f2a1d', letterSpacing: '-.02em', marginBottom: 4 }}>Lumbung Atlas</h1>
+        <p style={{ fontSize: 13.5, color: '#6a766e' }}>Ringkasan agregat semua koperasi — Dinas Koperasi Kabupaten</p>
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center gap-2 text-xs text-blue-700">
-        <Lock size={13} className="shrink-0" />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 9, background: 'rgba(59,130,246,.06)', border: '1px solid rgba(59,130,246,.2)', borderRadius: 14, padding: '12px 16px', color: '#3b82f6', fontSize: 12.5, marginBottom: 18 }}>
+        <Lock size={14} style={{ flexShrink: 0 }} />
         <span>Data agregat — identitas dan transaksi individual anggota terjaga. Hanya ringkasan per koperasi yang ditampilkan.</span>
       </div>
 
       {!loading && (
-        <div className="grid grid-cols-3 gap-4">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 18 }}>
           {[
-            { label: 'Koperasi Binaan', value: data.length, color: 'text-stone-900' },
-            { label: 'Total Simpanan Platform', value: `Rp ${(totalSimpanan / 1_000_000).toFixed(1)}jt`, color: 'text-green-700' },
-            { label: 'Rata-rata Skor', value: avgSkor, color: avgSkor >= 75 ? 'text-green-700' : avgSkor >= 50 ? 'text-amber-700' : 'text-red-600' },
+            { label: 'Koperasi Binaan', value: data.length, color: '#0f2a1d' },
+            { label: 'Total Simpanan Platform', value: `Rp ${(totalSimpanan / 1_000_000).toFixed(1)}jt`, color: '#1d7a4d' },
+            { label: 'Rata-rata Skor', value: avgSkor, color: avgSkor >= 75 ? '#1d7a4d' : avgSkor >= 50 ? '#8a6420' : '#c0392b' },
           ].map(s => (
-            <div key={s.label} className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
-              <p className="text-stone-500 text-xs mb-1">{s.label}</p>
-              <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+            <div key={s.label} style={{ ...glass, borderRadius: 20, padding: 18 }}>
+              <p style={{ fontSize: 12.5, color: '#7a857d', marginBottom: 6 }}>{s.label}</p>
+              <p style={{ fontSize: 26, fontWeight: 800, color: s.color, letterSpacing: '-.02em' }}>{s.value}</p>
             </div>
           ))}
         </div>
       )}
 
       {loading ? (
-        <div className="flex justify-center py-12">
-          <div className="w-5 h-5 border-2 border-amber-700 border-t-transparent rounded-full animate-spin" />
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '60px 0' }}>
+          <div style={{ width: 28, height: 28, borderRadius: '50%', border: '3px solid rgba(26,71,49,.15)', borderTopColor: '#1a4731', animation: 'lmbSpin 0.8s linear infinite' }} />
         </div>
       ) : (
-        <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-stone-50 border-b border-stone-200 text-stone-500 text-xs">
-                {[
-                  { key: 'nama', label: 'Koperasi' },
-                  { key: 'jumlah_anggota', label: 'Anggota' },
-                  { key: 'total_simpanan', label: 'Total Simpanan' },
-                  { key: 'jumlah_ternak', label: 'Ternak' },
-                  { key: 'pct_sehat', label: '% Sehat' },
-                  { key: 'pinjaman_aktif', label: 'Pinjaman Aktif' },
-                  { key: 'skor', label: 'Skor' },
-                ].map(col => (
-                  <th key={col.key}
-                    className="px-4 py-3 text-left font-medium cursor-pointer hover:text-stone-900 select-none transition-colors"
-                    onClick={() => handleSort(col.key as keyof AtasRow)}>
-                    {col.label} <SortIcon k={col.key as keyof AtasRow} />
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-100">
-              {sorted.map(row => (
-                <tr key={row.koperasi_id} className="hover:bg-stone-50 transition-colors">
-                  <td className="px-4 py-3 text-stone-900 font-medium">{row.nama}</td>
-                  <td className="px-4 py-3 text-stone-700">{row.jumlah_anggota}</td>
-                  <td className="px-4 py-3 text-stone-700">Rp {(row.total_simpanan / 1_000_000).toFixed(1)}jt</td>
-                  <td className="px-4 py-3 text-stone-700">{row.jumlah_ternak}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-16 h-1.5 bg-stone-200 rounded-full overflow-hidden">
-                        <div className="h-full bg-green-500 rounded-full" style={{ width: `${row.pct_sehat}%` }} />
-                      </div>
-                      <span className="text-stone-700 text-xs">{row.pct_sehat}%</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-stone-700">{row.pinjaman_aktif}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <span className={`font-bold ${row.skor >= 75 ? 'text-green-700' : row.skor >= 50 ? 'text-amber-700' : 'text-red-600'}`}>
-                        {row.skor}
-                      </span>
-                      <Badge skor={row.skor} />
-                    </div>
-                  </td>
+        <div style={{ ...glass, borderRadius: 20, overflow: 'hidden', marginBottom: 18 }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid rgba(26,71,49,.08)' }}>
+                  {[
+                    { key: 'nama', label: 'Koperasi' },
+                    { key: 'jumlah_anggota', label: 'Anggota' },
+                    { key: 'total_simpanan', label: 'Total Simpanan' },
+                    { key: 'jumlah_ternak', label: 'Ternak' },
+                    { key: 'pct_sehat', label: '% Sehat' },
+                    { key: 'pinjaman_aktif', label: 'Pinjaman Aktif' },
+                    { key: 'skor', label: 'Skor' },
+                  ].map(col => (
+                    <th key={col.key} style={thStyle} onClick={() => handleSort(col.key as keyof AtasRow)}>
+                      {col.label} <SortIcon k={col.key as keyof AtasRow} />
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {sorted.map(row => (
+                  <tr key={row.koperasi_id}
+                    style={{ borderBottom: '1px solid rgba(26,71,49,.05)', transition: 'background .15s' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(26,71,49,.03)' }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
+                    <td style={{ padding: '13px 16px', color: '#0f2a1d', fontWeight: 700 }}>{row.nama}</td>
+                    <td style={{ padding: '13px 16px', color: '#46544b' }}>{row.jumlah_anggota}</td>
+                    <td style={{ padding: '13px 16px', color: '#46544b' }}>Rp {(row.total_simpanan / 1_000_000).toFixed(1)}jt</td>
+                    <td style={{ padding: '13px 16px', color: '#46544b' }}>{row.jumlah_ternak}</td>
+                    <td style={{ padding: '13px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ width: 64, height: 7, borderRadius: 999, background: 'rgba(26,71,49,.08)', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', borderRadius: 999, background: '#2f9e63', width: `${row.pct_sehat}%` }} />
+                        </div>
+                        <span style={{ color: '#46544b', fontSize: 12 }}>{row.pct_sehat}%</span>
+                      </div>
+                    </td>
+                    <td style={{ padding: '13px 16px', color: '#46544b' }}>{row.pinjaman_aktif}</td>
+                    <td style={{ padding: '13px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontWeight: 800, color: scoreColor(row.skor) }}>{row.skor}</span>
+                        <Badge skor={row.skor} />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
       {!loading && data.length > 0 && (
-        <div className="bg-white border border-stone-200 rounded-xl p-5 shadow-sm">
-          <p className="text-stone-800 text-sm font-semibold mb-4">Perbandingan Total Simpanan</p>
-          <div className="space-y-2">
+        <div style={{ ...glass, borderRadius: 20, padding: 20 }}>
+          <p style={{ fontSize: 14, fontWeight: 800, color: '#0f2a1d', marginBottom: 16 }}>Perbandingan Total Simpanan</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {[...data].sort((a, b) => b.total_simpanan - a.total_simpanan).map(row => {
               const max = Math.max(...data.map(r => r.total_simpanan))
               const pct = max > 0 ? (row.total_simpanan / max) * 100 : 0
               return (
-                <div key={row.koperasi_id} className="flex items-center gap-3">
-                  <span className="text-stone-500 text-xs w-32 truncate">{row.nama}</span>
-                  <div className="flex-1 h-5 bg-stone-100 rounded overflow-hidden">
-                    <div className="h-full bg-amber-600 rounded transition-all flex items-center px-2"
-                      style={{ width: `${pct}%` }}>
-                      {pct > 25 && (
-                        <span className="text-white text-xs font-medium">
-                          Rp {(row.total_simpanan / 1_000_000).toFixed(1)}jt
-                        </span>
-                      )}
-                    </div>
+                <div key={row.koperasi_id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontSize: 12, color: '#7a857d', width: 128, flexShrink: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.nama}</span>
+                  <div style={{ flex: 1, height: 7, borderRadius: 999, background: 'rgba(26,71,49,.08)', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', borderRadius: 999, background: '#c9963a', width: `${pct}%`, transition: 'width .7s ease' }} />
                   </div>
-                  {pct <= 25 && (
-                    <span className="text-stone-500 text-xs">Rp {(row.total_simpanan / 1_000_000).toFixed(1)}jt</span>
-                  )}
+                  <span style={{ fontSize: 12, color: '#46544b', fontWeight: 700, width: 80, textAlign: 'right' }}>Rp {(row.total_simpanan / 1_000_000).toFixed(1)}jt</span>
                 </div>
               )
             })}

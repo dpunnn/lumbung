@@ -44,6 +44,8 @@ func main() {
 	stokRepo := repository.NewStokRepository(db)
 	intakeRepo := repository.NewIntakeRepository(db)
 	pengadaanRepo := repository.NewPengadaanRepository(db)
+	ternakRepo := repository.NewTernakRepository(db)
+	pakanRepo := repository.NewPakanRepository(db)
 
 	// Event publisher (RabbitMQ). Jika gagal, service tetap jalan tanpa event.
 	var publisher service.EventPublisher
@@ -57,6 +59,9 @@ func main() {
 
 	svc := service.NewInventoriService(stokRepo, intakeRepo, pengadaanRepo, publisher)
 	h := handler.NewInventoriHandler(svc)
+	ternakH := handler.NewTernakHandler(ternakRepo)
+	pakanH := handler.NewPakanHandler(pakanRepo)
+	itemH := handler.NewInventoriItemHandler(db)
 
 	// Consumer intake.recorded -> tambah stok (jalan di goroutine terpisah).
 	startConsumer(cfg.RabbitURL, intakeRepo, publisher)
@@ -81,15 +86,43 @@ func main() {
 		// Semua endpoint butuh identity dari gateway.
 		r.Use(sharedauth.FromHeaders)
 
-		// Stok (read-only umum).
-		r.Get("/stok", h.ListStok)
+		// Stok generik internal (tidak di-expose ke frontend langsung).
+		r.Get("/stok/internal", h.ListStok)
+
+		// Inventori items CRUD (dipanggil frontend inventori page via /api/stok).
+		r.Get("/stok", itemH.List)
+		r.Group(func(r chi.Router) {
+			r.Use(sharedauth.RequireRole(sharedauth.RolePengurus, sharedauth.RoleKasir))
+			r.Post("/stok", itemH.Create)
+			r.Put("/stok/{id}", itemH.Update)
+			r.Delete("/stok/{id}", itemH.Delete)
+		})
+
+		// Ternak CRUD.
+		r.Get("/stok/ternak", ternakH.List)
+		r.Get("/stok/ternak/{id}", ternakH.Get)
+		r.Group(func(r chi.Router) {
+			r.Use(sharedauth.RequireRole(sharedauth.RolePengurus, sharedauth.RoleKasir))
+			r.Post("/stok/ternak", ternakH.Create)
+			r.Put("/stok/ternak/{id}", ternakH.Update)
+			r.Delete("/stok/ternak/{id}", ternakH.Delete)
+		})
+
+		// Pakan CRUD.
+		r.Get("/stok/pakan", pakanH.List)
+		r.Group(func(r chi.Router) {
+			r.Use(sharedauth.RequireRole(sharedauth.RolePengurus, sharedauth.RoleKasir))
+			r.Post("/stok/pakan", pakanH.Create)
+			r.Put("/stok/pakan/{id}", pakanH.Update)
+			r.Delete("/stok/pakan/{id}", pakanH.Delete)
+		})
 
 		// Intake.
 		r.Get("/intake", h.ListIntake)
 		// Pengadaan.
 		r.Get("/pengadaan", h.ListPengadaan)
 
-		// Mutasi dibatasi pengurus/kasir.
+		// Mutasi intake/pengadaan dibatasi pengurus/kasir.
 		r.Group(func(r chi.Router) {
 			r.Use(sharedauth.RequireRole(sharedauth.RolePengurus, sharedauth.RoleKasir))
 			r.Post("/intake", h.CreateIntake)

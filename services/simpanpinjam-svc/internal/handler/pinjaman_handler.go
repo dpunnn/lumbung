@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -23,14 +24,22 @@ func NewPinjamanHandler(svc *service.PinjamanService, simpananSvc *service.Simpa
 }
 
 type pinjamanResponse struct {
-	ID               string  `json:"id"`
-	KoperasiID       string  `json:"koperasi_id"`
-	AnggotaID        string  `json:"anggota_id"`
-	Pokok            float64 `json:"pokok"`
-	Tenor            int     `json:"tenor"`
-	AngsuranPerBulan float64 `json:"angsuran_per_bulan"`
-	BungaPersen      float64 `json:"bunga_persen"`
-	Status           string  `json:"status"`
+	ID               string           `json:"id"`
+	KoperasiID       string           `json:"koperasi_id"`
+	AnggotaID        string           `json:"anggota_id"`
+	JumlahPokok      float64          `json:"jumlah_pokok"`
+	TenorBulan       int              `json:"tenor_bulan"`
+	TanggalMulai     string           `json:"tanggal_mulai"`
+	AngsuranPerBulan float64          `json:"angsuran_per_bulan"`
+	BungaPersen      float64          `json:"bunga_persen"`
+	Status           string           `json:"status"`
+	CreatedAt        string           `json:"created_at"`
+	Angsuran         []angsuranResponse `json:"angsuran"`
+	Anggota          *anggotaMeta     `json:"anggota"`
+}
+
+type anggotaMeta struct {
+	Nama string `json:"nama"`
 }
 
 type angsuranResponse struct {
@@ -44,10 +53,15 @@ type angsuranResponse struct {
 }
 
 type createPinjamanRequest struct {
-	AnggotaID   string  `json:"anggota_id"`
-	Pokok       float64 `json:"pokok"`
-	Tenor       int     `json:"tenor"`
-	BungaPersen float64 `json:"bunga_persen"`
+	AnggotaID        string  `json:"anggota_id"`
+	JumlahPokok      float64 `json:"jumlah_pokok"`
+	TenorBulan       int     `json:"tenor_bulan"`
+	BungaPersen      float64 `json:"bunga_persen"`
+	// fields dari frontend yang di-ignore tapi perlu ada agar DisallowUnknownFields tidak reject
+	KoperasiID       string  `json:"koperasi_id,omitempty"`
+	TanggalMulai     string  `json:"tanggal_mulai,omitempty"`
+	AngsuranPerBulan float64 `json:"angsuran_per_bulan,omitempty"`
+	Status           string  `json:"status,omitempty"`
 }
 
 type bayarAngsuranRequest struct {
@@ -74,8 +88,8 @@ func (h *PinjamanHandler) CreatePinjaman(w http.ResponseWriter, r *http.Request)
 	}
 	p, err := h.svc.CreatePinjaman(r.Context(), service.CreatePinjamanInput{
 		AnggotaID:   anggotaID,
-		Pokok:       req.Pokok,
-		Tenor:       req.Tenor,
+		Pokok:       req.JumlahPokok,
+		Tenor:       req.TenorBulan,
 		BungaPersen: req.BungaPersen,
 	})
 	if err != nil {
@@ -94,9 +108,42 @@ func (h *PinjamanHandler) ListPinjaman(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]pinjamanResponse, 0, len(items))
 	for _, p := range items {
-		out = append(out, toPinjamanResponse(p))
+		resp := toPinjamanResponse(p)
+		if angsurans, err2 := h.svc.ListAngsuran(r.Context(), p.ID); err2 == nil {
+			for _, a := range angsurans {
+				resp.Angsuran = append(resp.Angsuran, toAngsuranResponse(a))
+			}
+		}
+		out = append(out, resp)
 	}
 	httpx.WriteJSON(w, http.StatusOK, out)
+}
+
+// GetPinjaman menangani GET /api/pinjaman/{id}.
+func (h *PinjamanHandler) GetPinjaman(w http.ResponseWriter, r *http.Request) {
+	id, err := parseID(r, "id", "pinjaman")
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	items, err := h.svc.ListPinjaman(r.Context())
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	for _, p := range items {
+		if p.ID == id {
+			resp := toPinjamanResponse(p)
+			if angsurans, err2 := h.svc.ListAngsuran(r.Context(), p.ID); err2 == nil {
+				for _, a := range angsurans {
+					resp.Angsuran = append(resp.Angsuran, toAngsuranResponse(a))
+				}
+			}
+			httpx.WriteJSON(w, http.StatusOK, resp)
+			return
+		}
+	}
+	httpx.WriteError(w, apperr.NotFound("pinjaman tidak ditemukan"))
 }
 
 // BayarAngsuran menangani POST /api/pinjaman/{id}/angsuran.
@@ -160,14 +207,12 @@ func (h *PinjamanHandler) Ringkasan(w http.ResponseWriter, r *http.Request) {
 
 func toPinjamanResponse(p *domain.Pinjaman) pinjamanResponse {
 	return pinjamanResponse{
-		ID:               p.ID.String(),
-		KoperasiID:       p.KoperasiID.String(),
-		AnggotaID:        p.AnggotaID.String(),
-		Pokok:            p.Pokok,
-		Tenor:            p.Tenor,
-		AngsuranPerBulan: p.AngsuranPerBulan,
-		BungaPersen:      p.BungaPersen,
-		Status:           p.Status,
+		ID: p.ID.String(), KoperasiID: p.KoperasiID.String(), AnggotaID: p.AnggotaID.String(),
+		JumlahPokok: p.Pokok, TenorBulan: p.Tenor, AngsuranPerBulan: p.AngsuranPerBulan,
+		BungaPersen: p.BungaPersen, Status: p.Status,
+		TanggalMulai: p.CreatedAt.Format("2006-01-02"),
+		CreatedAt:    p.CreatedAt.Format(time.RFC3339),
+		Angsuran:     []angsuranResponse{},
 	}
 }
 

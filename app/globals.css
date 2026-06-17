@@ -7,9 +7,10 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-jakarta), system-ui, sans-serif;
+  --font-serif: var(--font-instrument), serif;
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-jakarta);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -49,72 +50,94 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  /* === LUMBUNG DESIGN SYSTEM ===
+     Palet: Deep Forest Green + Warm Gold
+     Referensi: bank premium Asia Tenggara, diadaptasi ke nuansa agraris-modern
+  */
+
+  /* Warm off-white — lebih hidup dari pure white/stone-50 */
+  --background: oklch(0.975 0.005 90);
+  --foreground: oklch(0.18 0.02 150);
+
+  /* Card: pure white dengan hint warmth */
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.18 0.02 150);
+
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.18 0.02 150);
+
+  /* Primary: Deep Forest Green #1a4731 */
+  --primary: oklch(0.32 0.09 155);
+  --primary-foreground: oklch(0.98 0.005 90);
+
+  /* Secondary: Light sage */
+  --secondary: oklch(0.94 0.018 145);
+  --secondary-foreground: oklch(0.32 0.09 155);
+
+  --muted: oklch(0.95 0.008 100);
+  --muted-foreground: oklch(0.52 0.015 140);
+
+  /* Accent: Warm Gold #c9963a */
+  --accent: oklch(0.72 0.12 70);
+  --accent-foreground: oklch(0.18 0.04 60);
+
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --border: oklch(0.90 0.01 100);
+  --input: oklch(0.92 0.008 100);
+  --ring: oklch(0.32 0.09 155);
+
+  /* Chart colors — natural palette */
+  --chart-1: oklch(0.55 0.14 155);   /* green */
+  --chart-2: oklch(0.72 0.12 70);    /* gold */
+  --chart-3: oklch(0.62 0.15 30);    /* terracotta */
+  --chart-4: oklch(0.58 0.10 210);   /* blue */
+  --chart-5: oklch(0.45 0.08 140);   /* dark green */
+
+  --radius: 0.75rem;
+
+  /* Sidebar: Dark forest green */
+  --sidebar: oklch(0.22 0.06 155);
+  --sidebar-foreground: oklch(0.88 0.015 120);
+  --sidebar-primary: oklch(0.72 0.12 70);
+  --sidebar-primary-foreground: oklch(0.15 0.04 60);
+  --sidebar-accent: oklch(0.28 0.07 155);
+  --sidebar-accent-foreground: oklch(0.95 0.01 100);
+  --sidebar-border: oklch(0.30 0.06 155);
+  --sidebar-ring: oklch(0.72 0.12 70);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: oklch(0.145 0.02 155);
+  --foreground: oklch(0.95 0.01 90);
+  --card: oklch(0.20 0.03 155);
+  --card-foreground: oklch(0.95 0.01 90);
+  --popover: oklch(0.20 0.03 155);
+  --popover-foreground: oklch(0.95 0.01 90);
+  --primary: oklch(0.72 0.12 70);
+  --primary-foreground: oklch(0.18 0.04 60);
+  --secondary: oklch(0.28 0.05 155);
+  --secondary-foreground: oklch(0.95 0.01 90);
+  --muted: oklch(0.28 0.05 155);
+  --muted-foreground: oklch(0.65 0.02 140);
+  --accent: oklch(0.72 0.12 70);
+  --accent-foreground: oklch(0.18 0.04 60);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --ring: oklch(0.72 0.12 70);
+  --chart-1: oklch(0.65 0.14 155);
+  --chart-2: oklch(0.78 0.12 70);
+  --chart-3: oklch(0.68 0.15 30);
+  --chart-4: oklch(0.65 0.10 210);
+  --chart-5: oklch(0.55 0.08 140);
+  --sidebar: oklch(0.16 0.04 155);
+  --sidebar-foreground: oklch(0.85 0.015 120);
+  --sidebar-primary: oklch(0.72 0.12 70);
+  --sidebar-primary-foreground: oklch(0.15 0.04 60);
+  --sidebar-accent: oklch(0.22 0.05 155);
+  --sidebar-accent-foreground: oklch(0.92 0.01 100);
+  --sidebar-border: oklch(0.28 0.05 155);
+  --sidebar-ring: oklch(0.72 0.12 70);
 }
 
 @layer base {
@@ -127,4 +150,161 @@
   html {
     @apply font-sans;
   }
+}
+
+/* === LUMBUNG CUSTOM UTILITIES === */
+@layer utilities {
+  /* Gold accent untuk teks */
+  .text-gold {
+    color: oklch(0.68 0.14 68);
+  }
+
+  /* Forest green deep */
+  .text-forest {
+    color: oklch(0.32 0.09 155);
+  }
+
+  .bg-forest {
+    background-color: oklch(0.22 0.06 155);
+  }
+
+  .bg-gold {
+    background-color: oklch(0.72 0.12 70);
+  }
+
+  /* Stat card top border accent */
+  .card-accent-green {
+    border-top: 3px solid oklch(0.55 0.14 155);
+  }
+
+  .card-accent-gold {
+    border-top: 3px solid oklch(0.72 0.12 70);
+  }
+
+  .card-accent-red {
+    border-top: 3px solid oklch(0.577 0.245 27.325);
+  }
+
+  .card-accent-blue {
+    border-top: 3px solid oklch(0.58 0.10 210);
+  }
+
+  /* Sidebar nav active glow */
+  .sidebar-active-glow {
+    box-shadow: 0 0 0 1px oklch(0.72 0.12 70 / 0.3),
+                inset 0 0 12px oklch(0.72 0.12 70 / 0.08);
+  }
+
+  /* Smooth transitions */
+  .transition-base {
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+/* Scrollbar styling — lebih halus */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: oklch(0.75 0.01 140);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.60 0.03 140);
+}
+
+/* ============================================================
+   LUMBUNG REDESIGN — Forest Green + Gold glassmorphism system
+   ============================================================ */
+
+:root {
+  /* Font stacks — eksplisit di :root agar var(--font-sans/--font-serif)
+     bisa direferensikan dari inline style runtime (Tailwind @theme inline
+     tidak meng-expose var ini ke :root). next/font set --font-jakarta &
+     --font-instrument di <html>. */
+  --font-sans: var(--font-jakarta), system-ui, sans-serif;
+  --font-serif: var(--font-instrument), serif;
+
+  /* Hex palette dari design file (untuk inline style & utilities) */
+  --lmb-forest: #1a4731;
+  --lmb-forest-deep: #0f2a1d;
+  --lmb-forest-mid: #21603f;
+  --lmb-gold: #c9963a;
+  --lmb-gold-deep: #8a6420;
+  --lmb-gold-light: #e8bd63;
+  --lmb-green: #2f9e63;
+  --lmb-green-bright: #3bb673;
+  --lmb-page-bg: radial-gradient(120% 90% at 85% -10%, #e6efe4 0%, #f7f4ec 45%, #f3efe4 100%);
+}
+
+/* === Keyframe animations (port dari design file) === */
+@keyframes lmbBob {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50%      { transform: translateY(-14px) rotate(1deg); }
+}
+@keyframes lmbBlink {
+  0%, 92%, 100% { transform: scaleY(1); }
+  96%           { transform: scaleY(.1); }
+}
+@keyframes lmbSway {
+  0%, 100% { transform: rotate(-6deg); }
+  50%      { transform: rotate(8deg); }
+}
+@keyframes lmbFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-18px); }
+}
+@keyframes lmbFloat2 {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(12px); }
+}
+@keyframes lmbFade {
+  0%   { opacity: 0; transform: translateY(22px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes lmbSpin {
+  to { transform: rotate(360deg); }
+}
+@keyframes lmbRing {
+  0%   { transform: scale(.85); opacity: .7; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+@keyframes lmbGrow {
+  0%   { transform: scaleY(0); }
+  100% { transform: scaleY(1); }
+}
+@keyframes lmbShimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes lmbDust {
+  0%   { transform: translateY(0) scale(1); opacity: 0; }
+  30%  { opacity: .8; }
+  100% { transform: translateY(-40px) scale(.4); opacity: 0; }
+}
+
+/* === Utility classes === */
+.lmb-fade {
+  animation: lmbFade .7s cubic-bezier(.2, .7, .2, 1) both;
+}
+
+/* Glassmorphism scrollbar (scoped) */
+.lmb-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.lmb-scroll::-webkit-scrollbar-thumb {
+  background: rgba(26, 71, 49, .2);
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+::selection {
+  background: #c9963a;
+  color: #0f2a1d;
 }

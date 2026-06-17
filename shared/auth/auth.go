@@ -32,7 +32,14 @@ const (
 	RolePengurus   Role = "pengurus"    // admin koperasi (tenant)
 	RoleKasir      Role = "kasir"       // input transaksi
 	RoleAnggota    Role = "anggota"     // member biasa
+	RolePemkab     Role = "pemkab"      // pemerintah kabupaten (lintas tenant)
+	RolePengawas   Role = "pengawas"    // pengawas koperasi
 )
+
+// isPlatformRole mengembalikan true untuk role yang tidak terikat satu tenant.
+func isPlatformRole(role Role) bool {
+	return role == RoleSuperAdmin || role == RolePemkab
+}
 
 // Claims adalah payload JWT access token LUMBUNG.
 type Claims struct {
@@ -89,7 +96,10 @@ func ParseToken(secret []byte, tokenStr string) (*Claims, error) {
 	if err != nil || !token.Valid {
 		return nil, apperr.Unauthorized("token tidak valid atau kedaluwarsa")
 	}
-	if claims.Subject == "" || claims.TenantID == "" {
+	if claims.Subject == "" {
+		return nil, apperr.Unauthorized("token tidak membawa identitas lengkap")
+	}
+	if claims.TenantID == "" && !isPlatformRole(claims.Role) {
 		return nil, apperr.Unauthorized("token tidak membawa identitas lengkap")
 	}
 	return claims, nil
@@ -135,19 +145,25 @@ func InjectHeaders(next http.Handler) http.Handler {
 }
 
 // FromHeaders middleware untuk SERVICE INTERNAL: membaca Identity dari header
-// tepercaya yang di-set gateway (tidak parse JWT). Menolak bila tenant kosong.
+// tepercaya yang di-set gateway (tidak parse JWT). Menolak bila user kosong.
+// Platform roles (super_admin, pemkab) boleh tanpa TenantID.
 func FromHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tenantID := r.Header.Get(HeaderTenantID)
 		userID := r.Header.Get(HeaderUserID)
-		if tenantID == "" || userID == "" {
-			apperr.Write(w, apperr.Unauthorized("identitas tidak ada (header X-Tenant-ID/X-User-ID kosong)"))
+		if userID == "" {
+			apperr.Write(w, apperr.Unauthorized("identitas tidak ada (header X-User-ID kosong)"))
+			return
+		}
+		role := Role(r.Header.Get(HeaderRole))
+		tenantID := r.Header.Get(HeaderTenantID)
+		if tenantID == "" && !isPlatformRole(role) {
+			apperr.Write(w, apperr.Unauthorized("identitas tidak ada (header X-Tenant-ID kosong)"))
 			return
 		}
 		id := Identity{
 			UserID:   userID,
 			TenantID: tenantID,
-			Role:     Role(r.Header.Get(HeaderRole)),
+			Role:     role,
 		}
 		next.ServeHTTP(w, r.WithContext(WithIdentity(r.Context(), id)))
 	})

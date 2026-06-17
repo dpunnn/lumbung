@@ -1,14 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import {
-  Landmark, Package, Leaf, Droplets, ShieldCheck, CreditCard,
-  TrendingUp, ShoppingBag, Map, Sparkles, ArrowRight, ChevronDown,
-  Wifi, WifiOff, BarChart3, Users, CheckCircle, Zap, Globe,
-} from 'lucide-react'
 import { getMe } from '@/lib/auth'
+
+/* ---------- shared bits ---------- */
 
 function useAuthState() {
   const [state, setState] = useState<'loading' | 'guest' | 'authed'>('loading')
@@ -28,348 +24,336 @@ function dashboardHref(role: string) {
   return '/dashboard'
 }
 
+/* Pak Tani mascot — SVG inline persis dari design file */
+function PakTani() {
+  return (
+    <svg width="220" height="240" viewBox="0 0 220 240" fill="none">
+      {/* shadow */}
+      <ellipse cx="110" cy="226" rx="62" ry="10" fill="#1a4731" opacity="0.14" />
+      {/* body / shirt */}
+      <path d="M62 232 C58 188 70 162 110 162 C150 162 162 188 158 232 Z" fill="#1a4731" />
+      <path d="M110 162 C92 162 80 170 74 184 L110 196 L146 184 C140 170 128 162 110 162 Z" fill="#21603f" />
+      {/* collar */}
+      <path d="M94 165 L110 182 L126 165" stroke="#0f2a1d" strokeWidth="4" fill="none" strokeLinecap="round" />
+      {/* arms */}
+      <g style={{ transformOrigin: '70px 188px', animation: 'lmbSway 3.8s ease-in-out infinite' }}>
+        <rect x="44" y="184" width="26" height="15" rx="7.5" fill="#21603f" />
+        <circle cx="46" cy="191" r="9" fill="#e8c39a" />
+      </g>
+      <rect x="150" y="186" width="24" height="14" rx="7" fill="#21603f" />
+      <circle cx="172" cy="193" r="8.5" fill="#e8c39a" />
+      {/* neck */}
+      <rect x="100" y="150" width="20" height="20" rx="8" fill="#dcb389" />
+      {/* head */}
+      <circle cx="110" cy="120" r="42" fill="#e8c39a" />
+      {/* ears */}
+      <circle cx="69" cy="122" r="8" fill="#dcae84" />
+      <circle cx="151" cy="122" r="8" fill="#dcae84" />
+      {/* cheeks */}
+      <circle cx="88" cy="132" r="9" fill="#e8a06a" opacity="0.5" />
+      <circle cx="132" cy="132" r="9" fill="#e8a06a" opacity="0.5" />
+      {/* eyes (blink) */}
+      <g style={{ transformOrigin: '110px 116px', animation: 'lmbBlink 5s ease-in-out infinite' }}>
+        <ellipse cx="96" cy="116" rx="5" ry="6.5" fill="#2a201a" />
+        <ellipse cx="124" cy="116" rx="5" ry="6.5" fill="#2a201a" />
+        <circle cx="97.6" cy="113.5" r="1.7" fill="#fff" />
+        <circle cx="125.6" cy="113.5" r="1.7" fill="#fff" />
+      </g>
+      {/* brows */}
+      <path d="M88 104 q8 -4 16 0" stroke="#7a5a3a" strokeWidth="2.6" fill="none" strokeLinecap="round" />
+      <path d="M116 104 q8 -4 16 0" stroke="#7a5a3a" strokeWidth="2.6" fill="none" strokeLinecap="round" />
+      {/* smile */}
+      <path d="M98 138 q12 12 24 0" stroke="#9a6b42" strokeWidth="3.2" fill="none" strokeLinecap="round" />
+      {/* caping (straw hat) */}
+      <path d="M52 96 C70 70 150 70 168 96 C150 102 70 102 52 96 Z" fill="#d9a441" />
+      <path d="M82 96 C84 64 136 64 138 96 Z" fill="#e8bd63" />
+      <path d="M82 96 C84 64 136 64 138 96 Z" fill="url(#strawg)" opacity="0.5" />
+      <ellipse cx="110" cy="96" rx="58" ry="7" fill="#c98e34" opacity="0.55" />
+      <path d="M68 90 L152 90" stroke="#c98e34" strokeWidth="1.5" opacity="0.6" />
+      <circle cx="110" cy="69" r="4" fill="#1a4731" />
+      <defs>
+        <linearGradient id="strawg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#fff" stopOpacity="0.5" />
+          <stop offset="1" stopColor="#fff" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+    </svg>
+  )
+}
+
+const LogoMark = ({ size = 18 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <path d="M4 11 L12 4 L20 11 V20 H4 Z" stroke="#c9963a" strokeWidth="2" strokeLinejoin="round" />
+    <path d="M8 20 V14 H16 V20" stroke="#e0b864" strokeWidth="2" strokeLinejoin="round" />
+  </svg>
+)
+
+/* Modul icons (sederhana, port dari design) */
+function Ic({ name, color }: { name: string; color: string }) {
+  const p: Record<string, string> = {
+    home: 'M4 11 L12 4 L20 11 V20 H4 Z|M9 20 V14 H15 V20',
+    wallet: 'M3 7h15a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7zM3 7l2-3h11l1 3M16 13h2',
+    cow: 'M5 8c-2 0-3 2-2 4M19 8c2 0 3 2 2 4M6 9c0 5 3 8 6 8s6-3 6-8c0-2-1-3-2-3H8c-1 0-2 1-2 3zM10 13h.01M14 13h.01M10 16h4',
+    wheat: 'M12 3v18M12 7c-3-2-5 0-5 0 2 2 5 1 5 1M12 7c3-2 5 0 5 0-2 2-5 1-5 1M12 12c-3-2-5 0-5 0 2 2 5 1 5 1M12 12c3-2 5 0 5 0-2 2-5 1-5 1',
+    qr: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2v2h-2zM14 18h2v2h-2zM18 18h2v2h-2z',
+    shield: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4',
+    chart: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
+    map: 'M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14',
+  }
+  const d = (p[name] || '').split('|')
+  return (
+    <svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+      {d.map((dd, i) => (
+        <path key={i} d={dd} stroke={color} strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" />
+      ))}
+    </svg>
+  )
+}
+
+const TINT = {
+  g: 'rgba(47,158,99,.14)', gold: 'rgba(201,150,58,.16)',
+  blue: 'rgba(90,169,214,.16)', red: 'rgba(214,87,69,.14)',
+}
+const ACC = { g: '#2f9e63', gold: '#c9963a', blue: '#5aa9d6', red: '#d65745' }
+
 const MODULES = [
-  { icon: Landmark,    color: 'bg-blue-50 text-blue-600',    label: 'Simpan Pinjam',  desc: 'Setoran, pinjaman, dan cicilan anggota' },
-  { icon: ShieldCheck, color: 'bg-red-50 text-red-600',      label: 'Guard',          desc: 'Deteksi fraud & audit trail real-time' },
-  { icon: TrendingUp,  color: 'bg-rose-50 text-rose-600',    label: 'Lens',           desc: 'Analitik mendalam & tren koperasi' },
-  { icon: CreditCard,  color: 'bg-amber-50 text-amber-700',  label: 'Lumbung Pass',   desc: 'Paspor data terverifikasi untuk pemodal' },
-  { icon: Package,     color: 'bg-purple-50 text-purple-600',label: 'Inventori',      desc: 'Stok barang & cold storage' },
-  { icon: Leaf,        color: 'bg-emerald-50 text-emerald-600', label: 'Pakan',       desc: 'Stok pakan ternak dengan alert kritis' },
-  { icon: Package,     color: 'bg-green-50 text-green-600',  label: 'Ternak',         desc: 'Registri & monitoring kesehatan ternak' },
-  { icon: Droplets,    color: 'bg-sky-50 text-sky-600',      label: 'Utilitas Air',   desc: 'Tagihan & meteran air bersih' },
-  { icon: ShoppingBag, color: 'bg-orange-50 text-orange-600',label: 'Pasar',          desc: 'Pengadaan bersama antar koperasi' },
-  { icon: Map,         color: 'bg-teal-50 text-teal-600',    label: 'Atlas',          desc: 'Data agregat lintas koperasi' },
-  { icon: Sparkles,    color: 'bg-violet-50 text-violet-600',label: 'Insight AI',     desc: 'Verifikasi aset & sinyal risiko' },
-  { icon: BarChart3,   color: 'bg-cyan-50 text-cyan-600',    label: 'Dashboard',      desc: 'Ringkasan operasional harian' },
+  { id: 'home', icon: 'home', title: 'Beranda', desc: 'Ringkasan ternak, kas, simpanan & alert dalam satu layar.', col: 'g' },
+  { id: 'wallet', icon: 'wallet', title: 'Simpan Pinjam', desc: 'Kelola simpanan, pengajuan, setoran & angsuran anggota.', col: 'gold' },
+  { id: 'cow', icon: 'cow', title: 'Ternak', desc: 'Kartu ternak sapi & kambing lengkap dengan status kesehatan.', col: 'g' },
+  { id: 'wheat', icon: 'wheat', title: 'Stok / Pakan', desc: 'Inventori pakan dengan alert otomatis saat stok menipis.', col: 'gold' },
+  { id: 'qr', icon: 'qr', title: 'Pass', desc: 'Kartu anggota digital berbasis QR untuk verifikasi cepat.', col: 'blue' },
+  { id: 'shield', icon: 'shield', title: 'Guard', desc: 'Deteksi anomali & fraud bertenaga AI plus log audit.', col: 'red' },
+  { id: 'chart', icon: 'chart', title: 'Lens', desc: 'Laporan & analitik adaptif siap kirim ke dinas.', col: 'blue' },
+  { id: 'map', icon: 'map', title: 'Atlas', desc: 'Peta sebaran koperasi untuk pengawasan tingkat kabupaten.', col: 'g' },
+] as const
+
+const PROOF = [
+  { value: '38', label: 'Koperasi desa aktif' },
+  { value: '1.240+', label: 'Anggota terdaftar' },
+  { value: 'Rp 8,4 M', label: 'Total simpanan dikelola' },
+  { value: '99,2%', label: 'Angsuran lancar' },
 ]
 
-const LAYERS = [
-  { name: 'Lumbung Core',   color: 'bg-orange-500', desc: 'Multi-tenant terisolasi + commodity adapter. Satu platform untuk semua jenis koperasi — beras, ternak, sayur, air.' },
-  { name: 'Lumbung Sync',   color: 'bg-blue-500',   desc: 'Offline-first. Kasir koperasi di pegunungan tanpa sinyal tetap bisa input data. Sync otomatis saat koneksi kembali.' },
-  { name: 'Lumbung Pass',   color: 'bg-amber-500',  desc: 'Paspor data terverifikasi. Koperasi berbagi data ke pemodal dengan consent terbatas — tanpa membocorkan data sensitif anggota.' },
-  { name: 'Lumbung Lens',   color: 'bg-green-500',  desc: 'Laporan adaptif sesuai literasi. Pengurus yang tidak paham grafik sekalipun bisa memahami kondisi koperasinya.' },
-]
-
-const PROBLEMS = [
-  { n: '01', title: 'Data Bercampur', body: 'Saat koperasi kedua bergabung ke sistem yang sama, data anggota, simpanan, dan stok saling bercampur. LUMBUNG mengisolasi tiap koperasi di level database.' },
-  { n: '02', title: 'Laporan Tak Terbaca', body: 'Format laporan generik tidak cocok untuk pengurus koperasi ternak yang tidak terbiasa dengan spreadsheet. Lens menyesuaikan laporan ke konteks komoditas.' },
-  { n: '03', title: 'Data Sharing Buta', body: 'Pemodal minta portofolio — pengurus tidak tahu harus kirim apa. Lumbung Pass memberi token data terbatas yang bisa diaudit kapan saja.' },
-  { n: '04', title: 'Tidak Ada Sinyal', body: 'Koperasi Harapan Baru di pegunungan tidak bisa lapor real-time. Dengan offline-first Sync, mereka tetap mencatat dan otomatis sync saat online.' },
-]
+/* ---------- page ---------- */
 
 export default function LandingPage() {
   const router = useRouter()
   const { state, role } = useAuthState()
 
+  const goLogin = () => router.push('/login')
+  const goApp = () => router.push(state === 'authed' ? dashboardHref(role) : '/login')
+
+  const glass = (blur = 18, alpha = 0.55): React.CSSProperties => ({
+    background: `rgba(255,255,255,${alpha})`,
+    backdropFilter: `blur(${blur}px)`,
+    WebkitBackdropFilter: `blur(${blur}px)`,
+    border: '1px solid rgba(255,255,255,.7)',
+  })
+
   return (
-    <div className="min-h-screen bg-stone-50 font-sans">
+    <div
+      className="lmb-scroll"
+      style={{
+        minHeight: '100vh',
+        fontFamily: "var(--font-sans), system-ui, sans-serif",
+        color: '#16241c',
+        position: 'relative',
+        overflowX: 'hidden',
+        background: 'radial-gradient(120% 90% at 85% -10%, #e6efe4 0%, #f7f4ec 45%, #f3efe4 100%)',
+        WebkitFontSmoothing: 'antialiased',
+      }}
+    >
+      {/* ambient blobs */}
+      <div aria-hidden style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0, overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', top: '-12%', right: '-6%', width: '46vw', height: '46vw', borderRadius: '50%', background: 'radial-gradient(circle,rgba(26,71,49,.22),transparent 65%)', filter: 'blur(20px)' }} />
+        <div style={{ position: 'absolute', bottom: '-18%', left: '-8%', width: '42vw', height: '42vw', borderRadius: '50%', background: 'radial-gradient(circle,rgba(201,150,58,.20),transparent 65%)', filter: 'blur(18px)' }} />
+        <div style={{ position: 'absolute', top: '38%', left: '42%', width: '30vw', height: '30vw', borderRadius: '50%', background: 'radial-gradient(circle,rgba(47,158,99,.12),transparent 65%)', filter: 'blur(20px)' }} />
+      </div>
 
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-stone-200/60">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-amber-700 rounded-lg flex items-center justify-center shadow-sm">
-              <span className="text-white text-sm font-black">L</span>
-            </div>
-            <span className="font-bold text-amber-800 text-lg tracking-tight">LUMBUNG</span>
-          </div>
-          <div className="hidden md:flex items-center gap-8 text-sm text-stone-500">
-            <a href="#produk" className="hover:text-stone-900 transition-colors">Produk</a>
-            <a href="#fitur" className="hover:text-stone-900 transition-colors">Fitur</a>
-            <a href="#masalah" className="hover:text-stone-900 transition-colors">Solusi</a>
-          </div>
-          <Link href="/login" className="text-stone-600 hover:text-stone-900 text-sm font-medium transition-colors">
-            Masuk
-          </Link>
-          <Link href="/daftar" className="bg-amber-700 hover:bg-amber-800 text-white text-sm font-semibold px-5 py-2 rounded-xl transition-colors">
-            Daftar
-          </Link>
-        </div>
-      </nav>
+      <div style={{ position: 'relative', zIndex: 2 }}>
 
-      <section className="relative pt-32 pb-24 overflow-hidden">
-
-        <div className="absolute inset-0 bg-gradient-to-br from-stone-900 via-stone-800 to-amber-900" />
-
-        <div className="absolute inset-0 opacity-[0.04]"
-          style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
-
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] bg-amber-600/10 rounded-full blur-3xl" />
-
-        <div className="relative max-w-7xl mx-auto px-6">
-
-          <div className="flex justify-center mb-8">
-            <span className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-semibold px-4 py-2 rounded-full">
-              <Zap size={12} />
-              Program Koperasi Desa Merah Putih · Inpres No. 9 / 2025
-            </span>
-          </div>
-
-          <h1 className="text-center text-white font-black leading-[1.05] tracking-tight max-w-4xl mx-auto" style={{ fontSize: 'clamp(44px, 7vw, 88px)' }}>
-            Satu Lumbung,<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-400 to-orange-400">
-              Banyak Koperasi
-            </span>
-          </h1>
-
-          <p className="text-center text-stone-400 text-lg md:text-xl mt-6 max-w-2xl mx-auto leading-relaxed">
-            Platform digitalisasi koperasi desa Indonesia. Multi-tenant, offline-first, dan terhubung ke sistem pembiayaan formal — untuk 80.000 koperasi yang belum pernah tersentuh teknologi.
-          </p>
-
-          <div className="flex items-center justify-center gap-4 mt-10 flex-wrap">
-            {state === 'authed' ? (
-              <Link href={dashboardHref(role)}
-                className="bg-amber-600 hover:bg-amber-500 text-white font-bold px-8 py-3.5 rounded-xl transition-all shadow-lg shadow-amber-900/30 flex items-center gap-2 text-base">
-                Buka Dashboard <ArrowRight size={16} />
-              </Link>
-            ) : (
-              <>
-                <Link href="/daftar"
-                  className="bg-amber-600 hover:bg-amber-500 text-white font-bold px-8 py-3.5 rounded-xl transition-all shadow-lg shadow-amber-900/30 flex items-center gap-2 text-base">
-                  Daftar Sekarang <ArrowRight size={16} />
-                </Link>
-                <Link href="/login"
-                  className="text-stone-400 hover:text-white font-medium px-6 py-3.5 rounded-xl border border-stone-700 hover:border-stone-500 transition-all flex items-center gap-2 text-base">
-                  Sudah punya akun? Masuk
-                </Link>
-              </>
-            )}
-          </div>
-
-          <div className="grid grid-cols-3 gap-4 mt-16 max-w-2xl mx-auto">
-            {[
-              { n: '80.000+', l: 'Koperasi Target' },
-              { n: 'Rp1,76T', l: 'Aset Koperasi Desa' },
-              { n: '12', l: 'Modul Tersedia' },
-            ].map(s => (
-              <div key={s.l} className="text-center bg-white/5 border border-white/10 rounded-2xl p-4">
-                <p className="text-white font-black text-2xl md:text-3xl">{s.n}</p>
-                <p className="text-stone-500 text-xs mt-1">{s.l}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="masalah" className="py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <p className="text-amber-700 text-sm font-bold uppercase tracking-widest mb-3">Mengapa LUMBUNG</p>
-            <h2 className="text-stone-900 font-black text-4xl md:text-5xl tracking-tight">Masalah nyata di lapangan</h2>
-            <p className="text-stone-500 text-lg mt-4 max-w-xl mx-auto">Tidak semua data diberikan. Tapi masalahnya sudah jelas sejak hari pertama.</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {PROBLEMS.map(p => (
-              <div key={p.n} className="group flex gap-5 p-6 rounded-2xl border border-stone-200 hover:border-amber-300 hover:bg-amber-50/30 transition-all">
-                <span className="text-3xl font-black text-stone-200 group-hover:text-amber-200 transition-colors shrink-0 leading-none mt-1">{p.n}</span>
-                <div>
-                  <h3 className="text-stone-900 font-bold text-lg mb-2">{p.title}</h3>
-                  <p className="text-stone-500 text-sm leading-relaxed">{p.body}</p>
+        {/* ===== NAV ===== */}
+        <nav style={{ position: 'sticky', top: 0, zIndex: 30, padding: '14px 0' }}>
+          <div style={{ maxWidth: 1180, margin: '0 auto', padding: '0 28px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, padding: '12px 16px 12px 22px', borderRadius: 18, boxShadow: '0 10px 34px rgba(26,71,49,.10)', ...glass(18, 0.55) }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                <div style={{ width: 34, height: 34, borderRadius: 10, background: 'linear-gradient(150deg,#1a4731,#0f2a1d)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 6px 16px rgba(26,71,49,.35)' }}>
+                  <LogoMark />
                 </div>
+                <span style={{ fontWeight: 800, fontSize: 19, letterSpacing: '-.02em', color: '#10241a' }}>LUMBUNG</span>
               </div>
-            ))}
+              <div className="hidden md:flex" style={{ alignItems: 'center', gap: 30, fontSize: 14.5, fontWeight: 600, color: '#3d4b43' }}>
+                <a href="#fitur" style={{ cursor: 'pointer', color: 'inherit', textDecoration: 'none' }}>Modul</a>
+                <a href="#stats" style={{ cursor: 'pointer', color: 'inherit', textDecoration: 'none' }}>Harga</a>
+                <a href="#cerita" style={{ cursor: 'pointer', color: 'inherit', textDecoration: 'none' }}>Cerita Desa</a>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button onClick={goLogin} style={{ border: 'none', background: 'transparent', fontWeight: 700, fontSize: 14.5, color: '#1a4731', padding: '11px 16px', borderRadius: 12, cursor: 'pointer' }}>Masuk</button>
+                <button onClick={goApp} style={{ border: 'none', fontWeight: 700, fontSize: 14.5, color: '#fff', padding: '11px 20px', borderRadius: 12, cursor: 'pointer', background: 'linear-gradient(150deg,#1a4731,#0f2a1d)', boxShadow: '0 8px 20px rgba(26,71,49,.32)' }}>
+                  {state === 'authed' ? 'Buka Dashboard' : 'Coba Demo'}
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      </section>
+        </nav>
 
-      <section id="produk" className="py-24 bg-stone-50">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <p className="text-amber-700 text-sm font-bold uppercase tracking-widest mb-3">Arsitektur Produk</p>
-            <h2 className="text-stone-900 font-black text-4xl md:text-5xl tracking-tight">Empat lapisan,<br />satu ekosistem</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {LAYERS.map((l, i) => (
-              <div key={l.name}
-                className="group relative bg-white border border-stone-200 rounded-2xl p-7 hover:shadow-lg transition-all overflow-hidden">
-                <div className={`absolute top-0 left-0 w-1 h-full ${l.color}`} />
-                <div className="flex items-start gap-4">
-                  <div className={`w-8 h-8 rounded-lg ${l.color} flex items-center justify-center text-white text-xs font-black shrink-0 mt-0.5`}>
-                    {i + 1}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="text-stone-900 font-bold text-lg">{l.name}</h3>
-                      {l.name === 'Lumbung Pass' && (
-                        <span className="bg-amber-100 text-amber-700 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide">Hero</span>
-                      )}
+        {/* ===== HERO ===== */}
+        <section style={{ maxWidth: 1180, margin: '0 auto', padding: '46px 28px 30px' }}>
+          <div className="lmb-hero-grid" style={{ display: 'grid', gridTemplateColumns: '1.05fr .95fr', gap: 46, alignItems: 'center' }}>
+            <div className="lmb-fade">
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '7px 13px', borderRadius: 999, background: 'rgba(201,150,58,.14)', border: '1px solid rgba(201,150,58,.35)', fontSize: 12.5, fontWeight: 700, color: '#8a6420', marginBottom: 22 }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#2f9e63', boxShadow: '0 0 0 3px rgba(47,158,99,.25)' }} />
+                Platform koperasi desa multi-tenant
+              </div>
+              <h1 style={{ fontSize: 50, lineHeight: 1.13, letterSpacing: '-.03em', fontWeight: 800, color: '#0f2a1d', marginBottom: 22 }}>
+                Koperasi desa Anda,<br />kini <span style={{ fontFamily: 'var(--font-serif), serif', fontStyle: 'italic', fontWeight: 400, color: '#c9963a', letterSpacing: 0 }}>berdaya digital</span>.
+              </h1>
+              <p style={{ fontSize: 17.5, lineHeight: 1.6, color: '#46544b', maxWidth: 480, marginBottom: 30 }}>
+                Satu lumbung untuk simpan pinjam, ternak, stok pakan, hingga laporan dinas. Dirancang untuk pengurus desa — bukan ahli komputer.
+              </p>
+              <div style={{ display: 'flex', gap: 13, flexWrap: 'wrap', marginBottom: 34 }}>
+                <button onClick={goApp} style={{ border: 'none', fontWeight: 700, fontSize: 15.5, color: '#fff', padding: '15px 26px', borderRadius: 14, cursor: 'pointer', background: 'linear-gradient(150deg,#1a4731,#0f2a1d)', boxShadow: '0 12px 28px rgba(26,71,49,.34)', display: 'inline-flex', alignItems: 'center', gap: 9 }}>
+                  {state === 'authed' ? 'Buka dashboard' : 'Mulai gratis'}
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="#c9963a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                </button>
+                <button onClick={goLogin} style={{ fontWeight: 700, fontSize: 15.5, color: '#1a4731', padding: '15px 24px', borderRadius: 14, cursor: 'pointer', background: 'rgba(255,255,255,.6)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(26,71,49,.16)' }}>Lihat demo langsung</button>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ display: 'flex' }}>
+                  <span style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg,#2f9e63,#1a4731)', border: '2px solid #f7f4ec', display: 'inline-block' }} />
+                  <span style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg,#c9963a,#8a6420)', border: '2px solid #f7f4ec', display: 'inline-block', marginLeft: -11 }} />
+                  <span style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg,#5aa9d6,#2c6f95)', border: '2px solid #f7f4ec', display: 'inline-block', marginLeft: -11 }} />
+                  <span style={{ width: 34, height: 34, borderRadius: '50%', background: '#0f2a1d', border: '2px solid #f7f4ec', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginLeft: -11, fontSize: 11, fontWeight: 700, color: '#c9963a' }}>+35</span>
+                </div>
+                <div style={{ fontSize: 13.5, lineHeight: 1.4, color: '#46544b' }}><strong style={{ color: '#0f2a1d' }}>1.240+ anggota</strong> di 38 koperasi desa<br />mempercayakan datanya pada Lumbung</div>
+              </div>
+            </div>
+
+            {/* mascot scene */}
+            <div className="lmb-fade" style={{ position: 'relative' }}>
+              <div style={{ position: 'relative', borderRadius: 30, padding: 34, boxShadow: '0 26px 60px rgba(26,71,49,.18)', overflow: 'hidden', ...glass(22, 0.5) }}>
+                <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(80% 70% at 50% 90%, rgba(47,158,99,.18), transparent 70%)' }} />
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 90, background: 'linear-gradient(180deg,rgba(201,150,58,.14),transparent)' }} />
+
+                <div style={{ position: 'relative', height: 330, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ position: 'absolute', width: 210, height: 210, borderRadius: '50%', background: 'radial-gradient(circle,rgba(201,150,58,.25),transparent 65%)' }} />
+                  <div style={{ position: 'absolute', width: 170, height: 170, borderRadius: '50%', border: '2px solid rgba(201,150,58,.5)', animation: 'lmbRing 3.4s ease-out infinite' }} />
+
+                  {/* MASCOT */}
+                  <div style={{ position: 'relative', animation: 'lmbBob 4.6s ease-in-out infinite', transformOrigin: '50% 90%' }}>
+                    <PakTani />
+                    <div style={{ position: 'absolute', right: 18, top: 150, animation: 'lmbSway 3.8s ease-in-out infinite', transformOrigin: 'bottom center' }}>
+                      <svg width="34" height="54" viewBox="0 0 34 54" fill="none"><path d="M17 54 V20" stroke="#2f9e63" strokeWidth="3" strokeLinecap="round" /><path d="M17 30 C6 28 4 18 4 18 C16 16 17 26 17 30Z" fill="#3bb673" /><path d="M17 24 C28 22 30 12 30 12 C18 10 17 20 17 24Z" fill="#2f9e63" /></svg>
                     </div>
-                    <p className="text-stone-500 text-sm leading-relaxed">{l.desc}</p>
+                  </div>
+
+                  {/* floating chips */}
+                  <div style={{ position: 'absolute', top: 14, left: -6, animation: 'lmbFloat 5.2s ease-in-out infinite' }}>
+                    <div style={{ padding: '10px 13px', borderRadius: 14, background: 'rgba(255,255,255,.82)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,.9)', boxShadow: '0 10px 24px rgba(26,71,49,.16)', display: 'flex', alignItems: 'center', gap: 9 }}>
+                      <span style={{ width: 30, height: 30, borderRadius: 9, background: 'rgba(47,158,99,.16)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 18l5-5 4 4 7-8" stroke="#2f9e63" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
+                      <div><div style={{ fontSize: 11, color: '#6a766e', fontWeight: 600 }}>Simpanan bulan ini</div><div style={{ fontSize: 14, fontWeight: 800, color: '#0f2a1d' }}>+12,4%</div></div>
+                    </div>
+                  </div>
+                  <div style={{ position: 'absolute', bottom: 18, right: -10, animation: 'lmbFloat2 4.4s ease-in-out infinite' }}>
+                    <div style={{ padding: '10px 13px', borderRadius: 14, background: 'rgba(255,255,255,.82)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,.9)', boxShadow: '0 10px 24px rgba(26,71,49,.16)', display: 'flex', alignItems: 'center', gap: 9 }}>
+                      <span style={{ width: 30, height: 30, borderRadius: 9, background: 'rgba(201,150,58,.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 12h4l2 6 4-14 2 8h6" stroke="#c9963a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
+                      <div><div style={{ fontSize: 11, color: '#6a766e', fontWeight: 600 }}>Ternak sehat</div><div style={{ fontSize: 14, fontWeight: 800, color: '#0f2a1d' }}>248 ekor</div></div>
+                    </div>
                   </div>
                 </div>
+                <div style={{ position: 'relative', textAlign: 'center', marginTop: 6 }}>
+                  <div style={{ fontFamily: 'var(--font-serif), serif', fontStyle: 'italic', fontSize: 20, color: '#1a4731' }}>&ldquo;Halo, saya Pak Tani —</div>
+                  <div style={{ fontSize: 13.5, color: '#46544b', marginTop: 2 }}>pemandu digital koperasi desa Anda.&rdquo;</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ===== TRUST STRIP ===== */}
+        <section id="cerita" style={{ maxWidth: 1180, margin: '0 auto', padding: '14px 28px 8px' }}>
+          <div style={{ textAlign: 'center', fontSize: 12, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: '#8a958c', marginBottom: 18 }}>Mendukung program penguatan ekonomi desa</div>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 42, flexWrap: 'wrap', opacity: .62, fontWeight: 800, fontSize: 16, color: '#46544b', letterSpacing: '-.01em' }}>
+            <span>Dinas Koperasi</span><span>BUMDes Bersama</span><span>Gapoktan</span><span>Kementerian Desa</span><span>Bank Wakaf Mikro</span>
+          </div>
+        </section>
+
+        {/* ===== FEATURES ===== */}
+        <section id="fitur" style={{ maxWidth: 1180, margin: '0 auto', padding: '56px 28px 30px' }}>
+          <div style={{ textAlign: 'center', maxWidth: 620, margin: '0 auto 38px' }}>
+            <h2 style={{ fontSize: 38, fontWeight: 800, letterSpacing: '-.025em', color: '#0f2a1d', lineHeight: 1.1 }}>Sepuluh modul, <span style={{ fontFamily: 'var(--font-serif), serif', fontStyle: 'italic', fontWeight: 400, color: '#c9963a' }}>satu lumbung</span></h2>
+            <p style={{ fontSize: 16.5, color: '#46544b', marginTop: 12, lineHeight: 1.55 }}>Dari kas simpan pinjam sampai peta sebaran untuk dinas — semua terhubung dalam satu platform.</p>
+          </div>
+          <div className="lmb-features-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 18 }}>
+            {MODULES.map((m) => (
+              <div
+                key={m.title}
+                onClick={goApp}
+                style={{ position: 'relative', padding: 24, borderRadius: 20, boxShadow: '0 10px 30px rgba(26,71,49,.08)', cursor: 'pointer', transition: 'transform .25s,box-shadow .25s', overflow: 'hidden', ...glass(16, 0.55) }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 20px 40px rgba(26,71,49,.16)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 10px 30px rgba(26,71,49,.08)' }}
+              >
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: ACC[m.col] }} />
+                <div style={{ width: 46, height: 46, borderRadius: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 15, background: TINT[m.col] }}>
+                  <Ic name={m.icon} color={ACC[m.col]} />
+                </div>
+                <h3 style={{ fontSize: 17, fontWeight: 800, color: '#0f2a1d', marginBottom: 6, letterSpacing: '-.01em' }}>{m.title}</h3>
+                <p style={{ fontSize: 13.8, color: '#525f57', lineHeight: 1.5 }}>{m.desc}</p>
               </div>
             ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section id="fitur" className="py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <p className="text-amber-700 text-sm font-bold uppercase tracking-widest mb-3">Modul</p>
-            <h2 className="text-stone-900 font-black text-4xl md:text-5xl tracking-tight">Semua yang dibutuhkan<br />koperasi desa</h2>
-            <p className="text-stone-500 text-lg mt-4 max-w-xl mx-auto">Aktifkan hanya modul yang relevan dengan komoditas dan kebutuhan koperasi Anda.</p>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {MODULES.map(m => {
-              const Icon = m.icon
-              return (
-                <div key={m.label}
-                  className="group p-5 rounded-2xl border border-stone-200 hover:border-amber-300 hover:shadow-md transition-all bg-white hover:-translate-y-0.5">
-                  <div className={`w-10 h-10 rounded-xl ${m.color} flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
-                    <Icon size={18} />
-                  </div>
-                  <p className="text-stone-900 font-semibold text-sm">{m.label}</p>
-                  <p className="text-stone-400 text-xs mt-1 leading-relaxed">{m.desc}</p>
+        {/* ===== STATS BAND ===== */}
+        <section id="stats" style={{ maxWidth: 1180, margin: '0 auto', padding: '34px 28px' }}>
+          <div style={{ borderRadius: 28, padding: '42px 40px', background: 'linear-gradient(150deg,#1a4731,#0f2a1d)', boxShadow: '0 26px 60px rgba(15,42,29,.32)', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: '-40%', right: '-6%', width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(circle,rgba(201,150,58,.3),transparent 65%)' }} />
+            <div className="lmb-stats-grid" style={{ position: 'relative', display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 24 }}>
+              {PROOF.map((p) => (
+                <div key={p.label}>
+                  <div style={{ fontSize: 40, fontWeight: 800, letterSpacing: '-.03em', color: '#fff', lineHeight: 1 }}>{p.value}</div>
+                  <div style={{ fontSize: 13.5, color: '#9fc1ad', marginTop: 8, fontWeight: 600 }}>{p.label}</div>
                 </div>
-              )
-            })}
-          </div>
-        </div>
-      </section>
-
-      <section className="py-24 bg-stone-900">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-            <div className="bg-stone-800 border border-stone-700 rounded-2xl p-8">
-              <div className="w-10 h-10 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center justify-center mb-5">
-                <ShieldCheck size={18} className="text-red-400" />
-              </div>
-              <h3 className="text-white font-bold text-2xl mb-3">Guard — Deteksi Fraud Real-Time</h3>
-              <p className="text-stone-400 text-sm leading-relaxed mb-6">
-                Sistem mendeteksi pola anomali kasir secara otomatis — dari pembatalan transaksi di luar jam kerja hingga perubahan nominal setelah konfirmasi. AI menganalisis dan memberi rekomendasi investigasi.
-              </p>
-              <div className="space-y-2">
-                {['Deteksi pembatalan luar jam kerja', 'Sengketa & klaim setoran anggota', 'Penghapusan data finansial', 'Perubahan nominal mencurigakan'].map(f => (
-                  <div key={f} className="flex items-center gap-2 text-sm text-stone-400">
-                    <CheckCircle size={13} className="text-red-400 shrink-0" />
-                    {f}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-amber-900/50 to-stone-800 border border-amber-700/30 rounded-2xl p-8">
-              <div className="w-10 h-10 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-center mb-5">
-                <CreditCard size={18} className="text-amber-400" />
-              </div>
-              <h3 className="text-white font-bold text-2xl mb-3">Lumbung Pass — Paspor Data</h3>
-              <p className="text-stone-400 text-sm leading-relaxed mb-6">
-                Koperasi bisa berbagi data portofolio ke pemodal dengan token akses terbatas. Hanya data yang diizinkan pengurus yang bisa dilihat, dan setiap akses tercatat di audit log.
-              </p>
-              <div className="space-y-2">
-                {['Consent-scoped: pemodal hanya lihat yang diizinkan', 'Setiap akses tercatat otomatis', 'Credit history lintas koperasi', 'Verifikasi agunan ternak visual (AI)'].map(f => (
-                  <div key={f} className="flex items-center gap-2 text-sm text-stone-400">
-                    <CheckCircle size={13} className="text-amber-400 shrink-0" />
-                    {f}
-                  </div>
-                ))}
-              </div>
+              ))}
             </div>
           </div>
+        </section>
 
-          <div className="mt-6 bg-stone-800 border border-stone-700 rounded-2xl p-6 flex items-center gap-6 flex-wrap">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-500/10 border border-blue-500/20 rounded-xl flex items-center justify-center">
-                <WifiOff size={18} className="text-blue-400" />
-              </div>
-              <div>
-                <p className="text-white font-bold">Offline-First</p>
-                <p className="text-stone-400 text-sm">Bekerja tanpa sinyal</p>
-              </div>
-            </div>
-            <div className="text-stone-600 hidden md:block">→</div>
-            <p className="text-stone-400 text-sm flex-1 min-w-0">
-              Koperasi di pelosok yang tidak memiliki sinyal internet tetap bisa mencatat transaksi. Data tersimpan lokal dan otomatis sync ke server saat koneksi tersedia kembali.
-            </p>
-            <div className="flex items-center gap-2">
-              <Wifi size={14} className="text-green-400" />
-              <span className="text-green-400 text-xs font-semibold">Auto-sync saat online</span>
-            </div>
+        {/* ===== CTA ===== */}
+        <section style={{ maxWidth: 1180, margin: '0 auto', padding: '42px 28px 20px' }}>
+          <div style={{ textAlign: 'center', borderRadius: 28, padding: '54px 30px', boxShadow: '0 16px 44px rgba(26,71,49,.1)', ...glass(18, 0.55) }}>
+            <h2 style={{ fontSize: 34, fontWeight: 800, letterSpacing: '-.025em', color: '#0f2a1d', marginBottom: 12 }}>Siap memajukan koperasi desa Anda?</h2>
+            <p style={{ fontSize: 16.5, color: '#46544b', maxWidth: 480, margin: '0 auto 26px' }}>Pak Tani sudah menunggu. Coba demo lengkap tanpa perlu daftar.</p>
+            <button onClick={goApp} style={{ border: 'none', fontWeight: 700, fontSize: 16, color: '#fff', padding: '16px 30px', borderRadius: 14, cursor: 'pointer', background: 'linear-gradient(150deg,#1a4731,#0f2a1d)', boxShadow: '0 14px 30px rgba(26,71,49,.36)' }}>
+              {state === 'authed' ? 'Buka dashboard' : 'Masuk ke dashboard demo'}
+            </button>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section className="py-20 bg-white border-y border-stone-100">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center gap-10">
-          <div className="flex-1">
-            <p className="text-amber-700 text-sm font-bold uppercase tracking-widest mb-3 flex items-center gap-2">
-              <Globe size={14} /> Konteks Kebijakan
-            </p>
-            <h2 className="text-stone-900 font-black text-3xl md:text-4xl tracking-tight leading-tight mb-4">
-              Didukung oleh<br />Inpres No. 9 Tahun 2025
-            </h2>
-            <p className="text-stone-500 leading-relaxed">
-              Program Koperasi Desa Merah Putih menargetkan pembentukan 80.000 koperasi desa baru di seluruh Indonesia. LUMBUNG dibangun untuk menjadi infrastruktur digital yang siap melayani skala nasional tersebut.
-            </p>
+        {/* ===== FOOTER ===== */}
+        <footer style={{ maxWidth: 1180, margin: '20px auto 0', padding: '34px 28px 46px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap', borderTop: '1px solid rgba(26,71,49,.1)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 30, height: 30, borderRadius: 9, background: 'linear-gradient(150deg,#1a4731,#0f2a1d)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><LogoMark size={16} /></div>
+            <span style={{ fontWeight: 800, color: '#10241a' }}>LUMBUNG</span>
+            <span style={{ fontSize: 13, color: '#8a958c' }}>© 2026 — Dari desa, untuk desa.</span>
           </div>
-          <div className="flex-1 grid grid-cols-2 gap-4">
-            {[
-              { icon: Users,    v: '80.000+', l: 'Koperasi Target Nasional' },
-              { icon: Globe,    v: '514',     l: 'Kabupaten/Kota di Indonesia' },
-              { icon: BarChart3,v: 'Rp1,76T', l: 'Potensi Aset Koperasi Desa' },
-              { icon: Zap,      v: '2025',    l: 'Tahun Implementasi Inpres' },
-            ].map(s => {
-              const Icon = s.icon
-              return (
-                <div key={s.l} className="bg-stone-50 border border-stone-200 rounded-2xl p-5">
-                  <Icon size={18} className="text-amber-700 mb-3" />
-                  <p className="text-stone-900 font-black text-2xl">{s.v}</p>
-                  <p className="text-stone-400 text-xs mt-1">{s.l}</p>
-                </div>
-              )
-            })}
+          <div style={{ display: 'flex', gap: 24, fontSize: 13.5, fontWeight: 600, color: '#525f57' }}>
+            <span style={{ cursor: 'pointer' }}>Privasi</span><span style={{ cursor: 'pointer' }}>Syarat</span><span style={{ cursor: 'pointer' }}>Bantuan</span>
           </div>
-        </div>
-      </section>
+        </footer>
+      </div>
 
-      <section className="py-24 bg-gradient-to-br from-amber-900 via-amber-800 to-stone-900 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-5"
-          style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
-        <div className="relative max-w-3xl mx-auto px-6 text-center">
-          <h2 className="text-white font-black text-4xl md:text-5xl tracking-tight mb-5">
-            Mulai digitalisasi<br />koperasi Anda hari ini
-          </h2>
-          <p className="text-amber-200/70 text-lg mb-10">
-            Data sudah bisa masuk. Sistem sudah siap. Tidak perlu keahlian teknis untuk memulai.
-          </p>
-          {state === 'authed' ? (
-            <Link href={dashboardHref(role)}
-              className="inline-flex items-center gap-2 bg-white text-amber-900 font-bold px-10 py-4 rounded-xl text-base hover:bg-amber-50 transition-colors shadow-xl">
-              Buka Dashboard <ArrowRight size={16} />
-            </Link>
-          ) : (
-            <div className="flex items-center gap-4 justify-center flex-wrap">
-              <Link href="/daftar"
-                className="inline-flex items-center gap-2 bg-white text-amber-900 font-bold px-10 py-4 rounded-xl text-base hover:bg-amber-50 transition-colors shadow-xl">
-                Daftar Sekarang <ArrowRight size={16} />
-              </Link>
-              <Link href="/login"
-                className="inline-flex items-center gap-2 text-amber-200 hover:text-white font-medium px-6 py-4 rounded-xl border border-amber-700/40 hover:border-amber-500 transition-colors text-base">
-                Sudah punya akun? Masuk
-              </Link>
-            </div>
-          )}
-        </div>
-      </section>
-
-      <footer className="bg-stone-900 py-10 border-t border-stone-800">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-7 h-7 bg-amber-700 rounded-lg flex items-center justify-center">
-              <span className="text-white text-xs font-black">L</span>
-            </div>
-            <span className="text-white font-bold">LUMBUNG</span>
-            <span className="text-stone-600 text-sm">Platform Koperasi Digital Indonesia</span>
-          </div>
-          <div className="flex items-center gap-6 text-stone-500 text-sm">
-            <Link href="/login" className="hover:text-stone-300 transition-colors">Masuk</Link>
-            <a href="https://github.com/dpunnn/lumbung" className="hover:text-stone-300 transition-colors">GitHub</a>
-            <span>TechnoScape Hackathon 9.0 · 2026</span>
-          </div>
-        </div>
-      </footer>
-
+      {/* responsive helpers */}
+      <style jsx>{`
+        @media (max-width: 860px) {
+          :global(.lmb-hero-grid) { grid-template-columns: 1fr !important; }
+          :global(.lmb-features-grid) { grid-template-columns: 1fr 1fr !important; }
+          :global(.lmb-stats-grid) { grid-template-columns: 1fr 1fr !important; }
+        }
+        @media (max-width: 560px) {
+          :global(.lmb-features-grid) { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </div>
   )
 }

@@ -93,6 +93,7 @@ func main() {
 
 		// Pinjaman
 		r.Get("/pinjaman", pinjamanH.ListPinjaman)
+		r.Get("/pinjaman/{id}", pinjamanH.GetPinjaman)
 		r.Get("/pinjaman/{id}/angsuran", pinjamanH.ListAngsuran)
 		r.Group(func(r chi.Router) {
 			r.Use(sharedauth.RequireRole(sharedauth.RolePengurus, sharedauth.RoleKasir))

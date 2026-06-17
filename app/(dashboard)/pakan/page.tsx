@@ -1,12 +1,49 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Plus, Pencil, Trash2, AlertTriangle, Wheat } from 'lucide-react'
+import { Plus, Wheat, AlertTriangle } from 'lucide-react'
 import api from '@/lib/api'
 import { getMe } from '@/lib/auth'
 import type { Pakan } from '@/types'
 
-const inputCls = 'w-full bg-white border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500 transition-colors'
+const glass: React.CSSProperties = {
+  background: 'rgba(255,255,255,.62)',
+  backdropFilter: 'blur(16px)',
+  WebkitBackdropFilter: 'blur(16px)',
+  border: '1px solid rgba(255,255,255,.7)',
+  boxShadow: '0 10px 26px rgba(26,71,49,.08)',
+}
+
+const inputStyle: React.CSSProperties = {
+  width: '100%', background: 'rgba(255,255,255,.7)', border: '1px solid rgba(26,71,49,.14)',
+  borderRadius: 10, padding: '9px 12px', color: '#0f2a1d', fontSize: 13.5, outline: 'none',
+}
+
+const labelStyle: React.CSSProperties = { display: 'block', color: '#46544b', fontSize: 12, fontWeight: 600, marginBottom: 5 }
+
+const greenBtn: React.CSSProperties = {
+  background: 'linear-gradient(150deg,#1a4731,#0f2a1d)', color: '#fff', border: 'none',
+  fontWeight: 700, borderRadius: 12, padding: '10px 18px', cursor: 'pointer',
+  display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13.5,
+}
+
+const thStyle: React.CSSProperties = {
+  fontSize: 11.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: '#9aa39c',
+  padding: '13px 22px', textAlign: 'left', whiteSpace: 'nowrap',
+}
+
+function StockBadge({ isLow }: { isLow: boolean }) {
+  const style: React.CSSProperties = isLow
+    ? { background: 'rgba(214,87,69,.12)', color: '#c0392b', border: '1px solid rgba(214,87,69,.28)' }
+    : { background: 'rgba(47,158,99,.14)', color: '#1d7a4d', border: '1px solid rgba(47,158,99,.3)' }
+  const dotBg = isLow ? '#d65745' : '#2f9e63'
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 700, padding: '4px 9px', borderRadius: 999, ...style }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: dotBg, flexShrink: 0 }} />
+      {isLow ? 'Menipis' : 'Aman'}
+    </span>
+  )
+}
 
 export default function PakanPage() {
   const [data, setData] = useState<Pakan[]>([])
@@ -15,6 +52,7 @@ export default function PakanPage() {
   const [editId, setEditId] = useState<string | null>(null)
   const [form, setForm] = useState({ nama: '', stok: '', satuan: 'kg', batas_minimum: '' })
   const [saving, setSaving] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -25,7 +63,6 @@ export default function PakanPage() {
 
   useEffect(() => { load() }, [load])
 
-  // backend Go belum punya realtime — polling
   useEffect(() => {
     const timer = setInterval(() => load(), 30_000)
     return () => clearInterval(timer)
@@ -67,7 +104,7 @@ export default function PakanPage() {
   }
 
   async function handleHapus(id: string) {
-    if (!confirm('Hapus data pakan ini?')) return
+    setConfirmDelete(null)
     await api.delete(`/api/stok/pakan/${id}`).catch(() => null)
     load()
   }
@@ -75,117 +112,161 @@ export default function PakanPage() {
   const lowStock = data.filter(p => p.stok <= p.batas_minimum && p.batas_minimum > 0)
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5">
-      <div className="flex items-center justify-between">
+    <div style={{ maxWidth: 860, margin: '0 auto', animation: 'lmbFade .7s cubic-bezier(.2,.7,.2,1) both' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
         <div>
-          <h1 className="text-stone-900 text-xl font-bold">Stok Pakan</h1>
-          <p className="text-stone-500 text-sm">{data.length} jenis pakan tercatat</p>
+          <h1 style={{ fontSize: 23, fontWeight: 800, color: '#0f2a1d', letterSpacing: '-.02em', marginBottom: 4 }}>Stok / Pakan</h1>
+          <p style={{ fontSize: 13.5, color: '#6a766e' }}>{data.length} jenis pakan tercatat</p>
         </div>
-        <button onClick={openTambah}
-          className="flex items-center gap-1.5 bg-amber-700 hover:bg-amber-800 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm">
+        <button onClick={openTambah} style={greenBtn}>
           <Plus size={15} /> Tambah
         </button>
       </div>
 
+      {/* Low stock alert */}
       {lowStock.length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2.5">
-          <AlertTriangle size={15} className="text-red-500 mt-0.5 shrink-0" />
-          <div className="text-red-700 text-sm">
-            <strong>Stok menipis:</strong>{' '}
-            {lowStock.map(p => `${p.nama} (${p.stok} ${p.satuan})`).join(', ')}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '15px 18px', borderRadius: 15, background: 'rgba(214,87,69,.1)', border: '1px solid rgba(214,87,69,.22)', marginBottom: 18 }}>
+          <div style={{ width: 38, height: 38, borderRadius: 11, background: 'rgba(214,87,69,.16)', color: '#c0392b', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <AlertTriangle size={18} />
+          </div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: '#9e2f23' }}>{lowStock.length} jenis pakan butuh segera direstok</div>
+            <div style={{ fontSize: 12.5, color: '#a8554a', marginTop: 2 }}>
+              {lowStock.map(p => `${p.nama} (${p.stok} ${p.satuan})`).join(', ')} di bawah batas minimum.
+            </div>
           </div>
         </div>
       )}
 
+      {/* Add/Edit form */}
       {showForm && (
-        <form onSubmit={handleSave}
-          className="bg-white border border-amber-200 rounded-xl p-5 space-y-4 shadow-sm">
-          <h2 className="text-stone-900 font-semibold text-sm">{editId ? 'Edit Pakan' : 'Tambah Pakan'}</h2>
-          <div className="grid grid-cols-2 gap-3">
+        <form onSubmit={handleSave} style={{ ...glass, borderRadius: 18, padding: 20, marginBottom: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <h2 style={{ color: '#0f2a1d', fontWeight: 800, fontSize: 15 }}>{editId ? 'Edit Pakan' : 'Tambah Pakan'}</h2>
+            <button type="button" onClick={() => setShowForm(false)} style={{ background: 'transparent', border: 'none', color: '#7a857d', fontSize: 13.5, cursor: 'pointer' }}>Batal</button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
             <div>
-              <label className="block text-stone-700 text-xs font-medium mb-1">Nama Pakan *</label>
+              <label style={labelStyle}>Nama Pakan *</label>
               <input required value={form.nama} onChange={e => set('nama', e.target.value)}
-                placeholder="Konsentrat Sapi" className={inputCls} />
+                placeholder="Konsentrat Sapi" style={inputStyle} />
             </div>
             <div>
-              <label className="block text-stone-700 text-xs font-medium mb-1">Satuan</label>
-              <select value={form.satuan} onChange={e => set('satuan', e.target.value)} className={inputCls}>
+              <label style={labelStyle}>Satuan</label>
+              <select value={form.satuan} onChange={e => set('satuan', e.target.value)} style={inputStyle}>
                 {['kg', 'liter', 'karung', 'sak'].map(s => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-stone-700 text-xs font-medium mb-1">Stok Saat Ini *</label>
+              <label style={labelStyle}>Stok Saat Ini *</label>
               <input required type="number" min="0" step="0.1" value={form.stok}
-                onChange={e => set('stok', e.target.value)} className={inputCls} />
+                onChange={e => set('stok', e.target.value)} style={inputStyle} />
             </div>
             <div>
-              <label className="block text-stone-700 text-xs font-medium mb-1">Batas Minimum</label>
+              <label style={labelStyle}>Batas Minimum</label>
               <input type="number" min="0" step="0.1" value={form.batas_minimum}
-                onChange={e => set('batas_minimum', e.target.value)} placeholder="0" className={inputCls} />
+                onChange={e => set('batas_minimum', e.target.value)} placeholder="0" style={inputStyle} />
             </div>
           </div>
-          <div className="flex gap-2">
-            <button type="submit" disabled={saving}
-              className="bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="submit" disabled={saving} style={{ ...greenBtn, opacity: saving ? 0.5 : 1 }}>
               {saving ? 'Menyimpan...' : 'Simpan'}
             </button>
             <button type="button" onClick={() => setShowForm(false)}
-              className="border border-stone-300 text-stone-600 text-sm px-4 py-2 rounded-lg hover:bg-stone-50 transition-colors">
+              style={{ border: '1px solid rgba(26,71,49,.18)', background: 'transparent', color: '#46544b', fontSize: 13.5, fontWeight: 600, padding: '10px 18px', borderRadius: 12, cursor: 'pointer' }}>
               Batal
             </button>
           </div>
         </form>
       )}
 
+      {/* Confirm delete modal */}
+      {confirmDelete && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(10,26,18,.4)', backdropFilter: 'blur(4px)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ ...glass, borderRadius: 20, padding: 28, maxWidth: 360, width: '90%', textAlign: 'center' }}>
+            <p style={{ fontSize: 15, fontWeight: 700, color: '#0f2a1d', marginBottom: 8 }}>Hapus data pakan ini?</p>
+            <p style={{ fontSize: 13, color: '#7a857d', marginBottom: 22 }}>Data yang dihapus tidak dapat dikembalikan.</p>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+              <button onClick={() => setConfirmDelete(null)}
+                style={{ padding: '9px 22px', borderRadius: 11, border: '1px solid rgba(26,71,49,.18)', background: 'transparent', color: '#46544b', fontWeight: 600, cursor: 'pointer', fontSize: 13.5 }}>
+                Batal
+              </button>
+              <button onClick={() => handleHapus(confirmDelete)}
+                style={{ padding: '9px 22px', borderRadius: 11, border: 'none', background: '#d65745', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: 13.5 }}>
+                Ya, Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {loading ? (
-        <div className="flex justify-center py-12">
-          <div className="w-5 h-5 border-2 border-amber-700 border-t-transparent rounded-full animate-spin" />
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '60px 0' }}>
+          <div style={{ width: 28, height: 28, borderRadius: '50%', border: '3px solid rgba(26,71,49,.15)', borderTopColor: '#1a4731', animation: 'lmbSpin 0.8s linear infinite' }} />
         </div>
       ) : data.length === 0 ? (
-        <div className="text-center py-16 text-stone-400 bg-white border border-stone-200 rounded-xl">
-          <Wheat size={32} className="mx-auto mb-2 text-stone-300" />
-          <p className="text-sm">Belum ada data pakan.</p>
+        <div style={{ textAlign: 'center', padding: '64px 0', color: '#7a857d', ...glass, borderRadius: 20 }}>
+          <Wheat size={32} style={{ margin: '0 auto 8px', color: '#c4ccc6' }} />
+          <p style={{ fontSize: 13.5 }}>Belum ada data pakan. Klik "+ Tambah" untuk mulai.</p>
         </div>
       ) : (
-        <div className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-stone-50 border-b border-stone-200 text-stone-500 text-xs">
-                <th className="px-4 py-3 text-left font-medium">Nama Pakan</th>
-                <th className="px-4 py-3 text-right font-medium">Stok</th>
-                <th className="px-4 py-3 text-right font-medium">Min</th>
-                <th className="px-4 py-3 text-center font-medium">Status</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-100">
-              {data.map(p => {
-                const isLow = p.batas_minimum > 0 && p.stok <= p.batas_minimum
-                return (
-                  <tr key={p.id} className="hover:bg-stone-50 transition-colors">
-                    <td className="px-4 py-3 text-stone-900 font-medium">{p.nama}</td>
-                    <td className="px-4 py-3 text-right text-stone-700">{p.stok} {p.satuan}</td>
-                    <td className="px-4 py-3 text-right text-stone-400">{p.batas_minimum} {p.satuan}</td>
-                    <td className="px-4 py-3 text-center">
-                      {isLow
-                        ? <span className="bg-red-50 text-red-600 border border-red-200 px-2 py-0.5 rounded-full text-xs font-medium">Menipis</span>
-                        : <span className="bg-green-50 text-green-700 border border-green-200 px-2 py-0.5 rounded-full text-xs font-medium">Aman</span>}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <button onClick={() => openEdit(p)}
-                        className="text-stone-400 hover:text-stone-700 mr-3 transition-colors">
-                        <Pencil size={14} />
-                      </button>
-                      <button onClick={() => handleHapus(p.id)}
-                        className="text-stone-400 hover:text-red-500 transition-colors">
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+        <div style={{ ...glass, borderRadius: 20, overflow: 'hidden' }}>
+          {/* Header row */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.5fr 1fr .6fr', gap: 14, padding: '13px 22px', borderBottom: '1px solid rgba(26,71,49,.06)' }}>
+            <span style={thStyle}>Jenis Pakan</span>
+            <span style={thStyle}>Tingkat Stok</span>
+            <span style={thStyle}>Status</span>
+            <span style={{ ...thStyle, textAlign: 'right' }}></span>
+          </div>
+
+          {/* Data rows */}
+          {data.map(p => {
+            const isLow = p.batas_minimum > 0 && p.stok <= p.batas_minimum
+            const maxRef = p.batas_minimum > 0 ? p.batas_minimum * 2 : p.stok || 1
+            const pct = Math.min(100, Math.round((p.stok / maxRef) * 100))
+            const barColor = isLow ? '#d65745' : pct > 60 ? '#2f9e63' : '#c9963a'
+            return (
+              <div key={p.id}
+                style={{ display: 'grid', gridTemplateColumns: '1.6fr 1.5fr 1fr .6fr', gap: 14, padding: '16px 22px', alignItems: 'center', borderBottom: '1px solid rgba(26,71,49,.05)', transition: 'background .15s' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(26,71,49,.025)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
+                {/* Col 1: nama + min */}
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#16241c' }}>{p.nama}</div>
+                  {p.batas_minimum > 0 && (
+                    <div style={{ fontSize: 11.5, color: '#9aa39c', marginTop: 2 }}>Min. {p.batas_minimum} {p.satuan}</div>
+                  )}
+                </div>
+
+                {/* Col 2: stok text + progress bar */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: isLow ? '#c0392b' : '#0f2a1d' }}>
+                      {p.stok} {p.satuan}
+                    </span>
+                  </div>
+                  <div style={{ height: 7, borderRadius: 999, background: 'rgba(26,71,49,.1)', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${pct}%`, background: barColor, borderRadius: 999, transition: 'width .4s' }} />
+                  </div>
+                </div>
+
+                {/* Col 3: dot badge */}
+                <StockBadge isLow={isLow} />
+
+                {/* Col 4: actions */}
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button onClick={() => openEdit(p)}
+                    style={{ fontSize: 12, fontWeight: 700, color: '#1a4731', background: 'rgba(26,71,49,.07)', border: 'none', padding: '5px 11px', borderRadius: 8, cursor: 'pointer' }}>
+                    Edit
+                  </button>
+                  <button onClick={() => setConfirmDelete(p.id)}
+                    style={{ fontSize: 12, fontWeight: 700, color: '#c0392b', background: 'rgba(214,87,69,.08)', border: 'none', padding: '5px 11px', borderRadius: 8, cursor: 'pointer' }}>
+                    Hapus
+                  </button>
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

@@ -3,28 +3,17 @@
 import { useEffect, useState, useCallback } from 'react'
 import api from '@/lib/api'
 import { getMe } from '@/lib/auth'
-import { Droplets, Plus, Pencil } from 'lucide-react'
+import { Droplets, Plus, Pencil, CheckCircle } from 'lucide-react'
 
 type Meteran = {
-  id: string
-  koperasi_id: string
-  anggota_id: string | null
-  nama_pelanggan: string
-  nomor_meteran: string
-  alamat: string | null
-  tarif_per_m3: number
-  aktif: boolean
+  id: string; koperasi_id: string; anggota_id: string | null
+  nama_pelanggan: string; nomor_meteran: string; alamat: string | null
+  tarif_per_m3: number; aktif: boolean
 }
-
 type Tagihan = {
-  id: string
-  meteran_id: string
-  bulan: string
-  meter_awal: number
-  meter_akhir: number
-  pemakaian: number
-  jumlah_tagihan: number
-  status: 'belum_bayar' | 'lunas'
+  id: string; meteran_id: string; bulan: string
+  meter_awal: number; meter_akhir: number; pemakaian: number
+  jumlah_tagihan: number; status: 'belum_bayar' | 'lunas'
   tanggal_bayar: string | null
   meteran: { nama_pelanggan: string; nomor_meteran: string } | null
 }
@@ -33,6 +22,33 @@ const BULAN_INI = (() => {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 })()
+
+const glass: React.CSSProperties = {
+  background: 'rgba(255,255,255,.62)',
+  backdropFilter: 'blur(16px)',
+  WebkitBackdropFilter: 'blur(16px)',
+  border: '1px solid rgba(255,255,255,.7)',
+  boxShadow: '0 10px 26px rgba(26,71,49,.08)',
+}
+const inputStyle: React.CSSProperties = {
+  width: '100%', background: 'rgba(255,255,255,.7)', border: '1px solid rgba(26,71,49,.14)',
+  borderRadius: 10, padding: '9px 12px', color: '#0f2a1d', fontSize: 13.5, outline: 'none',
+}
+const labelStyle: React.CSSProperties = { display: 'block', color: '#46544b', fontSize: 12, fontWeight: 600, marginBottom: 5 }
+const greenBtn: React.CSSProperties = {
+  background: 'linear-gradient(150deg,#1a4731,#0f2a1d)', color: '#fff', border: 'none',
+  fontWeight: 700, borderRadius: 12, padding: '10px 18px', cursor: 'pointer',
+  display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13.5,
+}
+const ghostBtn: React.CSSProperties = {
+  background: 'rgba(255,255,255,.6)', color: '#1a4731', border: '1px solid rgba(26,71,49,.18)',
+  fontWeight: 700, borderRadius: 12, padding: '10px 16px', cursor: 'pointer',
+  display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13.5,
+}
+const thStyle: React.CSSProperties = {
+  fontSize: 11.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: '#9aa39c',
+  padding: '13px 16px', textAlign: 'left', whiteSpace: 'nowrap',
+}
 
 export default function AirPage() {
   const [tab, setTab] = useState<'tagihan' | 'meteran'>('tagihan')
@@ -44,16 +60,11 @@ export default function AirPage() {
   const [showMeteranForm, setShowMeteranForm] = useState(false)
   const [showTagihanForm, setShowTagihanForm] = useState(false)
   const [editMeteranId, setEditMeteranId] = useState<string | null>(null)
-  const [formMeteran, setFormMeteran] = useState({
-    nama_pelanggan: '', nomor_meteran: '', alamat: '', tarif_per_m3: '1500',
-  })
-  const [formTagihan, setFormTagihan] = useState({
-    meteran_id: '', bulan: BULAN_INI, meter_awal: '', meter_akhir: '',
-  })
+  const [formMeteran, setFormMeteran] = useState({ nama_pelanggan: '', nomor_meteran: '', alamat: '', tarif_per_m3: '1500' })
+  const [formTagihan, setFormTagihan] = useState({ meteran_id: '', bulan: BULAN_INI, meter_awal: '', meter_akhir: '' })
 
   const load = useCallback(async () => {
     setLoading(true)
-    // TODO: meteran_air dan tagihan_air tidak ada route di gateway — return empty state aman
     const [m, t] = await Promise.all([
       api.get<Meteran[]>('/api/air/meteran').catch(() => [] as Meteran[]),
       api.get<Tagihan[]>('/api/air/tagihan').catch(() => [] as Tagihan[]),
@@ -64,377 +75,336 @@ export default function AirPage() {
   }, [])
 
   useEffect(() => { load() }, [load])
-
   useEffect(() => {
-    // Polling pengganti realtime Supabase channel (air-rt)
     const interval = setInterval(() => load(), 30_000)
     return () => clearInterval(interval)
   }, [load])
 
   async function handleSaveMeteran(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
+    e.preventDefault(); setSaving(true)
     const me = await getMe()
-
     const payload = {
-      nama_pelanggan: formMeteran.nama_pelanggan,
-      nomor_meteran: formMeteran.nomor_meteran,
-      alamat: formMeteran.alamat || null,
-      tarif_per_m3: parseInt(formMeteran.tarif_per_m3) || 1500,
+      nama_pelanggan: formMeteran.nama_pelanggan, nomor_meteran: formMeteran.nomor_meteran,
+      alamat: formMeteran.alamat || null, tarif_per_m3: parseInt(formMeteran.tarif_per_m3) || 1500,
     }
-
     if (editMeteranId) {
-      // TODO: implement via API — /api/air/meteran/{id}
       await api.put<void>(`/api/air/meteran/${editMeteranId}`, payload).catch(() => null)
     } else {
-      // TODO: implement via API — /api/air/meteran
       await api.post<void>('/api/air/meteran', { ...payload, koperasi_id: me?.koperasi_id }).catch(() => null)
     }
-
-    setSaving(false)
-    setShowMeteranForm(false)
-    setEditMeteranId(null)
+    setSaving(false); setShowMeteranForm(false); setEditMeteranId(null)
     setFormMeteran({ nama_pelanggan: '', nomor_meteran: '', alamat: '', tarif_per_m3: '1500' })
     load()
   }
 
   async function handleInputTagihan(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
-
+    e.preventDefault(); setSaving(true)
     const meteran = meteranList.find(m => m.id === formTagihan.meteran_id)
     if (!meteran) { setSaving(false); return }
-
     const awal = parseFloat(formTagihan.meter_awal)
     const akhir = parseFloat(formTagihan.meter_akhir)
     const pemakaian = akhir - awal
     const tagihan_amount = Math.round(pemakaian * meteran.tarif_per_m3)
-
     const me = await getMe()
-
-    // Cek apakah tagihan bulan ini sudah ada (upsert logic)
-    // TODO: implement via API — /api/air/tagihan (upsert by meteran_id+bulan)
-    const existingList = await api.get<Tagihan[]>(
-      `/api/air/tagihan?meteran_id=${formTagihan.meteran_id}&bulan=${formTagihan.bulan}`
-    ).catch(() => [] as Tagihan[])
+    const existingList = await api.get<Tagihan[]>(`/api/air/tagihan?meteran_id=${formTagihan.meteran_id}&bulan=${formTagihan.bulan}`).catch(() => [] as Tagihan[])
     const existing = existingList?.[0] ?? null
-
     if (existing) {
-      await api.put<void>(`/api/air/tagihan/${existing.id}`, {
-        meter_awal: awal, meter_akhir: akhir, jumlah_tagihan: tagihan_amount,
-      }).catch(() => null)
+      await api.put<void>(`/api/air/tagihan/${existing.id}`, { meter_awal: awal, meter_akhir: akhir, jumlah_tagihan: tagihan_amount }).catch(() => null)
     } else {
       await api.post<void>('/api/air/tagihan', {
-        koperasi_id: me?.koperasi_id,
-        meteran_id: formTagihan.meteran_id,
-        bulan: formTagihan.bulan,
-        meter_awal: awal,
-        meter_akhir: akhir,
-        jumlah_tagihan: tagihan_amount,
-        status: 'belum_bayar',
+        koperasi_id: me?.koperasi_id, meteran_id: formTagihan.meteran_id, bulan: formTagihan.bulan,
+        meter_awal: awal, meter_akhir: akhir, jumlah_tagihan: tagihan_amount, status: 'belum_bayar',
       }).catch(() => null)
     }
-
-    setSaving(false)
-    setShowTagihanForm(false)
+    setSaving(false); setShowTagihanForm(false)
     setFormTagihan({ meteran_id: '', bulan: BULAN_INI, meter_awal: '', meter_akhir: '' })
     load()
   }
 
   async function handleBayar(id: string) {
-    // TODO: implement via API — /api/air/tagihan/{id}
-    await api.put<void>(`/api/air/tagihan/${id}`, {
-      status: 'lunas',
-      tanggal_bayar: new Date().toISOString().split('T')[0],
-    }).catch(() => null)
+    await api.put<void>(`/api/air/tagihan/${id}`, { status: 'lunas', tanggal_bayar: new Date().toISOString().split('T')[0] }).catch(() => null)
     load()
   }
 
   function openEditMeteran(m: Meteran) {
     setEditMeteranId(m.id)
-    setFormMeteran({
-      nama_pelanggan: m.nama_pelanggan, nomor_meteran: m.nomor_meteran,
-      alamat: m.alamat ?? '', tarif_per_m3: m.tarif_per_m3.toString(),
-    })
-    setShowMeteranForm(true)
-    setTab('meteran')
+    setFormMeteran({ nama_pelanggan: m.nama_pelanggan, nomor_meteran: m.nomor_meteran, alamat: m.alamat ?? '', tarif_per_m3: m.tarif_per_m3.toString() })
+    setShowMeteranForm(true); setTab('meteran')
   }
 
-  const filteredTagihan = filterBulan
-    ? tagihan.filter(t => t.bulan === filterBulan)
-    : tagihan
-
+  const filteredTagihan = filterBulan ? tagihan.filter(t => t.bulan === filterBulan) : tagihan
   const belumBayar = filteredTagihan.filter(t => t.status === 'belum_bayar')
   const totalTagihan = filteredTagihan.reduce((s, t) => s + t.jumlah_tagihan, 0)
   const totalTerbayar = filteredTagihan.filter(t => t.status === 'lunas').reduce((s, t) => s + t.jumlah_tagihan, 0)
-
   const bulanOptions = [...new Set(tagihan.map(t => t.bulan))].sort().reverse()
 
-  return (
-    <div className="max-w-4xl mx-auto space-y-5">
+  const tabBtn = (active: boolean): React.CSSProperties => ({
+    padding: '9px 18px', borderRadius: 10, fontSize: 13.5, cursor: 'pointer', border: 'none',
+    background: active ? '#fff' : 'transparent', color: active ? '#0f2a1d' : '#7a857d',
+    fontWeight: active ? 700 : 600, boxShadow: active ? '0 2px 8px rgba(26,71,49,.1)' : 'none',
+  })
 
-      <div className="flex items-center justify-between">
+  const filterBtn = (active: boolean): React.CSSProperties => ({
+    fontSize: 12, fontWeight: 600, padding: '5px 12px', borderRadius: 8, cursor: 'pointer', border: 'none',
+    background: active ? '#1a4731' : 'rgba(255,255,255,.7)', color: active ? '#fff' : '#46544b',
+    borderWidth: 1, borderStyle: 'solid', borderColor: active ? '#1a4731' : 'rgba(26,71,49,.14)',
+  })
+
+  return (
+    <div style={{ maxWidth: 960, margin: '0 auto', animation: 'lmbFade .7s cubic-bezier(.2,.7,.2,1) both' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
         <div>
-          <h1 className="text-stone-900 text-xl font-bold">Utilitas Air</h1>
-          <p className="text-stone-400 text-sm">{meteranList.length} pelanggan terdaftar</p>
+          <h1 style={{ fontSize: 23, fontWeight: 800, color: '#0f2a1d', letterSpacing: '-.02em', marginBottom: 4 }}>Utilitas Air</h1>
+          <p style={{ fontSize: 13.5, color: '#6a766e' }}>{meteranList.length} pelanggan terdaftar</p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => { setShowTagihanForm(true); setShowMeteranForm(false); setTab('tagihan') }}
-            className="bg-white border border-stone-300 hover:bg-stone-50 text-stone-700 text-sm px-4 py-2 rounded-lg transition-colors inline-flex items-center gap-1.5">
-            <Plus className="w-4 h-4" /> Input Bacaan
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => { setShowTagihanForm(true); setShowMeteranForm(false); setTab('tagihan') }} style={ghostBtn}>
+            <Plus size={15} /> Input Bacaan
           </button>
-          <button onClick={() => { setShowMeteranForm(true); setShowTagihanForm(false); setTab('meteran'); setEditMeteranId(null); setFormMeteran({ nama_pelanggan: '', nomor_meteran: '', alamat: '', tarif_per_m3: '1500' }) }}
-            className="bg-amber-700 hover:bg-amber-800 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors inline-flex items-center gap-1.5">
-            <Plus className="w-4 h-4" /> Pelanggan
+          <button onClick={() => {
+            setShowMeteranForm(true); setShowTagihanForm(false); setTab('meteran')
+            setEditMeteranId(null); setFormMeteran({ nama_pelanggan: '', nomor_meteran: '', alamat: '', tarif_per_m3: '1500' })
+          }} style={greenBtn}>
+            <Plus size={15} /> Pelanggan
           </button>
         </div>
       </div>
 
+      {/* Stat cards */}
       {filteredTagihan.length > 0 && (
-        <div className="grid grid-cols-3 gap-3">
-          <div className="bg-white border border-stone-200 rounded-xl shadow-sm p-4">
-            <p className="text-stone-400 text-xs mb-1">Total Tagihan</p>
-            <p className="text-stone-900 text-xl font-bold">Rp {totalTagihan.toLocaleString('id-ID')}</p>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 18 }}>
+          <div style={{ ...glass, borderRadius: 18, padding: '16px 20px' }}>
+            <p style={{ fontSize: 12, color: '#9aa39c', marginBottom: 6 }}>Total Tagihan</p>
+            <p style={{ fontSize: 21, fontWeight: 800, color: '#0f2a1d' }}>Rp {totalTagihan.toLocaleString('id-ID')}</p>
           </div>
-          <div className="bg-white border border-stone-200 rounded-xl shadow-sm p-4">
-            <p className="text-stone-400 text-xs mb-1">Sudah Terbayar</p>
-            <p className="text-green-700 text-xl font-bold">Rp {totalTerbayar.toLocaleString('id-ID')}</p>
+          <div style={{ ...glass, borderRadius: 18, padding: '16px 20px' }}>
+            <p style={{ fontSize: 12, color: '#9aa39c', marginBottom: 6 }}>Sudah Terbayar</p>
+            <p style={{ fontSize: 21, fontWeight: 800, color: '#1d7a4d' }}>Rp {totalTerbayar.toLocaleString('id-ID')}</p>
           </div>
-          <div className={`rounded-xl shadow-sm p-4 ${belumBayar.length > 0 ? 'bg-red-50 border border-red-200' : 'bg-white border border-stone-200'}`}>
-            <p className="text-stone-400 text-xs mb-1">Belum Bayar</p>
-            <p className={`text-xl font-bold ${belumBayar.length > 0 ? 'text-red-600' : 'text-stone-400'}`}>{belumBayar.length} pelanggan</p>
+          <div style={{ background: belumBayar.length > 0 ? 'rgba(214,87,69,.1)' : 'rgba(255,255,255,.62)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: belumBayar.length > 0 ? '1px solid rgba(214,87,69,.25)' : '1px solid rgba(255,255,255,.7)', boxShadow: '0 10px 26px rgba(26,71,49,.08)', borderRadius: 18, padding: '16px 20px' }}>
+            <p style={{ fontSize: 12, color: '#9aa39c', marginBottom: 6 }}>Belum Bayar</p>
+            <p style={{ fontSize: 21, fontWeight: 800, color: belumBayar.length > 0 ? '#c0392b' : '#9aa39c' }}>{belumBayar.length} pelanggan</p>
           </div>
         </div>
       )}
 
-      <div className="flex gap-1 bg-white border border-stone-200 rounded-xl shadow-sm p-1 w-fit">
-        {(['tagihan', 'meteran'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-5 py-2 rounded-lg text-sm font-medium transition-all
-              ${tab === t ? 'bg-amber-700 text-white' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'}`}>
-            {t === 'tagihan' ? 'Tagihan' : 'Data Meteran'}
-          </button>
-        ))}
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 4, ...glass, borderRadius: 14, padding: 5, width: 'fit-content', marginBottom: 18 }}>
+        <button onClick={() => setTab('tagihan')} style={tabBtn(tab === 'tagihan')}>Tagihan</button>
+        <button onClick={() => setTab('meteran')} style={tabBtn(tab === 'meteran')}>Data Meteran</button>
       </div>
 
+      {/* TAGIHAN TAB */}
       {tab === 'tagihan' && showTagihanForm && (
-        <form onSubmit={handleInputTagihan} className="bg-white border border-amber-200 rounded-xl shadow-sm p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-stone-900 font-medium">Input Bacaan Meteran</h2>
-            <button type="button" onClick={() => setShowTagihanForm(false)} className="text-stone-400 hover:text-stone-600 text-sm">Batal</button>
+        <form onSubmit={handleInputTagihan} style={{ ...glass, borderRadius: 20, overflow: 'hidden', marginBottom: 18 }}>
+          <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(26,71,49,.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h2 style={{ fontSize: 14.5, fontWeight: 800, color: '#0f2a1d' }}>Input Bacaan Meteran</h2>
+            <button type="button" onClick={() => setShowTagihanForm(false)} style={{ background: 'none', border: 'none', color: '#7a857d', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>Batal</button>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="col-span-2">
-              <label className="block text-stone-600 text-xs mb-1">Pelanggan *</label>
-              <select required value={formTagihan.meteran_id} onChange={e => setFormTagihan(f => ({ ...f, meteran_id: e.target.value }))}
-                className="w-full bg-white border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500 transition-colors">
+          <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <label style={labelStyle}>Pelanggan *</label>
+              <select required value={formTagihan.meteran_id} onChange={e => setFormTagihan(f => ({ ...f, meteran_id: e.target.value }))} style={inputStyle}>
                 <option value="">Pilih pelanggan...</option>
-                {meteranList.filter(m => m.aktif).map(m => (
-                  <option key={m.id} value={m.id}>{m.nama_pelanggan} ({m.nomor_meteran})</option>
-                ))}
+                {meteranList.filter(m => m.aktif).map(m => <option key={m.id} value={m.id}>{m.nama_pelanggan} ({m.nomor_meteran})</option>)}
               </select>
             </div>
-            <div>
-              <label className="block text-stone-600 text-xs mb-1">Bulan</label>
-              <input type="month" value={formTagihan.bulan} onChange={e => setFormTagihan(f => ({ ...f, bulan: e.target.value }))}
-                className="w-full bg-white border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500 transition-colors" />
-            </div>
-            <div />
-            <div>
-              <label className="block text-stone-600 text-xs mb-1">Meter Awal (m3) *</label>
-              <input required type="number" min="0" step="0.1" value={formTagihan.meter_awal}
-                onChange={e => setFormTagihan(f => ({ ...f, meter_awal: e.target.value }))}
-                className="w-full bg-white border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500 transition-colors" />
-            </div>
-            <div>
-              <label className="block text-stone-600 text-xs mb-1">Meter Akhir (m3) *</label>
-              <input required type="number" min="0" step="0.1" value={formTagihan.meter_akhir}
-                onChange={e => setFormTagihan(f => ({ ...f, meter_akhir: e.target.value }))}
-                className="w-full bg-white border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500 transition-colors" />
-            </div>
-          </div>
-
-          {formTagihan.meter_awal && formTagihan.meter_akhir && formTagihan.meteran_id && (() => {
-            const meteran = meteranList.find(m => m.id === formTagihan.meteran_id)
-            const pemakaian = parseFloat(formTagihan.meter_akhir) - parseFloat(formTagihan.meter_awal)
-            const tagihan_amount = Math.round(pemakaian * (meteran?.tarif_per_m3 ?? 1500))
-            return pemakaian >= 0 ? (
-              <div className="bg-stone-50 border border-stone-200 rounded-lg px-4 py-3 grid grid-cols-2 gap-2 text-sm">
-                <div><span className="text-stone-400">Pemakaian</span><p className="text-stone-900 font-semibold">{pemakaian.toFixed(1)} m3</p></div>
-                <div><span className="text-stone-400">Total Tagihan</span><p className="text-amber-700 font-bold">Rp {tagihan_amount.toLocaleString('id-ID')}</p></div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+              <div>
+                <label style={labelStyle}>Bulan</label>
+                <input type="month" value={formTagihan.bulan} onChange={e => setFormTagihan(f => ({ ...f, bulan: e.target.value }))} style={inputStyle} />
               </div>
-            ) : null
-          })()}
-
-          <button type="submit" disabled={saving}
-            className="w-full bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white text-sm font-semibold rounded-lg py-2.5 transition-colors">
-            {saving ? 'Menyimpan...' : 'Simpan Tagihan'}
-          </button>
+              <div>
+                <label style={labelStyle}>Meter Awal (m3) *</label>
+                <input required type="number" min="0" step="0.1" value={formTagihan.meter_awal}
+                  onChange={e => setFormTagihan(f => ({ ...f, meter_awal: e.target.value }))} style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Meter Akhir (m3) *</label>
+                <input required type="number" min="0" step="0.1" value={formTagihan.meter_akhir}
+                  onChange={e => setFormTagihan(f => ({ ...f, meter_akhir: e.target.value }))} style={inputStyle} />
+              </div>
+            </div>
+            {formTagihan.meter_awal && formTagihan.meter_akhir && formTagihan.meteran_id && (() => {
+              const meteran = meteranList.find(m => m.id === formTagihan.meteran_id)
+              const pemakaian = parseFloat(formTagihan.meter_akhir) - parseFloat(formTagihan.meter_awal)
+              const tagihan_amount = Math.round(pemakaian * (meteran?.tarif_per_m3 ?? 1500))
+              return pemakaian >= 0 ? (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, background: 'rgba(26,71,49,.05)', border: '1px solid rgba(26,71,49,.1)', borderRadius: 12, padding: '12px 16px' }}>
+                  <div>
+                    <p style={{ fontSize: 12, color: '#9aa39c' }}>Pemakaian</p>
+                    <p style={{ fontSize: 16, fontWeight: 700, color: '#0f2a1d', marginTop: 2 }}>{pemakaian.toFixed(1)} m3</p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 12, color: '#9aa39c' }}>Total Tagihan</p>
+                    <p style={{ fontSize: 16, fontWeight: 800, color: '#1a4731', marginTop: 2 }}>Rp {tagihan_amount.toLocaleString('id-ID')}</p>
+                  </div>
+                </div>
+              ) : null
+            })()}
+          </div>
+          <div style={{ padding: '12px 20px', borderTop: '1px solid rgba(26,71,49,.08)', background: 'rgba(247,244,236,.4)' }}>
+            <button type="submit" disabled={saving}
+              style={{ ...greenBtn, width: '100%', justifyContent: 'center', padding: '12px', opacity: saving ? 0.5 : 1 }}>
+              {saving ? 'Menyimpan...' : 'Simpan Tagihan'}
+            </button>
+          </div>
         </form>
       )}
 
       {tab === 'tagihan' && !showTagihanForm && (
-        <div className="space-y-4">
-
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-stone-400 text-xs">Filter:</span>
-            <button onClick={() => setFilterBulan(BULAN_INI)}
-              className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${filterBulan === BULAN_INI ? 'bg-amber-700 text-white border-amber-700' : 'bg-white text-stone-600 border-stone-300'}`}>
-              Bulan Ini
-            </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12, color: '#9aa39c' }}>Filter:</span>
+            <button style={filterBtn(filterBulan === BULAN_INI)} onClick={() => setFilterBulan(BULAN_INI)}>Bulan Ini</button>
             {bulanOptions.filter(b => b !== BULAN_INI).slice(0, 3).map(b => (
-              <button key={b} onClick={() => setFilterBulan(filterBulan === b ? '' : b)}
-                className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${filterBulan === b ? 'bg-amber-700 text-white border-amber-700' : 'bg-white text-stone-600 border-stone-300'}`}>
-                {b}
-              </button>
+              <button key={b} style={filterBtn(filterBulan === b)} onClick={() => setFilterBulan(filterBulan === b ? '' : b)}>{b}</button>
             ))}
-            <button onClick={() => setFilterBulan('')}
-              className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${!filterBulan ? 'bg-amber-700 text-white border-amber-700' : 'bg-white text-stone-600 border-stone-300'}`}>
-              Semua
-            </button>
+            <button style={filterBtn(!filterBulan)} onClick={() => setFilterBulan('')}>Semua</button>
           </div>
 
           {loading ? (
-            <div className="flex items-center gap-3 py-8 justify-center">
-              <div className="w-5 h-5 border-2 border-amber-700 border-t-transparent rounded-full animate-spin" />
-              <p className="text-stone-400 text-sm">Memuat tagihan...</p>
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', border: '3px solid rgba(26,71,49,.15)', borderTopColor: '#1a4731', animation: 'lmbSpin 0.8s linear infinite' }} />
             </div>
           ) : filteredTagihan.length === 0 ? (
-            <div className="text-center py-20 bg-white border border-stone-200 rounded-xl shadow-sm text-stone-400">
-              <Droplets className="w-10 h-10 mx-auto mb-3" />
-              <p>Belum ada tagihan. Klik "+ Input Bacaan" untuk mencatat.</p>
+            <div style={{ ...glass, borderRadius: 20, padding: '60px 0', textAlign: 'center' }}>
+              <Droplets size={36} style={{ margin: '0 auto 12px', color: '#c4ccc6' }} />
+              <p style={{ fontWeight: 700, color: '#46544b' }}>Belum ada tagihan</p>
+              <p style={{ fontSize: 13, color: '#9aa39c', marginTop: 4 }}>Klik &ldquo;+ Input Bacaan&rdquo; untuk mencatat</p>
             </div>
           ) : (
-            <div className="bg-white border border-stone-200 rounded-xl shadow-sm overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-stone-50 border-b border-stone-200 text-stone-500 text-xs font-medium">
-                    <th className="px-4 py-3 text-left">Pelanggan</th>
-                    <th className="px-4 py-3 text-left">Bulan</th>
-                    <th className="px-4 py-3 text-right">Pemakaian</th>
-                    <th className="px-4 py-3 text-right">Tagihan</th>
-                    <th className="px-4 py-3 text-center">Status</th>
-                    <th className="px-4 py-3"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-100">
-                  {filteredTagihan.map(t => (
-                    <tr key={t.id} className="hover:bg-stone-50 transition-colors">
-                      <td className="px-4 py-3">
-                        <p className="text-stone-900 font-medium">{t.meteran?.nama_pelanggan ?? '—'}</p>
-                        <p className="text-stone-400 text-xs">{t.meteran?.nomor_meteran}</p>
-                      </td>
-                      <td className="px-4 py-3 text-stone-600 text-sm">{t.bulan}</td>
-                      <td className="px-4 py-3 text-right text-stone-600">{t.pemakaian} m3</td>
-                      <td className="px-4 py-3 text-right">
-                        <span className="text-stone-900 font-semibold">Rp {t.jumlah_tagihan.toLocaleString('id-ID')}</span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {t.status === 'lunas' ? (
-                          <div>
-                            <span className="text-xs bg-green-50 text-green-700 border border-green-200 px-2.5 py-0.5 rounded-full">Lunas</span>
-                            {t.tanggal_bayar && <p className="text-stone-400 text-[10px] mt-0.5">{new Date(t.tanggal_bayar).toLocaleDateString('id-ID')}</p>}
-                          </div>
-                        ) : (
-                          <span className="text-xs bg-red-50 text-red-600 border border-red-200 px-2.5 py-0.5 rounded-full">Belum Bayar</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {t.status === 'belum_bayar' && (
-                          <button onClick={() => handleBayar(t.id)}
-                            className="bg-amber-700 hover:bg-amber-800 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors">
-                            Tandai Lunas
-                          </button>
-                        )}
-                      </td>
+            <div style={{ ...glass, borderRadius: 20, overflow: 'hidden' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid rgba(26,71,49,.08)' }}>
+                      {['Pelanggan','Bulan','Pemakaian','Tagihan','Status',''].map(h => <th key={h} style={thStyle}>{h}</th>)}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {filteredTagihan.map(t => (
+                      <tr key={t.id} style={{ borderBottom: '1px solid rgba(26,71,49,.05)' }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(26,71,49,.03)' }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
+                        <td style={{ padding: '13px 16px' }}>
+                          <p style={{ fontWeight: 700, color: '#0f2a1d' }}>{t.meteran?.nama_pelanggan ?? '—'}</p>
+                          <p style={{ fontSize: 12, color: '#9aa39c' }}>{t.meteran?.nomor_meteran}</p>
+                        </td>
+                        <td style={{ padding: '13px 16px', color: '#46544b' }}>{t.bulan}</td>
+                        <td style={{ padding: '13px 16px', color: '#46544b', textAlign: 'right' }}>{t.pemakaian} m3</td>
+                        <td style={{ padding: '13px 16px', textAlign: 'right' }}>
+                          <span style={{ fontWeight: 700, color: '#0f2a1d' }}>Rp {t.jumlah_tagihan.toLocaleString('id-ID')}</span>
+                        </td>
+                        <td style={{ padding: '13px 16px', textAlign: 'center' }}>
+                          {t.status === 'lunas' ? (
+                            <div>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: '#1d7a4d', background: 'rgba(47,158,99,.14)', border: '1px solid rgba(47,158,99,.3)', padding: '3px 10px', borderRadius: 999 }}>Lunas</span>
+                              {t.tanggal_bayar && <p style={{ fontSize: 11, color: '#9aa39c', marginTop: 3 }}>{new Date(t.tanggal_bayar).toLocaleDateString('id-ID')}</p>}
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: 12, fontWeight: 700, color: '#c0392b', background: 'rgba(214,87,69,.12)', border: '1px solid rgba(214,87,69,.28)', padding: '3px 10px', borderRadius: 999 }}>Belum Bayar</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '13px 16px', textAlign: 'right' }}>
+                          {t.status === 'belum_bayar' && (
+                            <button onClick={() => handleBayar(t.id)}
+                              style={{ background: 'linear-gradient(150deg,#1a4731,#0f2a1d)', color: '#fff', border: 'none', fontSize: 12, fontWeight: 700, padding: '6px 12px', borderRadius: 8, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                              <CheckCircle size={12} /> Tandai Lunas
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>
       )}
 
+      {/* METERAN TAB */}
       {tab === 'meteran' && (
-        <div className="space-y-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {showMeteranForm && (
-            <form onSubmit={handleSaveMeteran} className="bg-white border border-amber-200 rounded-xl shadow-sm p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-stone-900 font-medium">{editMeteranId ? 'Edit Pelanggan' : 'Tambah Pelanggan'}</h2>
-                <button type="button" onClick={() => setShowMeteranForm(false)} className="text-stone-400 hover:text-stone-600 text-sm">Batal</button>
+            <form onSubmit={handleSaveMeteran} style={{ ...glass, borderRadius: 20, overflow: 'hidden' }}>
+              <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(26,71,49,.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <h2 style={{ fontSize: 14.5, fontWeight: 800, color: '#0f2a1d' }}>{editMeteranId ? 'Edit Pelanggan' : 'Tambah Pelanggan'}</h2>
+                <button type="button" onClick={() => setShowMeteranForm(false)} style={{ background: 'none', border: 'none', color: '#7a857d', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>Batal</button>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div style={{ padding: '18px 20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
-                  <label className="block text-stone-600 text-xs mb-1">Nama Pelanggan *</label>
+                  <label style={labelStyle}>Nama Pelanggan *</label>
                   <input required value={formMeteran.nama_pelanggan} onChange={e => setFormMeteran(f => ({ ...f, nama_pelanggan: e.target.value }))}
-                    placeholder="Pak Ahmad"
-                    className="w-full bg-white border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500 transition-colors" />
+                    placeholder="Pak Ahmad" style={inputStyle} />
                 </div>
                 <div>
-                  <label className="block text-stone-600 text-xs mb-1">No. Meteran *</label>
+                  <label style={labelStyle}>No. Meteran *</label>
                   <input required value={formMeteran.nomor_meteran} onChange={e => setFormMeteran(f => ({ ...f, nomor_meteran: e.target.value }))}
-                    placeholder="M-001"
-                    className="w-full bg-white border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500 transition-colors" />
+                    placeholder="M-001" style={inputStyle} />
                 </div>
                 <div>
-                  <label className="block text-stone-600 text-xs mb-1">Alamat</label>
+                  <label style={labelStyle}>Alamat</label>
                   <input value={formMeteran.alamat} onChange={e => setFormMeteran(f => ({ ...f, alamat: e.target.value }))}
-                    placeholder="RT 03 / RW 01"
-                    className="w-full bg-white border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500 transition-colors" />
+                    placeholder="RT 03 / RW 01" style={inputStyle} />
                 </div>
                 <div>
-                  <label className="block text-stone-600 text-xs mb-1">Tarif per m3 (Rp)</label>
-                  <input type="number" min="0" value={formMeteran.tarif_per_m3} onChange={e => setFormMeteran(f => ({ ...f, tarif_per_m3: e.target.value }))}
-                    className="w-full bg-white border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500 transition-colors" />
+                  <label style={labelStyle}>Tarif per m3 (Rp)</label>
+                  <input type="number" min="0" value={formMeteran.tarif_per_m3}
+                    onChange={e => setFormMeteran(f => ({ ...f, tarif_per_m3: e.target.value }))} style={inputStyle} />
                 </div>
               </div>
-              <button type="submit" disabled={saving}
-                className="w-full bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white text-sm font-semibold rounded-lg py-2.5 transition-colors">
-                {saving ? 'Menyimpan...' : 'Simpan'}
-              </button>
+              <div style={{ padding: '12px 20px', borderTop: '1px solid rgba(26,71,49,.08)', background: 'rgba(247,244,236,.4)' }}>
+                <button type="submit" disabled={saving}
+                  style={{ ...greenBtn, width: '100%', justifyContent: 'center', padding: '12px', opacity: saving ? 0.5 : 1 }}>
+                  {saving ? 'Menyimpan...' : 'Simpan'}
+                </button>
+              </div>
             </form>
           )}
 
           {meteranList.length === 0 ? (
-            <div className="text-center py-20 bg-white border border-stone-200 rounded-xl shadow-sm text-stone-400">
-              <Droplets className="w-10 h-10 mx-auto mb-3" />
-              <p>Belum ada pelanggan. Klik "+ Pelanggan".</p>
+            <div style={{ ...glass, borderRadius: 20, padding: '60px 0', textAlign: 'center' }}>
+              <Droplets size={36} style={{ margin: '0 auto 12px', color: '#c4ccc6' }} />
+              <p style={{ fontWeight: 700, color: '#46544b' }}>Belum ada pelanggan</p>
+              <p style={{ fontSize: 13, color: '#9aa39c', marginTop: 4 }}>Klik &ldquo;+ Pelanggan&rdquo; untuk tambah</p>
             </div>
           ) : (
-            <div className="bg-white border border-stone-200 rounded-xl shadow-sm overflow-hidden">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-stone-50 border-b border-stone-200 text-stone-500 text-xs font-medium">
-                    <th className="px-4 py-3 text-left">Pelanggan</th>
-                    <th className="px-4 py-3 text-left">No. Meteran</th>
-                    <th className="px-4 py-3 text-left">Alamat</th>
-                    <th className="px-4 py-3 text-right">Tarif/m3</th>
-                    <th className="px-4 py-3 text-center">Status</th>
-                    <th className="px-4 py-3"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-100">
-                  {meteranList.map(m => (
-                    <tr key={m.id} className="hover:bg-stone-50 transition-colors">
-                      <td className="px-4 py-3 text-stone-900 font-medium">{m.nama_pelanggan}</td>
-                      <td className="px-4 py-3 text-stone-600 font-mono text-xs">{m.nomor_meteran}</td>
-                      <td className="px-4 py-3 text-stone-400 text-xs">{m.alamat ?? '—'}</td>
-                      <td className="px-4 py-3 text-right text-stone-600 text-xs">Rp {m.tarif_per_m3.toLocaleString('id-ID')}</td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={`text-xs px-2 py-0.5 rounded-full border ${m.aktif ? 'bg-green-50 text-green-700 border-green-200' : 'bg-stone-100 text-stone-400 border-stone-200'}`}>
-                          {m.aktif ? 'Aktif' : 'Nonaktif'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <button onClick={() => openEditMeteran(m)} className="text-stone-400 hover:text-stone-900 text-xs inline-flex items-center gap-1">
-                          <Pencil className="w-3.5 h-3.5" /> Edit
-                        </button>
-                      </td>
+            <div style={{ ...glass, borderRadius: 20, overflow: 'hidden' }}>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid rgba(26,71,49,.08)' }}>
+                      {['Pelanggan','No. Meteran','Alamat','Tarif/m3','Status',''].map(h => <th key={h} style={thStyle}>{h}</th>)}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {meteranList.map(m => (
+                      <tr key={m.id} style={{ borderBottom: '1px solid rgba(26,71,49,.05)' }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(26,71,49,.03)' }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
+                        <td style={{ padding: '13px 16px', fontWeight: 700, color: '#0f2a1d' }}>{m.nama_pelanggan}</td>
+                        <td style={{ padding: '13px 16px', color: '#46544b', fontFamily: 'monospace', fontSize: 12 }}>{m.nomor_meteran}</td>
+                        <td style={{ padding: '13px 16px', color: '#9aa39c', fontSize: 12 }}>{m.alamat ?? '—'}</td>
+                        <td style={{ padding: '13px 16px', color: '#46544b', fontSize: 12, textAlign: 'right' }}>Rp {m.tarif_per_m3.toLocaleString('id-ID')}</td>
+                        <td style={{ padding: '13px 16px', textAlign: 'center' }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999, ...(m.aktif ? { background: 'rgba(47,158,99,.14)', color: '#1d7a4d', border: '1px solid rgba(47,158,99,.3)' } : { background: 'rgba(26,71,49,.07)', color: '#46544b', border: '1px solid rgba(26,71,49,.12)' }) }}>
+                            {m.aktif ? 'Aktif' : 'Nonaktif'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '13px 16px', textAlign: 'right' }}>
+                          <button onClick={() => openEditMeteran(m)}
+                            style={{ background: 'none', border: 'none', color: '#9aa39c', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600 }}>
+                            <Pencil size={13} /> Edit
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>

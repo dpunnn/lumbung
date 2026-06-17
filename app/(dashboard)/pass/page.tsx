@@ -12,6 +12,27 @@ import { CreditCard, Plus, CheckCircle, ChevronRight, Info } from 'lucide-react'
 
 const ORIGIN = typeof window !== 'undefined' ? window.location.origin : ''
 
+const glass: React.CSSProperties = {
+  background: 'rgba(255,255,255,.62)',
+  backdropFilter: 'blur(16px)',
+  WebkitBackdropFilter: 'blur(16px)',
+  border: '1px solid rgba(255,255,255,.7)',
+  boxShadow: '0 10px 26px rgba(26,71,49,.08)',
+}
+
+const inputStyle: React.CSSProperties = {
+  width: '100%', background: 'rgba(255,255,255,.7)', border: '1px solid rgba(26,71,49,.14)',
+  borderRadius: 10, padding: '10px 13px', color: '#0f2a1d', fontSize: 13.5, outline: 'none',
+}
+
+const labelStyle: React.CSSProperties = { display: 'block', color: '#46544b', fontSize: 12, fontWeight: 600, marginBottom: 6 }
+
+const greenBtn: React.CSSProperties = {
+  background: 'linear-gradient(150deg,#1a4731,#0f2a1d)', color: '#fff', border: 'none',
+  fontWeight: 700, borderRadius: 12, padding: '11px 18px', cursor: 'pointer',
+  display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13.5,
+}
+
 export default function PassPage() {
   const [tab, setTab] = useState<'buat' | 'daftar' | 'cek'>('daftar')
   const [passList, setPassList] = useState<LumbungPass[]>([])
@@ -40,7 +61,6 @@ export default function PassPage() {
   }, [loadPasses])
 
   useEffect(() => {
-    // Realtime Supabase diganti polling karena backend kini Go/REST, bukan Supabase direct.
     const timer = setInterval(() => loadPasses(), 30_000)
     return () => clearInterval(timer)
   }, [loadPasses])
@@ -56,41 +76,27 @@ export default function PassPage() {
   async function handleGenerate() {
     if (!preview || !koperasiId || !form.tujuan || !form.mitra) return
     setLoading(true)
-
     const hash = await hashFields(preview)
     const berlakuSampai = new Date()
     berlakuSampai.setDate(berlakuSampai.getDate() + parseInt(form.hari))
-
     try {
       const data = await api.post<LumbungPass>('/api/pass', {
-        koperasi_id: koperasiId,
-        tujuan: form.tujuan,
-        mitra: form.mitra,
-        fields: preview,
-        hash,
-        consent,
-        berlaku_sampai: berlakuSampai.toISOString().split('T')[0],
-        status: 'aktif',
+        koperasi_id: koperasiId, tujuan: form.tujuan, mitra: form.mitra,
+        fields: preview, hash, consent,
+        berlaku_sampai: berlakuSampai.toISOString().split('T')[0], status: 'aktif',
       })
-      if (data) {
-        setGenerated(data)
-        setTab('daftar')
-        loadPasses()
-      }
-    } catch { /* biarkan lanjut */ }
+      if (data) { setGenerated(data); setTab('daftar'); loadPasses() }
+    } catch { /* lanjut */ }
     setLoading(false)
   }
 
   async function handleCabut(id: string) {
     if (!confirm('Cabut pass ini? Pemodal tidak bisa lagi mengaksesnya.')) return
-    try {
-      await api.put(`/api/pass/${id}`, { status: 'dicabut' })
-    } catch { /* biarkan lanjut */ }
+    try { await api.put(`/api/pass/${id}`, { status: 'dicabut' }) } catch { /* lanjut */ }
     loadPasses()
   }
 
-  const toggleConsent = (k: keyof ConsentMap) =>
-    setConsent(c => ({ ...c, [k]: !c[k] }))
+  const toggleConsent = (k: keyof ConsentMap) => setConsent(c => ({ ...c, [k]: !c[k] }))
 
   async function handleCek() {
     if (!nik.trim()) return
@@ -101,120 +107,123 @@ export default function PassPage() {
     setLoadingCek(false)
   }
 
+  const tabBtn = (active: boolean): React.CSSProperties => ({
+    padding: '9px 18px', borderRadius: 10, fontSize: 13.5, cursor: 'pointer', border: 'none',
+    background: active ? '#fff' : 'transparent', color: active ? '#0f2a1d' : '#7a857d',
+    fontWeight: active ? 700 : 600, boxShadow: active ? '0 2px 8px rgba(26,71,49,.1)' : 'none',
+  })
+
   return (
-    <div className="max-w-3xl mx-auto space-y-5">
-      <div className="flex items-center justify-between">
+    <div style={{ maxWidth: 760, margin: '0 auto', animation: 'lmbFade .7s cubic-bezier(.2,.7,.2,1) both' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
         <div>
-          <h1 className="text-stone-900 text-xl font-bold">Lumbung Pass</h1>
-          <p className="text-stone-600 text-sm">Bagikan data koperasi secara aman ke pemodal</p>
+          <h1 style={{ fontSize: 23, fontWeight: 800, color: '#0f2a1d', letterSpacing: '-.02em', marginBottom: 4 }}>Lumbung Pass</h1>
+          <p style={{ fontSize: 13.5, color: '#6a766e' }}>Bagikan data koperasi secara aman ke pemodal</p>
         </div>
-        <button onClick={() => { setTab('buat'); setPreview(null); setGenerated(null) }}
-          className="bg-amber-700 hover:bg-amber-800 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors inline-flex items-center gap-1.5">
-          <Plus className="w-4 h-4" /> Terbitkan Pass
+        <button onClick={() => { setTab('buat'); setPreview(null); setGenerated(null) }} style={greenBtn}>
+          <Plus size={16} /> Terbitkan Pass
         </button>
       </div>
 
-      <div className="flex gap-1 bg-white border border-stone-200 rounded-xl shadow-sm p-1 w-fit">
+      <div style={{ display: 'flex', gap: 4, ...glass, borderRadius: 14, padding: 5, width: 'fit-content', marginBottom: 18 }}>
         {(['daftar', 'buat', 'cek'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-1.5 rounded-lg text-sm transition-colors
-              ${tab === t ? 'bg-amber-700 text-white' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'}`}>
+          <button key={t} onClick={() => setTab(t)} style={tabBtn(tab === t)}>
             {t === 'buat' ? 'Terbitkan Baru' : t === 'cek' ? 'Cek Anggota' : 'Daftar Pass'}
           </button>
         ))}
       </div>
 
       {tab === 'buat' && (
-        <div className="space-y-4">
-
-          <div className="bg-white border border-stone-200 rounded-xl shadow-sm p-5 space-y-4">
-            <h2 className="text-stone-900 font-medium text-sm">1. Pilih Data yang Dibagikan</h2>
-            <div className="space-y-2">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* pilih data */}
+          <div style={{ ...glass, borderRadius: 20, padding: 22 }}>
+            <h2 style={{ fontSize: 14, fontWeight: 800, color: '#0f2a1d', marginBottom: 14 }}>1. Pilih Data yang Dibagikan</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {([
                 { key: 'ternak', label: 'Data Ternak', desc: 'Jumlah, rasio sehat, nilai aset terverifikasi' },
                 { key: 'simpanan', label: 'Data Simpanan', desc: 'Total simpanan anggota (agregat, bukan per anggota)' },
                 { key: 'pinjaman', label: 'Riwayat Pinjaman', desc: 'Rasio cicilan lancar vs macet' },
               ] as { key: keyof ConsentMap; label: string; desc: string }[]).map(item => (
-                <label key={item.key} className="flex items-start gap-3 p-3 bg-stone-50 rounded-lg cursor-pointer hover:bg-stone-100 transition-colors">
+                <label key={item.key} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 14px', background: 'rgba(26,71,49,.04)', border: '1px solid rgba(26,71,49,.08)', borderRadius: 12, cursor: 'pointer' }}>
                   <input type="checkbox" checked={consent[item.key]} onChange={() => toggleConsent(item.key)}
-                    className="mt-0.5 accent-amber-700" />
+                    style={{ marginTop: 2, accentColor: '#1a4731' }} />
                   <div>
-                    <p className="text-stone-900 text-sm font-medium">{item.label}</p>
-                    <p className="text-stone-400 text-xs">{item.desc}</p>
+                    <p style={{ fontSize: 13.5, fontWeight: 700, color: '#0f2a1d' }}>{item.label}</p>
+                    <p style={{ fontSize: 12, color: '#7a857d', marginTop: 2 }}>{item.desc}</p>
                   </div>
                 </label>
               ))}
             </div>
           </div>
 
-          <div className="bg-white border border-stone-200 rounded-xl shadow-sm p-5 space-y-3">
-            <h2 className="text-stone-900 font-medium text-sm">2. Informasi Pass</h2>
-            <div>
-              <label className="block text-stone-600 text-xs mb-1.5">Tujuan Pembiayaan *</label>
-              <input value={form.tujuan} onChange={e => setForm(f => ({ ...f, tujuan: e.target.value }))}
-                placeholder="Pengembangan usaha ternak sapi"
-                className="w-full bg-white border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500 transition-colors" />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+          {/* info pass */}
+          <div style={{ ...glass, borderRadius: 20, padding: 22 }}>
+            <h2 style={{ fontSize: 14, fontWeight: 800, color: '#0f2a1d', marginBottom: 14 }}>2. Informasi Pass</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
-                <label className="block text-stone-600 text-xs mb-1.5">Nama Mitra / Pemodal *</label>
-                <input value={form.mitra} onChange={e => setForm(f => ({ ...f, mitra: e.target.value }))}
-                  placeholder="BRI Desa / Pak Hendra"
-                  className="w-full bg-white border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500 transition-colors" />
+                <label style={labelStyle}>Tujuan Pembiayaan *</label>
+                <input value={form.tujuan} onChange={e => setForm(f => ({ ...f, tujuan: e.target.value }))}
+                  placeholder="Pengembangan usaha ternak sapi" style={inputStyle} />
               </div>
-              <div>
-                <label className="block text-stone-600 text-xs mb-1.5">Berlaku (hari)</label>
-                <select value={form.hari} onChange={e => setForm(f => ({ ...f, hari: e.target.value }))}
-                  className="w-full bg-white border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500 transition-colors">
-                  {['7','14','30','60','90'].map(h => <option key={h} value={h}>{h} hari</option>)}
-                </select>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={labelStyle}>Nama Mitra / Pemodal *</label>
+                  <input value={form.mitra} onChange={e => setForm(f => ({ ...f, mitra: e.target.value }))}
+                    placeholder="BRI Desa / Pak Hendra" style={inputStyle} />
+                </div>
+                <div>
+                  <label style={labelStyle}>Berlaku (hari)</label>
+                  <select value={form.hari} onChange={e => setForm(f => ({ ...f, hari: e.target.value }))} style={inputStyle}>
+                    {['7','14','30','60','90'].map(h => <option key={h} value={h}>{h} hari</option>)}
+                  </select>
+                </div>
               </div>
             </div>
           </div>
 
           {!preview ? (
             <button onClick={handlePreview} disabled={loading || !form.tujuan || !form.mitra}
-              className="w-full border border-amber-700 hover:bg-amber-50 disabled:opacity-50 text-amber-700 font-medium rounded-xl py-3 text-sm transition-colors inline-flex items-center justify-center gap-1.5">
-              {loading ? 'Mengambil data...' : <><span>Preview Data</span> <ChevronRight className="w-4 h-4" /></>}
+              style={{ width: '100%', padding: '13px', borderRadius: 13, border: '1px solid rgba(26,71,49,.2)', background: 'rgba(255,255,255,.6)', fontSize: 14, fontWeight: 700, color: '#1a4731', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: (loading || !form.tujuan || !form.mitra) ? 0.5 : 1 }}>
+              {loading ? 'Mengambil data...' : <><span>Preview Data</span><ChevronRight size={16} /></>}
             </button>
           ) : (
-            <div className="bg-white border border-amber-200 rounded-xl shadow-sm p-5 space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-stone-900 font-medium text-sm">3. Preview Data yang Akan Dibagikan</h2>
-                <span className="text-green-700 text-xs bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">Data Agregat</span>
+            <div style={{ ...glass, borderRadius: 20, padding: 22, border: '1px solid rgba(201,150,58,.3)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <h2 style={{ fontSize: 14, fontWeight: 800, color: '#0f2a1d' }}>3. Preview Data yang Akan Dibagikan</h2>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#1d7a4d', background: 'rgba(47,158,99,.12)', border: '1px solid rgba(47,158,99,.25)', padding: '3px 10px', borderRadius: 999 }}>Data Agregat</span>
               </div>
-              <div className="grid grid-cols-2 gap-2 text-sm">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
                 {preview.jumlah_ternak !== undefined && (
-                  <div className="bg-stone-50 rounded-lg p-3">
-                    <p className="text-stone-400 text-xs">Ternak Hidup</p>
-                    <p className="text-stone-900 font-semibold">{preview.jumlah_ternak} ekor</p>
+                  <div style={{ background: 'rgba(26,71,49,.05)', border: '1px solid rgba(26,71,49,.08)', borderRadius: 12, padding: '12px 14px' }}>
+                    <p style={{ fontSize: 11.5, color: '#7a857d', fontWeight: 600 }}>Ternak Hidup</p>
+                    <p style={{ fontSize: 15, fontWeight: 800, color: '#0f2a1d', marginTop: 4 }}>{preview.jumlah_ternak} ekor</p>
                   </div>
                 )}
                 {preview.rasio_ternak_sehat !== undefined && (
-                  <div className="bg-stone-50 rounded-lg p-3">
-                    <p className="text-stone-400 text-xs">Rasio Sehat</p>
-                    <p className="text-stone-900 font-semibold">{preview.rasio_ternak_sehat}%</p>
+                  <div style={{ background: 'rgba(26,71,49,.05)', border: '1px solid rgba(26,71,49,.08)', borderRadius: 12, padding: '12px 14px' }}>
+                    <p style={{ fontSize: 11.5, color: '#7a857d', fontWeight: 600 }}>Rasio Sehat</p>
+                    <p style={{ fontSize: 15, fontWeight: 800, color: '#0f2a1d', marginTop: 4 }}>{preview.rasio_ternak_sehat}%</p>
                   </div>
                 )}
                 {preview.total_simpanan !== undefined && (
-                  <div className="bg-stone-50 rounded-lg p-3">
-                    <p className="text-stone-400 text-xs">Total Simpanan</p>
-                    <p className="text-stone-900 font-semibold">Rp{(preview.total_simpanan/1_000_000).toFixed(1)}jt</p>
+                  <div style={{ background: 'rgba(26,71,49,.05)', border: '1px solid rgba(26,71,49,.08)', borderRadius: 12, padding: '12px 14px' }}>
+                    <p style={{ fontSize: 11.5, color: '#7a857d', fontWeight: 600 }}>Total Simpanan</p>
+                    <p style={{ fontSize: 15, fontWeight: 800, color: '#0f2a1d', marginTop: 4 }}>Rp{(preview.total_simpanan/1_000_000).toFixed(1)}jt</p>
                   </div>
                 )}
                 {preview.rasio_cicilan_lancar !== undefined && (
-                  <div className="bg-stone-50 rounded-lg p-3">
-                    <p className="text-stone-400 text-xs">Cicilan Lancar</p>
-                    <p className="text-stone-900 font-semibold">{preview.rasio_cicilan_lancar}%</p>
+                  <div style={{ background: 'rgba(26,71,49,.05)', border: '1px solid rgba(26,71,49,.08)', borderRadius: 12, padding: '12px 14px' }}>
+                    <p style={{ fontSize: 11.5, color: '#7a857d', fontWeight: 600 }}>Cicilan Lancar</p>
+                    <p style={{ fontSize: 15, fontWeight: 800, color: '#0f2a1d', marginTop: 4 }}>{preview.rasio_cicilan_lancar}%</p>
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-700">
-                <Info className="w-4 h-4 shrink-0" />
-                <span>Tidak ada nama, NIK, atau nominal per anggota yang dibagikan</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'rgba(59,130,246,.06)', border: '1px solid rgba(59,130,246,.18)', borderRadius: 12, marginBottom: 14 }}>
+                <Info size={14} style={{ color: '#3b7fd4', flexShrink: 0 }} />
+                <span style={{ fontSize: 12.5, color: '#3b7fd4' }}>Tidak ada nama, NIK, atau nominal per anggota yang dibagikan</span>
               </div>
               <button onClick={handleGenerate} disabled={loading}
-                className="w-full bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white font-semibold rounded-xl py-3 text-sm transition-colors">
+                style={{ ...greenBtn, width: '100%', justifyContent: 'center', padding: '13px', opacity: loading ? 0.6 : 1 }}>
                 {loading ? 'Menerbitkan...' : 'Terbitkan Pass + Generate Link'}
               </button>
             </div>
@@ -223,85 +232,82 @@ export default function PassPage() {
       )}
 
       {tab === 'cek' && (
-        <div className="space-y-4">
-          <div className="bg-white border border-stone-200 rounded-xl shadow-sm p-5 space-y-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ ...glass, borderRadius: 20, padding: 22 }}>
+            <h2 style={{ fontSize: 15, fontWeight: 800, color: '#0f2a1d', marginBottom: 6 }}>Cek Kelayakan Anggota</h2>
+            <p style={{ fontSize: 13, color: '#7a857d', marginBottom: 16, lineHeight: 1.6 }}>
+              Periksa riwayat kredit pemohon di seluruh jaringan koperasi sebelum menyetujui pinjaman. Hanya sinyal agregat yang ditampilkan.
+            </p>
             <div>
-              <h2 className="text-stone-900 font-medium text-sm">Cek Kelayakan Anggota</h2>
-              <p className="text-stone-500 text-xs mt-1">
-                Periksa riwayat kredit pemohon di seluruh jaringan koperasi sebelum menyetujui pinjaman.
-                Hanya sinyal agregat yang ditampilkan — tanpa nama, nominal, atau identitas koperasi lain.
-              </p>
-            </div>
-            <div>
-              <label className="block text-stone-600 text-xs mb-1.5">NIK Pemohon</label>
-              <div className="flex gap-2">
+              <label style={labelStyle}>NIK Pemohon</label>
+              <div style={{ display: 'flex', gap: 10 }}>
                 <input value={nik} onChange={e => setNik(e.target.value)}
-                  placeholder="Mis. 3273010101900001"
-                  className="flex-1 bg-white border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500 transition-colors" />
+                  placeholder="Mis. 3273010101900001" style={{ ...inputStyle, flex: 1 }} />
                 <button onClick={handleCek} disabled={loadingCek || !nik.trim()}
-                  className="bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors whitespace-nowrap">
-                  {loadingCek ? 'Mengecek...' : 'Cek Kelayakan'}
+                  style={{ ...greenBtn, opacity: (loadingCek || !nik.trim()) ? 0.5 : 1, whiteSpace: 'nowrap' }}>
+                  {loadingCek ? 'Mengecek...' : 'Cek'}
                 </button>
               </div>
-              <p className="text-stone-400 text-xs mt-1.5">NIK di-hash (SHA-256) sebelum dicocokkan — NIK asli tidak dikirim.</p>
+              <p style={{ fontSize: 12, color: '#9aa39c', marginTop: 6 }}>NIK di-hash (SHA-256) sebelum dicocokkan — NIK asli tidak dikirim.</p>
             </div>
           </div>
 
           {hasilCek && (() => {
             const rek = hasilCek.rekomendasi
-            const tema = rek === 'SETUJUI'
-              ? { border: 'border-green-200', badge: 'bg-green-50 text-green-700 border-green-200', bar: 'bg-green-500', skor: 'text-green-700' }
-              : rek === 'TINJAU'
-              ? { border: 'border-amber-200', badge: 'bg-amber-50 text-amber-700 border-amber-200', bar: 'bg-amber-500', skor: 'text-amber-700' }
-              : { border: 'border-red-200', badge: 'bg-red-50 text-red-600 border-red-200', bar: 'bg-red-500', skor: 'text-red-600' }
+            const barColor = rek === 'SETUJUI' ? '#2f9e63' : rek === 'TINJAU' ? '#c9963a' : '#d65745'
+            const accentBorder = rek === 'SETUJUI' ? 'rgba(47,158,99,.3)' : rek === 'TINJAU' ? 'rgba(201,150,58,.3)' : 'rgba(214,87,69,.28)'
+            const pillStyle: React.CSSProperties = {
+              fontSize: 12, fontWeight: 700, padding: '4px 12px', borderRadius: 999,
+              background: rek === 'SETUJUI' ? 'rgba(47,158,99,.14)' : rek === 'TINJAU' ? 'rgba(201,150,58,.14)' : 'rgba(214,87,69,.12)',
+              color: rek === 'SETUJUI' ? '#1d7a4d' : rek === 'TINJAU' ? '#8a6420' : '#c0392b',
+              border: `1px solid ${accentBorder}`,
+            }
             const r = hasilCek.riwayat
             return (
-              <div className={`bg-white border ${tema.border} rounded-xl shadow-sm p-5 space-y-4`}>
-                <div className="flex items-center justify-between">
-                  <p className="text-stone-500 text-xs">Rekomendasi Sistem</p>
-                  <span className={`text-xs font-semibold border px-2.5 py-1 rounded-full ${tema.badge}`}>{rek}</span>
+              <div style={{ ...glass, borderRadius: 20, padding: 22, borderLeft: `4px solid ${barColor}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <p style={{ fontSize: 13, color: '#7a857d' }}>Rekomendasi Sistem</p>
+                  <span style={pillStyle}>{rek}</span>
                 </div>
 
                 {hasilCek.ditemukan && (
-                  <div>
-                    <div className="flex items-end gap-2 mb-2">
-                      <span className={`text-4xl font-bold ${tema.skor}`}>{hasilCek.skor}</span>
-                      <span className="text-stone-400 text-sm mb-1">/100 skor kelayakan</span>
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, marginBottom: 10 }}>
+                      <span style={{ fontSize: 42, fontWeight: 800, color: barColor, lineHeight: 1 }}>{hasilCek.skor}</span>
+                      <span style={{ fontSize: 14, color: '#7a857d', marginBottom: 4 }}>/100 skor kelayakan</span>
                     </div>
-                    <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full transition-all ${tema.bar}`} style={{ width: `${hasilCek.skor}%` }} />
+                    <div style={{ height: 7, background: 'rgba(26,71,49,.1)', borderRadius: 999, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', background: barColor, borderRadius: 999, width: `${hasilCek.skor}%`, transition: 'width .6s' }} />
                     </div>
                   </div>
                 )}
 
-                <div className="space-y-1.5">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
                   {hasilCek.alasan.map((a, i) => (
-                    <p key={i} className="text-stone-700 text-sm flex gap-2">
-                      <span className="text-stone-400">•</span><span>{a}</span>
+                    <p key={i} style={{ fontSize: 13.5, color: '#46544b', display: 'flex', gap: 8 }}>
+                      <span style={{ color: '#9aa39c' }}>•</span><span>{a}</span>
                     </p>
                   ))}
                 </div>
 
                 {r && r.jumlah_koperasi > 0 && (
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="bg-stone-50 border border-stone-100 rounded-lg p-3 text-center">
-                      <p className="text-stone-900 font-semibold">{r.angsuran_tepat}</p>
-                      <p className="text-stone-400 text-xs">Tepat waktu</p>
-                    </div>
-                    <div className="bg-stone-50 border border-stone-100 rounded-lg p-3 text-center">
-                      <p className="text-stone-900 font-semibold">{r.angsuran_terlambat}</p>
-                      <p className="text-stone-400 text-xs">Terlambat</p>
-                    </div>
-                    <div className="bg-stone-50 border border-stone-100 rounded-lg p-3 text-center">
-                      <p className="text-stone-900 font-semibold">{r.pinjaman_macet}</p>
-                      <p className="text-stone-400 text-xs">Macet</p>
-                    </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 14 }}>
+                    {[
+                      { val: r.angsuran_tepat, label: 'Tepat waktu' },
+                      { val: r.angsuran_terlambat, label: 'Terlambat' },
+                      { val: r.pinjaman_macet, label: 'Macet' },
+                    ].map(s => (
+                      <div key={s.label} style={{ background: 'rgba(26,71,49,.05)', border: '1px solid rgba(26,71,49,.08)', borderRadius: 12, padding: '12px', textAlign: 'center' }}>
+                        <p style={{ fontSize: 16, fontWeight: 800, color: '#0f2a1d' }}>{s.val}</p>
+                        <p style={{ fontSize: 12, color: '#7a857d', marginTop: 2 }}>{s.label}</p>
+                      </div>
+                    ))}
                   </div>
                 )}
 
-                <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-700">
-                  <span className="shrink-0">ℹ</span>
-                  <span>Keputusan akhir ada di tangan <b>pengurus koperasi tujuan</b>. Sistem hanya merekomendasikan — tidak menyetujui/menolak otomatis.</span>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', background: 'rgba(59,130,246,.06)', border: '1px solid rgba(59,130,246,.18)', borderRadius: 12 }}>
+                  <Info size={14} style={{ color: '#3b7fd4', flexShrink: 0, marginTop: 1 }} />
+                  <span style={{ fontSize: 12.5, color: '#3b7fd4' }}>Keputusan akhir ada di tangan <b>pengurus koperasi tujuan</b>. Sistem hanya merekomendasikan.</span>
                 </div>
               </div>
             )
@@ -310,14 +316,16 @@ export default function PassPage() {
       )}
 
       {generated && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-5 space-y-3">
-          <p className="text-green-700 font-medium text-sm inline-flex items-center gap-1.5"><CheckCircle className="w-4 h-4" /> Pass berhasil diterbitkan!</p>
-          <div className="bg-white border border-stone-200 rounded-lg p-3 break-all">
-            <p className="text-stone-400 text-xs mb-1">Link untuk pemodal:</p>
-            <p className="text-amber-700 text-sm">{ORIGIN}/pass/{generated.id}</p>
+        <div style={{ background: 'rgba(47,158,99,.1)', border: '1px solid rgba(47,158,99,.25)', borderRadius: 18, padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <p style={{ fontSize: 13.5, fontWeight: 700, color: '#1d7a4d', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <CheckCircle size={15} /> Pass berhasil diterbitkan!
+          </p>
+          <div style={{ background: 'rgba(255,255,255,.8)', border: '1px solid rgba(26,71,49,.1)', borderRadius: 12, padding: '12px 14px', wordBreak: 'break-all' }}>
+            <p style={{ fontSize: 11.5, color: '#9aa39c', marginBottom: 4 }}>Link untuk pemodal:</p>
+            <p style={{ fontSize: 13.5, color: '#c9963a' }}>{ORIGIN}/pass/{generated.id}</p>
           </div>
           <button onClick={() => navigator.clipboard.writeText(`${ORIGIN}/pass/${generated.id}`)}
-            className="text-sm bg-white border border-stone-300 hover:bg-stone-50 text-stone-700 px-4 py-2 rounded-lg transition-colors">
+            style={{ fontSize: 13, fontWeight: 700, color: '#1a4731', padding: '9px 18px', borderRadius: 10, border: '1px solid rgba(26,71,49,.2)', background: 'rgba(255,255,255,.6)', cursor: 'pointer', width: 'fit-content' }}>
             Salin Link
           </button>
         </div>
@@ -325,40 +333,40 @@ export default function PassPage() {
 
       {tab === 'daftar' && (
         passList.length === 0 ? (
-          <div className="text-center py-16 text-stone-400">
-            <CreditCard className="w-10 h-10 mx-auto mb-3" />
-            <p>Belum ada Pass yang diterbitkan.</p>
+          <div style={{ ...glass, borderRadius: 20, padding: '60px 0', textAlign: 'center', color: '#7a857d' }}>
+            <CreditCard size={40} style={{ margin: '0 auto 12px', color: '#c4ccc6' }} />
+            <p style={{ fontWeight: 700, color: '#46544b' }}>Belum Ada Pass</p>
+            <p style={{ fontSize: 13, marginTop: 4 }}>Klik "Terbitkan Pass" untuk membuat pass pertama.</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {passList.map(p => {
               const expired = new Date(p.berlaku_sampai) < new Date()
-              const statusColor = p.status === 'aktif' && !expired
-                ? 'bg-green-50 text-green-700 border border-green-200'
-                : 'bg-stone-100 text-stone-600 border border-stone-200'
+              const isAktif = p.status === 'aktif' && !expired
+              const statusPill: React.CSSProperties = isAktif
+                ? { fontSize: 12, fontWeight: 700, color: '#1d7a4d', background: 'rgba(47,158,99,.14)', border: '1px solid rgba(47,158,99,.3)', padding: '3px 10px', borderRadius: 999 }
+                : { fontSize: 12, fontWeight: 700, color: '#46544b', background: 'rgba(26,71,49,.07)', border: '1px solid rgba(26,71,49,.12)', padding: '3px 10px', borderRadius: 999 }
               return (
-                <div key={p.id} className="bg-white border border-stone-200 rounded-xl shadow-sm p-4">
-                  <div className="flex items-start justify-between mb-2">
+                <div key={p.id} style={{ ...glass, borderRadius: 16, padding: '16px 18px' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
                     <div>
-                      <p className="text-stone-900 font-medium text-sm">{p.tujuan}</p>
-                      <p className="text-stone-400 text-xs">Mitra: {p.mitra} · Berlaku s.d. {p.berlaku_sampai}</p>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: '#0f2a1d' }}>{p.tujuan}</p>
+                      <p style={{ fontSize: 12, color: '#9aa39c', marginTop: 2 }}>Mitra: {p.mitra} · Berlaku s.d. {p.berlaku_sampai}</p>
                     </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${statusColor}`}>
-                      {expired ? 'kedaluwarsa' : p.status}
-                    </span>
+                    <span style={statusPill}>{expired ? 'kedaluwarsa' : p.status}</span>
                   </div>
-                  <div className="flex items-center gap-3 mt-3">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                     <a href={`/pass/${p.id}`} target="_blank"
-                      className="text-amber-700 text-xs hover:underline inline-flex items-center gap-1">
-                      Buka Link <ChevronRight className="w-3.5 h-3.5" />
+                      style={{ fontSize: 13, fontWeight: 700, color: '#c9963a', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      Buka Link <ChevronRight size={13} />
                     </a>
                     <button onClick={() => navigator.clipboard.writeText(`${ORIGIN}/pass/${p.id}`)}
-                      className="text-stone-400 text-xs hover:text-stone-900">
+                      style={{ fontSize: 13, color: '#9aa39c', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
                       Salin
                     </button>
                     {p.status === 'aktif' && (
                       <button onClick={() => handleCabut(p.id)}
-                        className="text-red-600 text-xs hover:text-red-500 ml-auto">
+                        style={{ fontSize: 13, color: '#c0392b', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, marginLeft: 'auto' }}>
                         Cabut
                       </button>
                     )}

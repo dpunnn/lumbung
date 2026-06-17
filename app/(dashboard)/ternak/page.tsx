@@ -5,13 +5,47 @@ import Link from 'next/link'
 import api from '@/lib/api'
 import { db } from '@/lib/db'
 import type { Ternak } from '@/types'
-import { Beef, Plus, Pencil, CheckCircle } from 'lucide-react'
+import { Beef, Plus } from 'lucide-react'
 
-const STATUS_STYLE: Record<string, string> = {
-  sehat:  'bg-green-50 text-green-700 border border-green-200',
-  pantau: 'bg-amber-50 text-amber-700 border border-amber-200',
-  sakit:  'bg-red-50 text-red-600 border border-red-200',
-  mati:   'bg-stone-100 text-stone-600 border border-stone-200',
+const glass: React.CSSProperties = {
+  background: 'rgba(255,255,255,.62)',
+  backdropFilter: 'blur(16px)',
+  WebkitBackdropFilter: 'blur(16px)',
+  border: '1px solid rgba(255,255,255,.7)',
+  boxShadow: '0 10px 26px rgba(26,71,49,.08)',
+}
+
+const STATUS_BADGE: Record<string, { pill: React.CSSProperties; dot: React.CSSProperties; label: string }> = {
+  sehat:  { pill: { background:'rgba(47,158,99,.14)', color:'#1d7a4d', border:'1px solid rgba(47,158,99,.3)' },  dot: { background:'#2f9e63' }, label:'Sehat' },
+  pantau: { pill: { background:'rgba(201,150,58,.14)', color:'#8a6420', border:'1px solid rgba(201,150,58,.3)' }, dot: { background:'#c9963a' }, label:'Pantau' },
+  sakit:  { pill: { background:'rgba(214,87,69,.12)', color:'#c0392b', border:'1px solid rgba(214,87,69,.28)' }, dot: { background:'#d65745' }, label:'Sakit' },
+  mati:   { pill: { background:'rgba(26,71,49,.07)', color:'#46544b', border:'1px solid rgba(26,71,49,.12)' },   dot: { background:'#7a857d' }, label:'Mati' },
+}
+
+const STATUS_COUNT: Record<string, React.CSSProperties> = {
+  sehat:  { background:'rgba(47,158,99,.14)', color:'#1d7a4d', border:'1px solid rgba(47,158,99,.3)' },
+  pantau: { background:'rgba(201,150,58,.14)', color:'#8a6420', border:'1px solid rgba(201,150,58,.3)' },
+  sakit:  { background:'rgba(214,87,69,.12)', color:'#c0392b', border:'1px solid rgba(214,87,69,.28)' },
+  mati:   { background:'rgba(26,71,49,.07)', color:'#46544b', border:'1px solid rgba(26,71,49,.12)' },
+}
+
+function getAvatarStyle(jenis: string): React.CSSProperties {
+  const isSapi = jenis.toLowerCase().startsWith('sapi')
+  return {
+    width: 38, height: 38, borderRadius: 11, flexShrink: 0,
+    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
+    background: isSapi ? 'rgba(26,71,49,.1)' : 'rgba(201,150,58,.16)',
+    color: isSapi ? '#1a4731' : '#b5791f',
+  }
+}
+
+function getGlyph(jenis: string): string {
+  const j = jenis.toLowerCase()
+  if (j.startsWith('sapi')) return '🐄'
+  if (j.startsWith('kambing')) return '🐐'
+  if (j.startsWith('domba')) return '🐑'
+  if (j.startsWith('ayam')) return '🐓'
+  return '🐄'
 }
 
 export default function TernakPage() {
@@ -32,89 +66,112 @@ export default function TernakPage() {
 
   useEffect(() => { load() }, [load])
 
-  // backend Go belum punya realtime — polling
   useEffect(() => {
     const timer = setInterval(() => load(), 30_000)
     return () => clearInterval(timer)
   }, [load])
 
   const counts = { sehat: 0, pantau: 0, sakit: 0, mati: 0 }
-  data.forEach(t => counts[t.status]++)
+  data.forEach(t => { if (t.status in counts) counts[t.status as keyof typeof counts]++ })
 
   return (
-    <div className="max-w-4xl mx-auto space-y-5">
-      <div className="flex items-center justify-between">
+    <div style={{ maxWidth: 1024, margin: '0 auto', animation: 'lmbFade .7s cubic-bezier(.2,.7,.2,1) both' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
         <div>
-          <h1 className="text-stone-900 text-xl font-bold">Ternak</h1>
-          <p className="text-stone-400 text-sm">{data.length} total</p>
+          <h1 style={{ fontSize: 23, fontWeight: 800, color: '#0f2a1d', letterSpacing: '-.02em', marginBottom: 4 }}>Ternak</h1>
+          <p style={{ fontSize: 13.5, color: '#6a766e' }}>{data.length} ekor terdaftar</p>
         </div>
-        <Link href="/ternak/tambah"
-          className="bg-amber-700 hover:bg-amber-800 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors inline-flex items-center gap-1.5">
-          <Plus className="w-4 h-4" /> Tambah
+        <Link
+          href="/ternak/tambah"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: 'linear-gradient(150deg,#1a4731,#0f2a1d)', color: '#fff', border: 'none', fontWeight: 700, fontSize: 13.5, borderRadius: 12, padding: '10px 18px', cursor: 'pointer', textDecoration: 'none' }}
+        >
+          <Plus size={16} /> Tambah
         </Link>
       </div>
 
-      <div className="grid grid-cols-4 gap-3">
+      {/* Status summary pills */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 22 }}>
         {(['sehat','pantau','sakit','mati'] as const).map(s => (
-          <div key={s} className={`rounded-xl p-3 text-center ${STATUS_STYLE[s]}`}>
-            <div className="text-2xl font-bold">{counts[s]}</div>
-            <div className="text-xs capitalize mt-0.5">{s}</div>
+          <div key={s} style={{ borderRadius: 16, padding: '14px 16px', textAlign: 'center', ...STATUS_COUNT[s] }}>
+            <div style={{ fontSize: 24, fontWeight: 800 }}>{counts[s]}</div>
+            <div style={{ fontSize: 12, marginTop: 2, textTransform: 'capitalize' }}>{s}</div>
           </div>
         ))}
       </div>
 
       {loading ? (
-        <div className="flex items-center gap-3 py-8 justify-center">
-          <div className="w-5 h-5 border-2 border-amber-700 border-t-transparent rounded-full animate-spin" />
-          <p className="text-stone-400 text-sm">Memuat...</p>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '60px 0' }}>
+          <div style={{ width: 28, height: 28, borderRadius: '50%', border: '3px solid rgba(26,71,49,.15)', borderTopColor: '#1a4731', animation: 'lmbSpin 0.8s linear infinite' }} />
         </div>
       ) : data.length === 0 ? (
-        <div className="text-center py-16 text-stone-400">
-          <Beef className="w-10 h-10 mx-auto mb-3" />
-          <p>Belum ada ternak. <Link href="/ternak/tambah" className="text-amber-700 underline">Tambah sekarang</Link></p>
+        <div style={{ textAlign: 'center', padding: '64px 0', color: '#7a857d' }}>
+          <Beef size={40} style={{ margin: '0 auto 12px' }} />
+          <p style={{ fontSize: 14 }}>
+            Belum ada ternak.{' '}
+            <Link href="/ternak/tambah" style={{ color: '#1a4731', fontWeight: 700, textDecoration: 'underline' }}>
+              Tambah sekarang
+            </Link>
+          </p>
         </div>
       ) : (
-        <div className="bg-white border border-stone-200 rounded-xl shadow-sm overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-stone-50 border-b border-stone-200 text-stone-500 text-xs font-medium">
-                <th className="px-4 py-3 text-left">Kode</th>
-                <th className="px-4 py-3 text-left">Jenis</th>
-                <th className="px-4 py-3 text-left">Umur</th>
-                <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3 text-right">Nilai</th>
-                <th className="px-4 py-3 text-center">Verif</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-100">
-              {data.map(t => (
-                <tr key={t.id} className="hover:bg-stone-50 transition-colors">
-                  <td className="px-4 py-3 text-stone-900 font-medium">{t.kode}</td>
-                  <td className="px-4 py-3 text-stone-600 capitalize">{t.jenis}</td>
-                  <td className="px-4 py-3 text-stone-400">{t.umur_bulan ? `${t.umur_bulan} bln` : '—'}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs ${STATUS_STYLE[t.status]}`}>
-                      {t.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right text-stone-600">
-                    {t.nilai_estimasi > 0 ? `Rp${(t.nilai_estimasi/1000000).toFixed(1)}jt` : '—'}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    {t.terverifikasi
-                      ? <span className="text-green-700 text-xs inline-flex items-center gap-1"><CheckCircle className="w-3.5 h-3.5" /> AI</span>
-                      : <span className="text-stone-400 text-xs">—</span>}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <Link href={`/ternak/${t.id}`} className="text-stone-400 hover:text-stone-900 text-xs inline-flex items-center gap-1">
-                      <Pencil className="w-3.5 h-3.5" /> Edit
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 18 }}>
+          {data.map(t => {
+            const bdg = STATUS_BADGE[t.status] ?? STATUS_BADGE.mati
+            return (
+              <div
+                key={t.id}
+                style={{ padding: 20, borderRadius: 18, ...glass, transition: 'transform .2s' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(-3px)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = 'translateY(0)' }}
+              >
+                {/* Card header */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={getAvatarStyle(t.jenis)}>{getGlyph(t.jenis)}</div>
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 800, color: '#0f2a1d' }}>{t.kode}</div>
+                      <div style={{ fontSize: 12.5, color: '#7a857d' }}>{t.jenis}</div>
+                    </div>
+                  </div>
+                  {/* Dot badge */}
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: 700, padding: '4px 9px', borderRadius: 999, ...bdg.pill }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, ...bdg.dot }} />
+                    {bdg.label}
+                  </span>
+                </div>
+
+                {/* Info 2×2 grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, paddingTop: 14, borderTop: '1px solid rgba(26,71,49,.07)' }}>
+                  <div>
+                    <div style={{ fontSize: 11, color: '#9aa39c', fontWeight: 600 }}>Nilai Est.</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#2c382f' }}>
+                      {t.nilai_estimasi > 0 ? `Rp${(t.nilai_estimasi / 1_000_000).toFixed(1)}jt` : '—'}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: '#9aa39c', fontWeight: 600 }}>Umur</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#2c382f' }}>
+                      {t.umur_bulan ? `${t.umur_bulan} bln` : '—'}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: '#9aa39c', fontWeight: 600 }}>Verifikasi</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: t.terverifikasi ? '#1d7a4d' : '#9aa39c' }}>
+                      {t.terverifikasi ? '✓ AI' : 'Belum'}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end' }}>
+                    <Link
+                      href={`/ternak/${t.id}`}
+                      style={{ fontSize: 12.5, fontWeight: 700, color: '#1a4731', textDecoration: 'none' }}
+                    >
+                      Kartu ternak →
                     </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

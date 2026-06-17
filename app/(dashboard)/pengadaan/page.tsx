@@ -6,36 +6,39 @@ import api from '@/lib/api'
 import { getMe } from '@/lib/auth'
 
 type Koperasi = { id: string; nama: string }
-
 type Alokasi = {
-  id: string
-  koperasi_id: string
-  kebutuhan: number
-  alokasi_dapat: number
-  status_rekening: 'terhubung' | 'belum_terhubung'
-  catatan: string | null
-  koperasi: Koperasi
+  id: string; koperasi_id: string; kebutuhan: number; alokasi_dapat: number
+  status_rekening: 'terhubung' | 'belum_terhubung'; catatan: string | null; koperasi: Koperasi
 }
-
 type Pengadaan = {
-  id: string
-  judul: string
-  item: string
-  satuan: string
-  total_kebutuhan: number
-  status: 'draft' | 'aktif' | 'selesai'
-  dibuat_oleh_koperasi_id: string
-  created_at: string
-  pengadaan_alokasi: Alokasi[]
-  koperasi: Koperasi
+  id: string; judul: string; item: string; satuan: string; total_kebutuhan: number
+  status: 'draft' | 'aktif' | 'selesai'; dibuat_oleh_koperasi_id: string; created_at: string
+  pengadaan_alokasi: Alokasi[]; koperasi: Koperasi
 }
 
-const inputCls = 'w-full bg-white border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm placeholder-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500 transition-colors'
+const STATUS_PILL: Record<string, React.CSSProperties> = {
+  draft:   { background: 'rgba(26,71,49,.07)', color: '#46544b', border: '1px solid rgba(26,71,49,.12)' },
+  aktif:   { background: 'rgba(47,158,99,.14)', color: '#1d7a4d', border: '1px solid rgba(47,158,99,.3)' },
+  selesai: { background: 'rgba(59,130,246,.1)', color: '#3b7fd4', border: '1px solid rgba(59,130,246,.25)' },
+}
 
-const STATUS_COLOR: Record<string, string> = {
-  draft:   'bg-stone-100 text-stone-600 border-stone-200',
-  aktif:   'bg-green-50 text-green-700 border-green-200',
-  selesai: 'bg-blue-50 text-blue-700 border-blue-200',
+const glass: React.CSSProperties = {
+  background: 'rgba(255,255,255,.62)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+  border: '1px solid rgba(255,255,255,.7)', boxShadow: '0 10px 26px rgba(26,71,49,.08)',
+}
+const inputStyle: React.CSSProperties = {
+  width: '100%', background: 'rgba(255,255,255,.7)', border: '1px solid rgba(26,71,49,.14)',
+  borderRadius: 10, padding: '9px 12px', color: '#0f2a1d', fontSize: 13.5, outline: 'none',
+}
+const labelStyle: React.CSSProperties = { display: 'block', color: '#46544b', fontSize: 12, fontWeight: 600, marginBottom: 5 }
+const greenBtn: React.CSSProperties = {
+  background: 'linear-gradient(150deg,#1a4731,#0f2a1d)', color: '#fff', border: 'none',
+  fontWeight: 700, borderRadius: 12, padding: '10px 18px', cursor: 'pointer',
+  display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13.5,
+}
+const thStyle: React.CSSProperties = {
+  fontSize: 11.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: '#9aa39c',
+  padding: '10px 14px', textAlign: 'left', whiteSpace: 'nowrap',
 }
 
 export default function PengadaanPage() {
@@ -55,77 +58,57 @@ export default function PengadaanPage() {
       const me = await getMe()
       if (me?.koperasi_id) setMyKoperasiId(me.koperasi_id)
     }
-    init()
-    loadData()
+    init(); loadData()
   }, [])
 
   async function loadData() {
     setLoading(true)
-    // TODO: query nested join (pengadaan + alokasi + koperasi) — best-guess route /api/pengadaan
     const rows = await api.get<Pengadaan[]>('/api/pengadaan').catch(() => [] as Pengadaan[])
     setData(rows ?? [])
     setLoading(false)
   }
 
   async function handleBuat(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
+    e.preventDefault(); setSaving(true)
     const pengadaan = await api.post<Pengadaan>('/api/pengadaan', {
       judul: form.judul, item: form.item, satuan: form.satuan,
       status: 'aktif', dibuat_oleh_koperasi_id: myKoperasiId,
     }).catch(() => null)
     if (pengadaan) {
       await api.post<void>(`/api/pengadaan/${pengadaan.id}/alokasi`, {
-        koperasi_id: myKoperasiId,
-        kebutuhan: parseFloat(form.kebutuhan) || 0, status_rekening: 'terhubung',
+        koperasi_id: myKoperasiId, kebutuhan: parseFloat(form.kebutuhan) || 0, status_rekening: 'terhubung',
       }).catch(() => null)
     }
-    setSaving(false)
-    setForm({ judul: '', item: '', satuan: 'kg', kebutuhan: '' })
-    setTab('daftar')
-    loadData()
+    setSaving(false); setForm({ judul: '', item: '', satuan: 'kg', kebutuhan: '' })
+    setTab('daftar'); loadData()
   }
 
   async function handleFinalisasi(pengadaanId: string) {
-    setSaving(true)
-    setFinalisasiError(null)
-    // Ambil alokasi lalu update masing-masing alokasi_dapat = kebutuhan
+    setSaving(true); setFinalisasiError(null)
     const allocs = await api.get<Alokasi[]>(`/api/pengadaan/${pengadaanId}/alokasi`).catch(() => [] as Alokasi[])
     for (const a of allocs ?? []) {
       await api.put<void>(`/api/pengadaan/${pengadaanId}/alokasi/${a.id}`, { alokasi_dapat: a.kebutuhan }).catch(() => null)
     }
     const err = await api.put<void>(`/api/pengadaan/${pengadaanId}`, { status: 'selesai' }).catch((e: Error) => e)
-    if (err instanceof Error) {
-      setFinalisasiError('Gagal memperbarui status: ' + err.message)
-      setSaving(false)
-      return
-    }
-
+    if (err instanceof Error) { setFinalisasiError('Gagal memperbarui status: ' + err.message); setSaving(false); return }
     setData(prev => prev.map(p =>
       p.id === pengadaanId
         ? { ...p, status: 'selesai', pengadaan_alokasi: p.pengadaan_alokasi.map(a => ({ ...a, alokasi_dapat: a.kebutuhan })) }
         : p
     ))
-    setConfirmId(null)
-    setSaving(false)
+    setConfirmId(null); setSaving(false)
   }
 
   async function handleAjukan(pengadaanId: string) {
     const f = ajukanForm[pengadaanId]
     if (!f?.kebutuhan) return
     setSaving(true)
-    // Cek apakah koperasi sudah daftar di alokasi ini
     const allocs = await api.get<Alokasi[]>(`/api/pengadaan/${pengadaanId}/alokasi`).catch(() => [] as Alokasi[])
     const existing = (allocs ?? []).find(a => a.koperasi_id === myKoperasiId)
     if (existing) {
-      await api.put<void>(`/api/pengadaan/${pengadaanId}/alokasi/${existing.id}`, {
-        kebutuhan: parseFloat(f.kebutuhan), status_rekening: f.status_rekening,
-      }).catch(() => null)
+      await api.put<void>(`/api/pengadaan/${pengadaanId}/alokasi/${existing.id}`, { kebutuhan: parseFloat(f.kebutuhan), status_rekening: f.status_rekening }).catch(() => null)
     } else {
-      await api.post<void>(`/api/pengadaan/${pengadaanId}/alokasi`, {
-        koperasi_id: myKoperasiId,
-        kebutuhan: parseFloat(f.kebutuhan), status_rekening: f.status_rekening ?? 'terhubung',
-      }).catch(() => null)
+      await api.post<void>(`/api/pengadaan/${pengadaanId}/alokasi`, { koperasi_id: myKoperasiId, kebutuhan: parseFloat(f.kebutuhan), status_rekening: f.status_rekening ?? 'terhubung' }).catch(() => null)
     }
     const total = (allocs ?? []).reduce((s: number, r: Alokasi) => s + (r.kebutuhan ?? 0), 0) + parseFloat(f.kebutuhan)
     await api.put<void>(`/api/pengadaan/${pengadaanId}`, { total_kebutuhan: total }).catch(() => null)
@@ -134,74 +117,78 @@ export default function PengadaanPage() {
     loadData()
   }
 
+  const tabBtn = (active: boolean): React.CSSProperties => ({
+    padding: '9px 18px', borderRadius: 10, fontSize: 13.5, cursor: 'pointer', border: 'none',
+    background: active ? '#fff' : 'transparent', color: active ? '#0f2a1d' : '#7a857d',
+    fontWeight: active ? 700 : 600, boxShadow: active ? '0 2px 8px rgba(26,71,49,.1)' : 'none',
+  })
+
   return (
-    <div className="max-w-4xl mx-auto space-y-5">
-      <div className="flex items-center justify-between">
+    <div style={{ maxWidth: 960, margin: '0 auto', animation: 'lmbFade .7s cubic-bezier(.2,.7,.2,1) both' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
         <div>
-          <h1 className="text-stone-900 text-xl font-bold">Lumbung Pasar</h1>
-          <p className="text-stone-500 text-sm">Pengadaan bersama antar koperasi</p>
+          <h1 style={{ fontSize: 23, fontWeight: 800, color: '#0f2a1d', letterSpacing: '-.02em', marginBottom: 4 }}>Lumbung Pasar</h1>
+          <p style={{ fontSize: 13.5, color: '#6a766e' }}>Pengadaan bersama antar koperasi</p>
         </div>
-        <button onClick={() => setTab('buat')}
-          className="flex items-center gap-1.5 bg-amber-700 hover:bg-amber-800 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors shadow-sm">
-          <Plus size={15} /> Buat Pengadaan
-        </button>
+        <button onClick={() => setTab('buat')} style={greenBtn}><Plus size={15} /> Buat Pengadaan</button>
       </div>
 
-      <div className="flex gap-1 bg-stone-100 border border-stone-200 rounded-xl p-1 w-fit">
-        {(['daftar', 'buat'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)}
-            className={`px-4 py-1.5 rounded-lg text-sm transition-colors
-              ${tab === t ? 'bg-amber-700 text-white' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-50'}`}>
-            {t === 'buat' ? 'Buat Baru' : 'Daftar Pengadaan'}
-          </button>
-        ))}
+      <div style={{ display: 'flex', gap: 4, ...glass, borderRadius: 14, padding: 5, width: 'fit-content', marginBottom: 18 }}>
+        <button onClick={() => setTab('daftar')} style={tabBtn(tab === 'daftar')}>Daftar Pengadaan</button>
+        <button onClick={() => setTab('buat')} style={tabBtn(tab === 'buat')}>Buat Baru</button>
       </div>
 
       {tab === 'buat' && (
-        <form onSubmit={handleBuat} className="bg-white border border-stone-200 rounded-xl p-5 space-y-4 shadow-sm">
-          <h2 className="text-stone-900 font-semibold">Buat Pengadaan Bersama</h2>
-          <div>
-            <label className="block text-stone-700 text-sm font-medium mb-1.5">Judul *</label>
-            <input required value={form.judul} onChange={e => setForm(f => ({ ...f, judul: e.target.value }))}
-              placeholder="Pengadaan Pupuk Urea Juni 2026" className={inputCls} />
+        <form onSubmit={handleBuat} style={{ ...glass, borderRadius: 20, overflow: 'hidden' }}>
+          <div style={{ padding: '14px 22px', borderBottom: '1px solid rgba(26,71,49,.08)' }}>
+            <h2 style={{ fontSize: 15, fontWeight: 800, color: '#0f2a1d' }}>Buat Pengadaan Bersama</h2>
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-2">
-              <label className="block text-stone-700 text-sm font-medium mb-1.5">Item *</label>
-              <input required value={form.item} onChange={e => setForm(f => ({ ...f, item: e.target.value }))}
-                placeholder="Pupuk Urea" className={inputCls} />
+          <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <label style={labelStyle}>Judul *</label>
+              <input required value={form.judul} onChange={e => setForm(f => ({ ...f, judul: e.target.value }))}
+                placeholder="Pengadaan Pupuk Urea Juni 2026" style={inputStyle} />
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
+              <div>
+                <label style={labelStyle}>Item *</label>
+                <input required value={form.item} onChange={e => setForm(f => ({ ...f, item: e.target.value }))}
+                  placeholder="Pupuk Urea" style={inputStyle} />
+              </div>
+              <div>
+                <label style={labelStyle}>Satuan</label>
+                <select value={form.satuan} onChange={e => setForm(f => ({ ...f, satuan: e.target.value }))} style={inputStyle}>
+                  {['kg', 'sak', 'liter', 'ton', 'karung'].map(s => <option key={s}>{s}</option>)}
+                </select>
+              </div>
             </div>
             <div>
-              <label className="block text-stone-700 text-sm font-medium mb-1.5">Satuan</label>
-              <select value={form.satuan} onChange={e => setForm(f => ({ ...f, satuan: e.target.value }))} className={inputCls}>
-                {['kg', 'sak', 'liter', 'ton', 'karung'].map(s => <option key={s}>{s}</option>)}
-              </select>
+              <label style={labelStyle}>Kebutuhan Koperasi Kamu ({form.satuan})</label>
+              <input type="number" min="0" value={form.kebutuhan} onChange={e => setForm(f => ({ ...f, kebutuhan: e.target.value }))}
+                placeholder="50" style={inputStyle} />
             </div>
           </div>
-          <div>
-            <label className="block text-stone-700 text-sm font-medium mb-1.5">Kebutuhan Koperasi Kamu ({form.satuan})</label>
-            <input type="number" min="0" value={form.kebutuhan} onChange={e => setForm(f => ({ ...f, kebutuhan: e.target.value }))}
-              placeholder="50" className={inputCls} />
+          <div style={{ padding: '14px 22px', borderTop: '1px solid rgba(26,71,49,.08)', background: 'rgba(247,244,236,.4)' }}>
+            <button type="submit" disabled={saving}
+              style={{ ...greenBtn, width: '100%', justifyContent: 'center', padding: '12px', opacity: saving ? 0.5 : 1 }}>
+              {saving ? 'Membuat...' : 'Buat & Daftarkan Kebutuhan'}
+            </button>
           </div>
-          <button type="submit" disabled={saving}
-            className="w-full bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white font-semibold rounded-lg px-4 py-2.5 text-sm transition-colors">
-            {saving ? 'Membuat...' : 'Buat & Daftarkan Kebutuhan'}
-          </button>
         </form>
       )}
 
       {tab === 'daftar' && (
         loading ? (
-          <div className="flex justify-center py-12">
-            <div className="w-5 h-5 border-2 border-amber-700 border-t-transparent rounded-full animate-spin" />
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
+            <div style={{ width: 28, height: 28, borderRadius: '50%', border: '3px solid rgba(26,71,49,.15)', borderTopColor: '#1a4731', animation: 'lmbSpin 0.8s linear infinite' }} />
           </div>
         ) : data.length === 0 ? (
-          <div className="text-center py-16 text-stone-400 bg-white border border-stone-200 rounded-xl">
-            <ShoppingBag size={32} className="mx-auto mb-2 text-stone-300" />
-            <p className="text-sm">Belum ada pengadaan bersama.</p>
+          <div style={{ ...glass, borderRadius: 20, padding: '60px 0', textAlign: 'center' }}>
+            <ShoppingBag size={36} style={{ margin: '0 auto 12px', color: '#c4ccc6' }} />
+            <p style={{ fontWeight: 700, color: '#46544b', fontSize: 15 }}>Belum ada pengadaan bersama</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {data.map(p => {
               const totalKebutuhan = p.pengadaan_alokasi.reduce((s, a) => s + (a.kebutuhan ?? 0), 0)
               const adaBelumTerhubung = p.pengadaan_alokasi.some(a => a.status_rekening === 'belum_terhubung')
@@ -209,28 +196,24 @@ export default function PengadaanPage() {
               const isExpanded = expandedId === p.id
 
               return (
-                <div key={p.id} className="bg-white border border-stone-200 rounded-xl overflow-hidden shadow-sm">
-                  <div className="p-4 cursor-pointer hover:bg-stone-50 transition-colors"
+                <div key={p.id} style={{ ...glass, borderRadius: 18, overflow: 'hidden' }}>
+                  <div style={{ padding: '16px 20px', cursor: 'pointer' }}
                     onClick={() => setExpandedId(isExpanded ? null : p.id)}>
-                    <div className="flex items-start justify-between mb-2">
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
                       <div>
-                        <p className="text-stone-900 font-medium">{p.judul}</p>
-                        <p className="text-stone-500 text-sm">{p.item} · {p.koperasi?.nama}</p>
+                        <p style={{ fontSize: 15, fontWeight: 800, color: '#0f2a1d' }}>{p.judul}</p>
+                        <p style={{ fontSize: 13, color: '#7a857d', marginTop: 2 }}>{p.item} · {p.koperasi?.nama}</p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs border px-2 py-0.5 rounded-full ${STATUS_COLOR[p.status]}`}>
-                          {p.status}
-                        </span>
-                        {isExpanded ? <ChevronUp size={14} className="text-stone-400" /> : <ChevronDown size={14} className="text-stone-400" />}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999, ...STATUS_PILL[p.status] }}>{p.status}</span>
+                        {isExpanded ? <ChevronUp size={14} style={{ color: '#9aa39c' }} /> : <ChevronDown size={14} style={{ color: '#9aa39c' }} />}
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 text-sm">
-                      <span className="text-stone-500 text-xs">
-                        Total: <strong className="text-stone-900">{totalKebutuhan} {p.satuan}</strong>
-                      </span>
-                      <span className="text-stone-400 text-xs">{p.pengadaan_alokasi.length} koperasi</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 12, color: '#7a857d' }}>Total: <strong style={{ color: '#0f2a1d' }}>{totalKebutuhan} {p.satuan}</strong></span>
+                      <span style={{ fontSize: 12, color: '#9aa39c' }}>{p.pengadaan_alokasi.length} koperasi</span>
                       {adaBelumTerhubung && (
-                        <span className="text-amber-600 text-xs flex items-center gap-1">
+                        <span style={{ fontSize: 12, color: '#8a6420', display: 'flex', alignItems: 'center', gap: 4 }}>
                           <AlertTriangle size={12} /> Ada koperasi belum punya rekening
                         </span>
                       )}
@@ -238,110 +221,108 @@ export default function PengadaanPage() {
                   </div>
 
                   {isExpanded && (
-                    <div className="border-t border-stone-100 p-4 space-y-3 bg-stone-50">
-                      <p className="text-stone-500 text-xs font-medium uppercase tracking-wide">Rekapitulasi Kebutuhan</p>
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="text-stone-500 text-xs border-b border-stone-200">
-                            <th className="text-left pb-2 font-medium">Koperasi</th>
-                            <th className="text-right pb-2 font-medium">Kebutuhan</th>
-                            <th className="text-right pb-2 font-medium">Dapat</th>
-                            <th className="text-center pb-2 font-medium">Rekening</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-stone-100">
-                          {p.pengadaan_alokasi.map(a => (
-                            <tr key={a.id}>
-                              <td className="py-2 text-stone-700">{a.koperasi?.nama ?? '—'}</td>
-                              <td className="py-2 text-right text-stone-900 font-medium">{a.kebutuhan} {p.satuan}</td>
-                              <td className="py-2 text-right text-stone-400">{a.alokasi_dapat || '—'}</td>
-                              <td className="py-2 text-center">
-                                {a.status_rekening === 'terhubung'
-                                  ? <span className="text-green-600 text-xs flex items-center justify-center gap-1"><CheckCircle size={11} /> Terhubung</span>
-                                  : <span className="text-red-500 text-xs flex items-center justify-center gap-1"><AlertTriangle size={11} /> Belum</span>}
-                              </td>
+                    <div style={{ borderTop: '1px solid rgba(26,71,49,.08)', padding: '16px 20px', background: 'rgba(247,244,236,.3)', display: 'flex', flexDirection: 'column', gap: 14 }}>
+                      <p style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: '#9aa39c' }}>Rekapitulasi Kebutuhan</p>
+                      <div style={{ ...glass, borderRadius: 14, overflow: 'hidden' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid rgba(26,71,49,.08)' }}>
+                              {['Koperasi','Kebutuhan','Dapat','Rekening'].map((h, i) => (
+                                <th key={h} style={{ ...thStyle, textAlign: i > 0 ? 'center' : 'left' }}>{h}</th>
+                              ))}
                             </tr>
-                          ))}
-                          <tr className="border-t border-stone-200">
-                            <td className="pt-2 text-stone-900 font-semibold">Total</td>
-                            <td className="pt-2 text-right text-amber-700 font-semibold">{totalKebutuhan} {p.satuan}</td>
-                            <td colSpan={2} />
-                          </tr>
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {p.pengadaan_alokasi.map(a => (
+                              <tr key={a.id} style={{ borderBottom: '1px solid rgba(26,71,49,.05)' }}>
+                                <td style={{ padding: '10px 14px', color: '#46544b', fontWeight: 600 }}>{a.koperasi?.nama ?? '—'}</td>
+                                <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 700, color: '#0f2a1d' }}>{a.kebutuhan} {p.satuan}</td>
+                                <td style={{ padding: '10px 14px', textAlign: 'center', color: '#9aa39c' }}>{a.alokasi_dapat || '—'}</td>
+                                <td style={{ padding: '10px 14px', textAlign: 'center' }}>
+                                  {a.status_rekening === 'terhubung' ? (
+                                    <span style={{ fontSize: 12, color: '#1d7a4d', display: 'inline-flex', alignItems: 'center', gap: 4 }}><CheckCircle size={11} /> Terhubung</span>
+                                  ) : (
+                                    <span style={{ fontSize: 12, color: '#c0392b', display: 'inline-flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={11} /> Belum</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                            <tr style={{ borderTop: '2px solid rgba(26,71,49,.1)', background: 'rgba(201,150,58,.06)' }}>
+                              <td style={{ padding: '10px 14px', fontWeight: 800, color: '#0f2a1d' }}>Total</td>
+                              <td style={{ padding: '10px 14px', textAlign: 'center', fontWeight: 800, color: '#8a6420' }}>{totalKebutuhan} {p.satuan}</td>
+                              <td colSpan={2} />
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
 
                       {!sudahDaftar && p.status === 'aktif' && (
-                        <div className="bg-white border border-stone-200 rounded-xl p-4 space-y-3">
-                          <p className="text-stone-800 text-sm font-medium">Daftarkan Kebutuhan Koperasimu</p>
-                          <div className="flex gap-2">
+                        <div style={{ ...glass, borderRadius: 14, padding: '14px 16px' }}>
+                          <p style={{ fontSize: 14, fontWeight: 700, color: '#0f2a1d', marginBottom: 10 }}>Daftarkan Kebutuhan Koperasimu</p>
+                          <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
                             <input type="number" min="0" placeholder={`Jumlah (${p.satuan})`}
                               value={ajukanForm[p.id]?.kebutuhan ?? ''}
                               onChange={e => setAjukanForm(f => ({ ...f, [p.id]: { ...f[p.id], kebutuhan: e.target.value } }))}
-                              className="flex-1 bg-white border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 focus:border-amber-500" />
+                              style={{ ...inputStyle, flex: 1 }} />
                             <select value={ajukanForm[p.id]?.status_rekening ?? 'terhubung'}
                               onChange={e => setAjukanForm(f => ({ ...f, [p.id]: { ...f[p.id], status_rekening: e.target.value } }))}
-                              className="bg-white border border-stone-300 rounded-lg px-3 py-2 text-stone-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200">
+                              style={{ ...inputStyle, flex: 1 }}>
                               <option value="terhubung">Rekening Terhubung</option>
                               <option value="belum_terhubung">Belum Punya Rekening</option>
                             </select>
                           </div>
-                          <button onClick={() => handleAjukan(p.id)}
-                            disabled={saving || !ajukanForm[p.id]?.kebutuhan}
-                            className="w-full bg-amber-700 hover:bg-amber-800 disabled:opacity-50 text-white text-sm font-medium rounded-lg py-2 transition-colors">
+                          <button onClick={() => handleAjukan(p.id)} disabled={saving || !ajukanForm[p.id]?.kebutuhan}
+                            style={{ ...greenBtn, width: '100%', justifyContent: 'center', padding: '11px', opacity: (saving || !ajukanForm[p.id]?.kebutuhan) ? 0.5 : 1 }}>
                             {saving ? 'Mendaftar...' : 'Ajukan Kebutuhan'}
                           </button>
                         </div>
                       )}
 
                       {sudahDaftar && (
-                        <p className="text-green-600 text-xs flex items-center gap-1">
-                          <CheckCircle size={12} /> Koperasimu sudah terdaftar di pengadaan ini
+                        <p style={{ fontSize: 13, color: '#1d7a4d', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <CheckCircle size={13} /> Koperasimu sudah terdaftar di pengadaan ini
                         </p>
                       )}
 
                       {p.pengadaan_alokasi.length > 0 && (
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between text-xs text-stone-500">
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#7a857d', marginBottom: 6 }}>
                             <span>Rekening terhubung</span>
-                            <span className="font-medium text-stone-700">
+                            <span style={{ fontWeight: 700, color: '#0f2a1d' }}>
                               {p.pengadaan_alokasi.filter(a => a.status_rekening === 'terhubung').length} / {p.pengadaan_alokasi.length} koperasi
                             </span>
                           </div>
-                          <div className="w-full bg-stone-200 rounded-full h-1.5">
-                            <div
-                              className="bg-green-500 h-1.5 rounded-full transition-all"
-                              style={{ width: `${(p.pengadaan_alokasi.filter(a => a.status_rekening === 'terhubung').length / p.pengadaan_alokasi.length) * 100}%` }}
-                            />
+                          <div style={{ height: 7, background: 'rgba(26,71,49,.1)', borderRadius: 999, overflow: 'hidden' }}>
+                            <div style={{ height: '100%', background: '#2f9e63', borderRadius: 999, transition: 'width .4s', width: `${(p.pengadaan_alokasi.filter(a => a.status_rekening === 'terhubung').length / p.pengadaan_alokasi.length) * 100}%` }} />
                           </div>
                         </div>
                       )}
 
                       {p.dibuat_oleh_koperasi_id === myKoperasiId && p.status === 'aktif' && confirmId !== p.id && (
                         <button onClick={() => { setConfirmId(p.id); setFinalisasiError(null) }}
-                          className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold py-2.5 rounded-lg transition-colors">
+                          style={{ width: '100%', background: 'rgba(59,130,246,.12)', color: '#3b7fd4', border: '1px solid rgba(59,130,246,.25)', borderRadius: 12, padding: '11px', fontSize: 13.5, fontWeight: 700, cursor: 'pointer' }}>
                           Finalisasi & Tetapkan Alokasi
                         </button>
                       )}
 
                       {confirmId === p.id && p.status === 'aktif' && (
-                        <div className="bg-blue-50 border border-blue-300 rounded-xl p-4 space-y-3">
-                          <p className="text-blue-900 font-semibold text-sm">Konfirmasi Finalisasi</p>
-                          <p className="text-blue-700 text-xs leading-relaxed">
-                            Status pengadaan akan diubah menjadi <strong>selesai</strong> dan alokasi untuk setiap koperasi
-                            akan ditetapkan sesuai kebutuhan yang sudah didaftarkan. Tindakan ini tidak dapat dibatalkan.
+                        <div style={{ background: 'rgba(59,130,246,.08)', border: '1px solid rgba(59,130,246,.25)', borderRadius: 14, padding: '16px 18px' }}>
+                          <p style={{ fontSize: 14, fontWeight: 800, color: '#3b7fd4', marginBottom: 8 }}>Konfirmasi Finalisasi</p>
+                          <p style={{ fontSize: 13, color: '#46544b', marginBottom: 12, lineHeight: 1.6 }}>
+                            Status pengadaan akan diubah menjadi <strong>selesai</strong> dan alokasi untuk setiap koperasi akan ditetapkan. Tindakan ini tidak dapat dibatalkan.
                           </p>
                           {finalisasiError && (
-                            <p className="text-red-600 text-xs bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                            <p style={{ fontSize: 12, color: '#c0392b', background: 'rgba(214,87,69,.1)', border: '1px solid rgba(214,87,69,.2)', borderRadius: 8, padding: '8px 12px', marginBottom: 12 }}>
                               {finalisasiError}
                             </p>
                           )}
-                          <div className="flex gap-2">
+                          <div style={{ display: 'flex', gap: 10 }}>
                             <button onClick={() => handleFinalisasi(p.id)} disabled={saving}
-                              className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-semibold py-2 rounded-lg transition-colors">
+                              style={{ flex: 1, background: '#3b7fd4', color: '#fff', border: 'none', borderRadius: 10, padding: '10px', fontSize: 13.5, fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.5 : 1 }}>
                               {saving ? 'Memproses...' : 'Ya, Finalisasi'}
                             </button>
                             <button onClick={() => { setConfirmId(null); setFinalisasiError(null) }} disabled={saving}
-                              className="flex-1 border border-stone-300 hover:border-stone-400 text-stone-600 text-sm py-2 rounded-lg transition-colors">
+                              style={{ flex: 1, background: 'transparent', color: '#46544b', border: '1px solid rgba(26,71,49,.18)', borderRadius: 10, padding: '10px', fontSize: 13.5, fontWeight: 600, cursor: 'pointer', opacity: saving ? 0.5 : 1 }}>
                               Batal
                             </button>
                           </div>
@@ -349,8 +330,8 @@ export default function PengadaanPage() {
                       )}
 
                       {p.status === 'selesai' && (
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-blue-700 text-xs font-medium flex items-center gap-1.5">
-                          <CheckCircle size={13} /> Pengadaan selesai — alokasi sudah ditetapkan
+                        <div style={{ background: 'rgba(59,130,246,.08)', border: '1px solid rgba(59,130,246,.2)', borderRadius: 10, padding: '10px 14px', fontSize: 13, fontWeight: 700, color: '#3b7fd4', display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <CheckCircle size={14} /> Pengadaan selesai — alokasi sudah ditetapkan
                         </div>
                       )}
                     </div>

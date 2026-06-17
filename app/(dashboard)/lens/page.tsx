@@ -45,16 +45,31 @@ type RinciData = {
   ternakAll: RinciTernak[]
   pakanAll: RinciPakan[]
 }
-const STATUS_ANGSURAN: Record<string, string> = {
-  lunas:       'bg-green-50 text-green-700 border-green-200',
-  terlambat:   'bg-red-50 text-red-600 border-red-200',
-  belum_lunas: 'bg-amber-50 text-amber-700 border-amber-200',
+
+const STATUS_ANGSURAN: Record<string, React.CSSProperties> = {
+  lunas:       { background: 'rgba(47,158,99,.14)', color: '#1d7a4d', border: '1px solid rgba(47,158,99,.3)' },
+  terlambat:   { background: 'rgba(214,87,69,.12)', color: '#c0392b', border: '1px solid rgba(214,87,69,.28)' },
+  belum_lunas: { background: 'rgba(201,150,58,.12)', color: '#8a6420', border: '1px solid rgba(201,150,58,.3)' },
 }
-const STATUS_TERNAK: Record<string, string> = {
-  sehat:  'bg-green-50 text-green-700 border-green-200',
-  pantau: 'bg-amber-50 text-amber-700 border-amber-200',
-  sakit:  'bg-red-50 text-red-600 border-red-200',
-  mati:   'bg-stone-100 text-stone-500 border-stone-200',
+const STATUS_TERNAK: Record<string, React.CSSProperties> = {
+  sehat:  { background: 'rgba(47,158,99,.14)', color: '#1d7a4d', border: '1px solid rgba(47,158,99,.3)' },
+  pantau: { background: 'rgba(201,150,58,.12)', color: '#8a6420', border: '1px solid rgba(201,150,58,.3)' },
+  sakit:  { background: 'rgba(214,87,69,.12)', color: '#c0392b', border: '1px solid rgba(214,87,69,.28)' },
+  mati:   { background: 'rgba(26,71,49,.07)', color: '#46544b', border: '1px solid rgba(26,71,49,.12)' },
+}
+
+const glass: React.CSSProperties = {
+  background: 'rgba(255,255,255,.62)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
+  border: '1px solid rgba(255,255,255,.7)', boxShadow: '0 10px 26px rgba(26,71,49,.08)',
+}
+const thStyle: React.CSSProperties = {
+  fontSize: 11.5, fontWeight: 800, letterSpacing: '.04em', textTransform: 'uppercase', color: '#9aa39c',
+  padding: '11px 16px', textAlign: 'left', whiteSpace: 'nowrap',
+}
+
+const tooltipBase: React.CSSProperties = {
+  background: '#fff', border: '1px solid rgba(26,71,49,.12)', borderRadius: 14,
+  boxShadow: '0 8px 24px rgba(26,71,49,.12)', padding: '12px 16px', minWidth: 160, fontSize: 12,
 }
 
 function SimpananTooltip({ active, payload, label }: any) {
@@ -64,11 +79,11 @@ function SimpananTooltip({ active, payload, label }: any) {
   const prev = payload[0].payload._prev as number
   const pct = prev > 0 ? Math.round(((cur - prev) / prev) * 100) : null
   return (
-    <div className="bg-white border border-stone-200 rounded-xl shadow-lg px-4 py-3 text-xs min-w-[160px]">
-      <p className="text-stone-500 mb-1 font-medium">{label}</p>
-      <p className="text-stone-900 font-bold text-base">{rp(cur)}</p>
+    <div style={tooltipBase}>
+      <p style={{ color: '#9aa39c', marginBottom: 4, fontWeight: 600 }}>{label}</p>
+      <p style={{ color: '#0f2a1d', fontWeight: 800, fontSize: 15 }}>{rp(cur)}</p>
       {pct !== null && idx > 0 && (
-        <p className={`flex items-center gap-0.5 mt-1 font-medium ${pct >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+        <p style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 5, fontWeight: 600, color: pct >= 0 ? '#1d7a4d' : '#c0392b' }}>
           {pct > 0 ? <ArrowUp size={10} /> : pct < 0 ? <ArrowDown size={10} /> : <Minus size={10} />}
           {Math.abs(pct)}% vs bulan lalu
         </p>
@@ -84,21 +99,25 @@ function AngsuranTooltip({ active, payload, label }: any) {
   const total = tepat + terlambat
   const pct = total > 0 ? Math.round((tepat / total) * 100) : null
   return (
-    <div className="bg-white border border-stone-200 rounded-xl shadow-lg px-4 py-3 text-xs min-w-[180px]">
-      <p className="text-stone-500 mb-2 font-medium">{label}</p>
-      <div className="space-y-1.5">
-        <div className="flex justify-between gap-4">
-          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green-500 inline-block" />Tepat waktu</span>
-          <span className="font-semibold text-green-700">{tepat}</span>
+    <div style={{ ...tooltipBase, minWidth: 180 }}>
+      <p style={{ color: '#9aa39c', marginBottom: 8, fontWeight: 600 }}>{label}</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />Tepat waktu
+          </span>
+          <span style={{ fontWeight: 700, color: '#1d7a4d' }}>{tepat}</span>
         </div>
-        <div className="flex justify-between gap-4">
-          <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-red-500 inline-block" />Terlambat</span>
-          <span className="font-semibold text-red-600">{terlambat}</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444', display: 'inline-block' }} />Terlambat
+          </span>
+          <span style={{ fontWeight: 700, color: '#c0392b' }}>{terlambat}</span>
         </div>
         {pct !== null && (
-          <div className="border-t border-stone-100 pt-1.5 flex justify-between gap-4">
-            <span className="text-stone-500">Tingkat keberhasilan</span>
-            <span className={`font-bold ${pct >= 80 ? 'text-green-700' : pct >= 60 ? 'text-amber-700' : 'text-red-600'}`}>{pct}%</span>
+          <div style={{ borderTop: '1px solid rgba(26,71,49,.08)', paddingTop: 6, display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+            <span style={{ color: '#9aa39c' }}>Tingkat keberhasilan</span>
+            <span style={{ fontWeight: 800, color: pct >= 80 ? '#1d7a4d' : pct >= 60 ? '#8a6420' : '#c0392b' }}>{pct}%</span>
           </div>
         )}
       </div>
@@ -113,27 +132,25 @@ function PakanTooltip({ active, payload, label }: any) {
   const isCritical = minimum > 0 && stok <= minimum
   const isWarning = !isCritical && minimum > 0 && stok <= minimum * 1.5
   return (
-    <div className="bg-white border border-stone-200 rounded-xl shadow-lg px-4 py-3 text-xs min-w-[170px]">
-      <p className="text-stone-900 font-semibold mb-2">{label}</p>
-      <div className="space-y-1">
-        <div className="flex justify-between gap-4">
-          <span className="text-stone-500">Stok sekarang</span>
-          <span className={`font-bold ${isCritical ? 'text-red-600' : isWarning ? 'text-amber-700' : 'text-stone-900'}`}>{stok}</span>
+    <div style={{ ...tooltipBase, minWidth: 170 }}>
+      <p style={{ color: '#0f2a1d', fontWeight: 700, marginBottom: 8 }}>{label}</p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+          <span style={{ color: '#9aa39c' }}>Stok sekarang</span>
+          <span style={{ fontWeight: 800, color: isCritical ? '#c0392b' : isWarning ? '#8a6420' : '#0f2a1d' }}>{stok}</span>
         </div>
         {minimum > 0 && (
-          <div className="flex justify-between gap-4">
-            <span className="text-stone-500">Batas minimum</span>
-            <span className="font-medium text-stone-600">{minimum}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16 }}>
+            <span style={{ color: '#9aa39c' }}>Batas minimum</span>
+            <span style={{ color: '#46544b' }}>{minimum}</span>
           </div>
         )}
         {isCritical && (
-          <p className="text-red-500 font-medium mt-1 flex items-center gap-1">
-            <AlertTriangle size={10} /> Stok di bawah minimum!
+          <p style={{ color: '#c0392b', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5, marginTop: 4 }}>
+            <AlertTriangle size={11} /> Stok di bawah minimum!
           </p>
         )}
-        {isWarning && (
-          <p className="text-amber-600 font-medium mt-1">Mendekati batas minimum</p>
-        )}
+        {isWarning && <p style={{ color: '#8a6420', fontWeight: 600, marginTop: 4 }}>Mendekati batas minimum</p>}
       </div>
     </div>
   )
@@ -147,9 +164,9 @@ function ActivePieShape(props: any) {
         startAngle={startAngle} endAngle={endAngle} fill={fill} />
       <Sector cx={cx} cy={cy} innerRadius={outerRadius + 12} outerRadius={outerRadius + 15}
         startAngle={startAngle} endAngle={endAngle} fill={fill} />
-      <text x={cx} y={cy - 12} textAnchor="middle" fill="#1c1917" fontSize={24} fontWeight={700}>{value}</text>
-      <text x={cx} y={cy + 8} textAnchor="middle" fill="#78716c" fontSize={12} fontWeight={600}>{payload.name}</text>
-      <text x={cx} y={cy + 24} textAnchor="middle" fill="#a8a29e" fontSize={11}>{(percent * 100).toFixed(1)}%</text>
+      <text x={cx} y={cy - 12} textAnchor="middle" fill="#0f2a1d" fontSize={24} fontWeight={700}>{value}</text>
+      <text x={cx} y={cy + 8} textAnchor="middle" fill="#7a857d" fontSize={12} fontWeight={600}>{payload.name}</text>
+      <text x={cx} y={cy + 24} textAnchor="middle" fill="#9aa39c" fontSize={11}>{(percent * 100).toFixed(1)}%</text>
     </g>
   )
 }
@@ -160,11 +177,9 @@ export default function LensPage() {
   const [sumber, setSumber] = useState<'haiku' | 'template' | ''>('')
   const [mode, setMode] = useState<'ringkas' | 'rinci'>('ringkas')
   const [loading, setLoading] = useState(true)
-
   const [periode, setPeriode] = useState<3 | 6 | 12>(6)
   const [chartType, setChartType] = useState<'bar' | 'line'>('bar')
   const [activeTernakIdx, setActiveTernakIdx] = useState(0)
-
   const [rinciData, setRinciData] = useState<RinciData | null>(null)
   const [rinciLoading, setRinciLoading] = useState(false)
   const [angsuranFilter, setAngsuranFilter] = useState('semua')
@@ -177,86 +192,49 @@ export default function LensPage() {
       if (!me?.koperasi_id) return
       const kopId = me.koperasi_id
       const kop = await api.get<{ nama: string; fokus_usaha: string }>(`/api/koperasi/${kopId}`).catch(() => null)
-
-      const [simpanan, ternak, pakan, pinjaman, angsuran] =
-        await Promise.all([
-          api.get<{ jumlah: number; tanggal: string }[]>(`/api/simpanan?koperasi_id=${kopId}&status=confirmed`).catch(() => []),
-          api.get<{ status: string }[]>(`/api/stok/ternak?koperasi_id=${kopId}`).catch(() => []),
-          api.get<{ nama: string; stok: number; batas_minimum: number }[]>(`/api/stok?koperasi_id=${kopId}`).catch(() => []),
-          api.get<{ id: string }[]>(`/api/pinjaman?koperasi_id=${kopId}`).catch(() => []),
-          api.get<{ status: string; tanggal_jatuh_tempo: string }[]>(`/api/angsuran?koperasi_id=${kopId}`).catch(() => []),
-        ])
-
-      const modul = {
-        simpanPinjam: simpanan.length > 0 || pinjaman.length > 0,
-        ternak: ternak.length > 0,
-        pakan: pakan.length > 0,
-      }
-
+      const [simpanan, ternak, pakan, pinjaman, angsuran] = await Promise.all([
+        api.get<{ jumlah: number; tanggal: string }[]>(`/api/simpanan?koperasi_id=${kopId}&status=confirmed`).catch(() => []),
+        api.get<{ status: string }[]>(`/api/stok/ternak?koperasi_id=${kopId}`).catch(() => []),
+        api.get<{ nama: string; stok: number; batas_minimum: number }[]>(`/api/stok?koperasi_id=${kopId}`).catch(() => []),
+        api.get<{ id: string }[]>(`/api/pinjaman?koperasi_id=${kopId}`).catch(() => []),
+        api.get<{ status: string; tanggal_jatuh_tempo: string }[]>(`/api/angsuran?koperasi_id=${kopId}`).catch(() => []),
+      ])
+      const modul = { simpanPinjam: simpanan.length > 0 || pinjaman.length > 0, ternak: ternak.length > 0, pakan: pakan.length > 0 }
       const now = new Date()
-
       const bulanList: { key: string; bulan: string }[] = []
       for (let i = 11; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
         bulanList.push({ key: ymKey(d), bulan: namaBulan(d) })
       }
-
-      const totals = bulanList.map((b) => ({
-        key: b.key,
-        bulan: b.bulan,
-        total: simpanan.filter((s) => s.tanggal?.startsWith(b.key)).reduce((sum, s) => sum + (s.jumlah ?? 0), 0),
+      const totals = bulanList.map(b => ({
+        key: b.key, bulan: b.bulan,
+        total: simpanan.filter(s => s.tanggal?.startsWith(b.key)).reduce((sum, s) => sum + (s.jumlah ?? 0), 0),
       }))
-
-      const simpananTrend = totals.map((t, i) => ({
-        ...t, _idx: i, _prev: i > 0 ? totals[i - 1].total : 0,
-      }))
-
+      const simpananTrend = totals.map((t, i) => ({ ...t, _idx: i, _prev: i > 0 ? totals[i - 1].total : 0 }))
       const bulanIniKey = ymKey(now)
       const bulanLaluKey = ymKey(new Date(now.getFullYear(), now.getMonth() - 1, 1))
       const simpananBulanIni = simpanan.filter(s => s.tanggal?.startsWith(bulanIniKey)).reduce((s, x) => s + (x.jumlah ?? 0), 0)
       const simpananBulanLalu = simpanan.filter(s => s.tanggal?.startsWith(bulanLaluKey)).reduce((s, x) => s + (x.jumlah ?? 0), 0)
-
-      const hitung = (st: string) => ternak.filter((t) => t.status === st).length
-      const ternakChart = (['sehat', 'pantau', 'sakit', 'mati'] as const)
-        .map((st) => ({ name: st, value: hitung(st) })).filter((x) => x.value > 0)
-      const pakanChart = pakan.map((p) => ({ nama: p.nama, stok: p.stok, minimum: p.batas_minimum }))
-      const pakanMenipis = pakan.filter((p) => p.batas_minimum > 0 && p.stok <= p.batas_minimum).map((p) => p.nama)
-
-      const angsuranChart = bulanList.map((b) => {
-        const baris = angsuran.filter((a) => a.tanggal_jatuh_tempo?.startsWith(b.key))
-        return {
-          bulan: b.bulan,
-          tepat: baris.filter((a) => a.status === 'lunas').length,
-          terlambat: baris.filter((a) => a.status === 'terlambat').length,
-        }
+      const hitung = (st: string) => ternak.filter(t => t.status === st).length
+      const ternakChart = (['sehat', 'pantau', 'sakit', 'mati'] as const).map(st => ({ name: st, value: hitung(st) })).filter(x => x.value > 0)
+      const pakanChart = pakan.map(p => ({ nama: p.nama, stok: p.stok, minimum: p.batas_minimum }))
+      const pakanMenipis = pakan.filter(p => p.batas_minimum > 0 && p.stok <= p.batas_minimum).map(p => p.nama)
+      const angsuranChart = bulanList.map(b => {
+        const baris = angsuran.filter(a => a.tanggal_jatuh_tempo?.startsWith(b.key))
+        return { bulan: b.bulan, tepat: baris.filter(a => a.status === 'lunas').length, terlambat: baris.filter(a => a.status === 'terlambat').length }
       })
       const totTepat = angsuranChart.reduce((s, a) => s + a.tepat, 0)
       const totTerlambat = angsuranChart.reduce((s, a) => s + a.terlambat, 0)
-
       const ringkasan: RingkasanLens = {
-        koperasi: kop?.nama ?? 'Koperasi', fokusUsaha: kop?.fokus_usaha ?? '-',
-        simpananBulanIni, pakanMenipis,
-        ternak: modul.ternak ? {
-          sehat: hitung('sehat'), pantau: hitung('pantau'),
-          sakit: hitung('sakit'), mati: hitung('mati'),
-          total: ternak.filter((t) => t.status !== 'mati').length,
-        } : undefined,
+        koperasi: kop?.nama ?? 'Koperasi', fokusUsaha: kop?.fokus_usaha ?? '-', simpananBulanIni, pakanMenipis,
+        ternak: modul.ternak ? { sehat: hitung('sehat'), pantau: hitung('pantau'), sakit: hitung('sakit'), mati: hitung('mati'), total: ternak.filter(t => t.status !== 'mati').length } : undefined,
         angsuran: { tepatWaktu: totTepat, terlambat: totTerlambat, total: totTepat + totTerlambat },
         modul,
       }
-
-      setData({
-        koperasi: kop?.nama ?? 'Koperasi', fokusUsaha: kop?.fokus_usaha ?? '-', kopId,
-        simpananTrend, simpananBulanLalu,
-        ternak: ternakChart, pakan: pakanChart, angsuran: angsuranChart, modul, ringkasan,
-      })
+      setData({ koperasi: kop?.nama ?? 'Koperasi', fokusUsaha: kop?.fokus_usaha ?? '-', kopId, simpananTrend, simpananBulanLalu, ternak: ternakChart, pakan: pakanChart, angsuran: angsuranChart, modul, ringkasan })
       setLoading(false)
-
       try {
-        const res = await fetch('/api/narasi', {
-          method: 'POST', headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(ringkasan),
-        })
+        const res = await fetch('/api/narasi', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(ringkasan) })
         const j = await res.json()
         setNarasi(j.narasi); setSumber(j.sumber)
       } catch {
@@ -282,9 +260,7 @@ export default function LensPage() {
     setRinciData({
       simpananBulanIni: simpananIni,
       simpananBulanLalu: simpananLaluArr.reduce((s, x) => s + (x.jumlah ?? 0), 0),
-      angsuranAll: angsuranRes,
-      ternakAll: ternakRes,
-      pakanAll: pakanRes,
+      angsuranAll: angsuranRes, ternakAll: ternakRes, pakanAll: pakanRes,
     })
     setRinciLoading(false)
   }, [rinciData])
@@ -293,26 +269,11 @@ export default function LensPage() {
     if (mode === 'rinci' && data?.kopId && !rinciData && !rinciLoading) loadRinci(data.kopId)
   }, [mode, data, rinciData, rinciLoading, loadRinci])
 
-  const simpananVisible = useMemo(() =>
-    data ? data.simpananTrend.slice(-periode) : [], [data, periode])
-
-  const avgSimpanan = useMemo(() =>
-    simpananVisible.length ? Math.round(simpananVisible.reduce((s, x) => s + x.total, 0) / simpananVisible.length) : 0,
-  [simpananVisible])
-
-  const angsuranVisible = useMemo(() =>
-    data ? data.angsuran.slice(-periode) : [], [data, periode])
-
-  const filteredAngsuran = useMemo(() => {
-    if (!rinciData) return []
-    return angsuranFilter === 'semua' ? rinciData.angsuranAll : rinciData.angsuranAll.filter(a => a.status === angsuranFilter)
-  }, [rinciData, angsuranFilter])
-
-  const filteredTernak = useMemo(() => {
-    if (!rinciData) return []
-    return ternakFilter === 'semua' ? rinciData.ternakAll : rinciData.ternakAll.filter(t => t.status === ternakFilter)
-  }, [rinciData, ternakFilter])
-
+  const simpananVisible = useMemo(() => data ? data.simpananTrend.slice(-periode) : [], [data, periode])
+  const avgSimpanan = useMemo(() => simpananVisible.length ? Math.round(simpananVisible.reduce((s, x) => s + x.total, 0) / simpananVisible.length) : 0, [simpananVisible])
+  const angsuranVisible = useMemo(() => data ? data.angsuran.slice(-periode) : [], [data, periode])
+  const filteredAngsuran = useMemo(() => !rinciData ? [] : angsuranFilter === 'semua' ? rinciData.angsuranAll : rinciData.angsuranAll.filter(a => a.status === angsuranFilter), [rinciData, angsuranFilter])
+  const filteredTernak = useMemo(() => !rinciData ? [] : ternakFilter === 'semua' ? rinciData.ternakAll : rinciData.ternakAll.filter(t => t.status === ternakFilter), [rinciData, ternakFilter])
   const sortedSimpanan = useMemo(() => {
     if (!rinciData) return []
     return [...rinciData.simpananBulanIni].sort((a, b) =>
@@ -320,9 +281,21 @@ export default function LensPage() {
     )
   }, [rinciData, simpananSort])
 
+  const tabBtn = (active: boolean): React.CSSProperties => ({
+    padding: '8px 16px', borderRadius: 10, fontSize: 13.5, cursor: 'pointer', border: 'none',
+    background: active ? '#fff' : 'transparent', color: active ? '#0f2a1d' : '#7a857d',
+    fontWeight: active ? 700 : 600, boxShadow: active ? '0 2px 8px rgba(26,71,49,.1)' : 'none',
+  })
+
+  const filterPill = (active: boolean): React.CSSProperties => ({
+    fontSize: 12, fontWeight: 700, padding: '4px 12px', borderRadius: 999, cursor: 'pointer', border: 'none',
+    background: active ? '#1a4731' : 'rgba(255,255,255,.7)', color: active ? '#fff' : '#46544b',
+    borderWidth: 1, borderStyle: 'solid', borderColor: active ? '#1a4731' : 'rgba(26,71,49,.14)',
+  })
+
   if (loading) return (
-    <div className="flex justify-center py-12">
-      <div className="w-5 h-5 border-2 border-amber-700 border-t-transparent rounded-full animate-spin" />
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '60px 0' }}>
+      <div style={{ width: 28, height: 28, borderRadius: '50%', border: '3px solid rgba(26,71,49,.15)', borderTopColor: '#1a4731', animation: 'lmbSpin 0.8s linear infinite' }} />
     </div>
   )
   if (!data) return null
@@ -330,8 +303,7 @@ export default function LensPage() {
   const { modul, ringkasan } = data
   const adaModul = modul.simpanPinjam || modul.ternak || modul.pakan
   const simpananBulanIni = ringkasan.simpananBulanIni
-  const trendSimpanan = data.simpananBulanLalu > 0
-    ? Math.round(((simpananBulanIni - data.simpananBulanLalu) / data.simpananBulanLalu) * 100) : null
+  const trendSimpanan = data.simpananBulanLalu > 0 ? Math.round(((simpananBulanIni - data.simpananBulanLalu) / data.simpananBulanLalu) * 100) : null
   const totTepat = ringkasan.angsuran.tepatWaktu
   const totAngsuran = ringkasan.angsuran.total
   const pctTepat = totAngsuran > 0 ? Math.round((totTepat / totAngsuran) * 100) : null
@@ -340,49 +312,46 @@ export default function LensPage() {
   const pakanKritis = data.pakan.filter(p => p.minimum > 0 && p.stok <= p.minimum).length
 
   return (
-    <div className="max-w-4xl mx-auto space-y-5">
-
-      <div className="flex items-center justify-between">
+    <div style={{ maxWidth: 1024, margin: '0 auto', animation: 'lmbFade .7s cubic-bezier(.2,.7,.2,1) both', display: 'flex', flexDirection: 'column', gap: 18 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
-          <h1 className="text-stone-900 text-xl font-bold">Lumbung Lens</h1>
-          <p className="text-stone-500 text-sm">{data.koperasi} · {data.fokusUsaha}</p>
+          <h1 style={{ fontSize: 23, fontWeight: 800, color: '#0f2a1d', letterSpacing: '-.02em', marginBottom: 4 }}>Lumbung Lens</h1>
+          <p style={{ fontSize: 13.5, color: '#6a766e' }}>{data.koperasi} · {data.fokusUsaha}</p>
         </div>
-        <div className="flex gap-1 bg-white border border-stone-200 rounded-xl shadow-sm p-1">
-          {(['ringkas', 'rinci'] as const).map((m) => (
-            <button key={m} onClick={() => setMode(m)}
-              className={`px-4 py-1.5 rounded-lg text-sm capitalize transition-colors
-                ${mode === m ? 'bg-amber-700 text-white' : 'text-stone-600 hover:text-stone-900 hover:bg-stone-100'}`}>
-              {m}
-            </button>
+        <div style={{ display: 'flex', gap: 4, ...glass, borderRadius: 14, padding: 5 }}>
+          {(['ringkas', 'rinci'] as const).map(m => (
+            <button key={m} onClick={() => setMode(m)} style={tabBtn(mode === m)}>{m}</button>
           ))}
         </div>
       </div>
 
-      <div className="bg-white border border-stone-200 rounded-xl shadow-sm p-4">
-        <div className="flex items-center justify-between mb-1.5">
-          <p className="text-stone-500 text-xs font-medium">Ringkasan Bulan Ini</p>
-          <span className="text-[10px] text-stone-400">{sumber === 'haiku' ? 'AI (Haiku)' : 'template'}</span>
+      {/* Narasi */}
+      <div style={{ ...glass, borderRadius: 18, padding: '16px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <p style={{ fontSize: 12, fontWeight: 700, color: '#9aa39c', textTransform: 'uppercase', letterSpacing: '.04em' }}>Ringkasan Bulan Ini</p>
+          <span style={{ fontSize: 11, color: '#c4ccc6' }}>{sumber === 'haiku' ? 'AI (Haiku)' : 'template'}</span>
         </div>
-        <p className="text-stone-700 text-sm leading-relaxed">{narasi || 'Menyusun ringkasan...'}</p>
+        <p style={{ fontSize: 13.5, color: '#46544b', lineHeight: 1.7 }}>{narasi || 'Menyusun ringkasan...'}</p>
       </div>
 
       {!adaModul && (
-        <div className="bg-white border border-dashed border-stone-300 rounded-xl p-8 text-center">
-          <p className="text-stone-900 font-medium">Belum ada data operasional</p>
-          <p className="text-stone-400 text-sm mt-1">Modul untuk <strong>{data.fokusUsaha}</strong> belum tersedia.</p>
+        <div style={{ ...glass, borderRadius: 18, padding: '40px 0', textAlign: 'center' }}>
+          <p style={{ fontWeight: 700, color: '#0f2a1d', fontSize: 15 }}>Belum ada data operasional</p>
+          <p style={{ fontSize: 13, color: '#9aa39c', marginTop: 4 }}>Modul untuk <strong>{data.fokusUsaha}</strong> belum tersedia.</p>
         </div>
       )}
 
       {mode === 'ringkas' && adaModul && (
-        <div className="space-y-5">
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {/* KPI grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
             {modul.simpanPinjam && (
-              <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
-                <p className="text-stone-400 text-xs mb-1">Simpanan Bulan Ini</p>
-                <p className="text-stone-900 font-bold text-lg leading-tight">{fmtRb(simpananBulanIni)}</p>
+              <div style={{ ...glass, borderRadius: 18, padding: '16px 18px' }}>
+                <p style={{ fontSize: 12, color: '#9aa39c', marginBottom: 6 }}>Simpanan Bulan Ini</p>
+                <p style={{ fontSize: 21, fontWeight: 800, color: '#0f2a1d', lineHeight: 1.1 }}>{fmtRb(simpananBulanIni)}</p>
                 {trendSimpanan !== null && (
-                  <p className={`text-xs flex items-center gap-0.5 mt-1 font-medium ${trendSimpanan >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                  <p style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 3, marginTop: 6, fontWeight: 600, color: trendSimpanan >= 0 ? '#1d7a4d' : '#c0392b' }}>
                     {trendSimpanan > 0 ? <ArrowUp size={11} /> : trendSimpanan < 0 ? <ArrowDown size={11} /> : <Minus size={11} />}
                     {Math.abs(trendSimpanan)}% vs bln lalu
                   </p>
@@ -390,114 +359,92 @@ export default function LensPage() {
               </div>
             )}
             {modul.simpanPinjam && (
-              <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
-                <p className="text-stone-400 text-xs mb-1">Angsuran Tepat Waktu</p>
-                <p className="text-stone-900 font-bold text-lg leading-tight">
+              <div style={{ ...glass, borderRadius: 18, padding: '16px 18px' }}>
+                <p style={{ fontSize: 12, color: '#9aa39c', marginBottom: 6 }}>Angsuran Tepat Waktu</p>
+                <p style={{ fontSize: 21, fontWeight: 800, color: '#0f2a1d', lineHeight: 1.1 }}>
                   {pctTepat !== null ? `${pctTepat}%` : '—'}
                 </p>
-                <p className="text-stone-400 text-xs mt-1">{totTepat}/{totAngsuran} tagihan</p>
+                <p style={{ fontSize: 12, color: '#9aa39c', marginTop: 6 }}>{totTepat}/{totAngsuran} tagihan</p>
               </div>
             )}
             {modul.ternak && (
-              <div className="bg-white border border-stone-200 rounded-xl p-4 shadow-sm">
-                <p className="text-stone-400 text-xs mb-1">Ternak Sehat</p>
-                <p className={`font-bold text-lg leading-tight ${(pctSehat ?? 0) >= 80 ? 'text-green-700' : (pctSehat ?? 0) >= 60 ? 'text-amber-700' : 'text-red-600'}`}>
+              <div style={{ ...glass, borderRadius: 18, padding: '16px 18px' }}>
+                <p style={{ fontSize: 12, color: '#9aa39c', marginBottom: 6 }}>Ternak Sehat</p>
+                <p style={{ fontSize: 21, fontWeight: 800, color: (pctSehat ?? 0) >= 80 ? '#1d7a4d' : (pctSehat ?? 0) >= 60 ? '#8a6420' : '#c0392b', lineHeight: 1.1 }}>
                   {pctSehat !== null ? `${pctSehat}%` : '—'}
                 </p>
-                <p className="text-stone-400 text-xs mt-1">{ringkasan.ternak?.sehat}/{totalTernakHidup} ekor</p>
+                <p style={{ fontSize: 12, color: '#9aa39c', marginTop: 6 }}>{ringkasan.ternak?.sehat}/{totalTernakHidup} ekor</p>
               </div>
             )}
             {modul.pakan && (
-              <div className={`border rounded-xl p-4 shadow-sm ${pakanKritis > 0 ? 'bg-red-50 border-red-200' : 'bg-white border-stone-200'}`}>
-                <p className={`text-xs mb-1 ${pakanKritis > 0 ? 'text-red-400' : 'text-stone-400'}`}>Pakan Kritis</p>
-                <p className={`font-bold text-lg leading-tight ${pakanKritis > 0 ? 'text-red-600' : 'text-stone-900'}`}>
-                  {pakanKritis} item
-                </p>
+              <div style={{ background: pakanKritis > 0 ? 'rgba(214,87,69,.1)' : 'rgba(255,255,255,.62)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: pakanKritis > 0 ? '1px solid rgba(214,87,69,.25)' : '1px solid rgba(255,255,255,.7)', boxShadow: '0 10px 26px rgba(26,71,49,.08)', borderRadius: 18, padding: '16px 18px' }}>
+                <p style={{ fontSize: 12, color: '#9aa39c', marginBottom: 6 }}>Pakan Kritis</p>
+                <p style={{ fontSize: 21, fontWeight: 800, color: pakanKritis > 0 ? '#c0392b' : '#9aa39c', lineHeight: 1.1 }}>{pakanKritis} item</p>
                 {pakanKritis > 0 && (
-                  <p className="text-red-400 text-xs mt-1 flex items-center gap-0.5">
-                    <AlertTriangle size={10} /> Perlu restok segera
+                  <p style={{ fontSize: 12, color: '#c0392b', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <AlertTriangle size={11} /> Perlu restok segera
                   </p>
                 )}
               </div>
             )}
           </div>
 
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex gap-1 bg-white border border-stone-200 rounded-xl p-1 shadow-sm">
+          {/* Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+            <div style={{ display: 'flex', gap: 4, ...glass, borderRadius: 14, padding: 5 }}>
               {([3, 6, 12] as const).map(p => (
-                <button key={p} onClick={() => setPeriode(p)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors
-                    ${periode === p ? 'bg-amber-700 text-white' : 'text-stone-600 hover:bg-stone-100'}`}>
-                  {p} bln
-                </button>
+                <button key={p} onClick={() => setPeriode(p)} style={filterPill(periode === p)}>{p} bln</button>
               ))}
             </div>
             {modul.simpanPinjam && (
-              <div className="flex gap-1 bg-white border border-stone-200 rounded-xl p-1 shadow-sm">
+              <div style={{ display: 'flex', gap: 4, ...glass, borderRadius: 14, padding: 5 }}>
                 <button onClick={() => setChartType('bar')}
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors
-                    ${chartType === 'bar' ? 'bg-amber-700 text-white' : 'text-stone-600 hover:bg-stone-100'}`}>
+                  style={{ ...filterPill(chartType === 'bar'), display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                   <BarChart2 size={12} /> Bar
                 </button>
                 <button onClick={() => setChartType('line')}
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors
-                    ${chartType === 'line' ? 'bg-amber-700 text-white' : 'text-stone-600 hover:bg-stone-100'}`}>
+                  style={{ ...filterPill(chartType === 'line'), display: 'inline-flex', alignItems: 'center', gap: 5 }}>
                   <TrendingUp size={12} /> Line
                 </button>
               </div>
             )}
           </div>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-
+          {/* Charts */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))', gap: 16 }}>
             {modul.simpanPinjam && (
-              <div className="bg-white border border-stone-200 rounded-xl shadow-sm p-4">
-                <div className="flex items-center justify-between mb-1">
-                  <p className="text-stone-700 text-sm font-medium">Tren Simpanan</p>
-                  {avgSimpanan > 0 && (
-                    <span className="text-[10px] text-stone-400">Avg: {fmtRb(avgSimpanan)}</span>
-                  )}
+              <div style={{ ...glass, borderRadius: 18, padding: '16px 18px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: '#0f2a1d' }}>Tren Simpanan</p>
+                  {avgSimpanan > 0 && <span style={{ fontSize: 11, color: '#9aa39c' }}>Avg: {fmtRb(avgSimpanan)}</span>}
                 </div>
-                <p className="text-stone-400 text-xs mb-3">{periode} bulan terakhir</p>
+                <p style={{ fontSize: 12, color: '#9aa39c', marginBottom: 12 }}>{periode} bulan terakhir</p>
                 <ResponsiveContainer width="100%" height={200}>
                   {chartType === 'bar' ? (
                     <BarChart data={simpananVisible} barSize={simpananVisible.length <= 4 ? 32 : 20}>
-                      <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#f5f5f4" />
-                      <XAxis dataKey="bulan" stroke="#a8a29e" fontSize={11} tickLine={false} axisLine={false} />
-                      <YAxis stroke="#a8a29e" fontSize={11} tickFormatter={fmtRb} tickLine={false} axisLine={false} width={36} />
-                      <Tooltip content={<SimpananTooltip />} cursor={{ fill: '#f5f5f4' }} />
-                      {avgSimpanan > 0 && (
-                        <ReferenceLine y={avgSimpanan} stroke="#b45309" strokeDasharray="4 2" strokeOpacity={0.5}
-                          label={{ value: 'avg', position: 'right', fontSize: 9, fill: '#b45309' }} />
-                      )}
+                      <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="rgba(26,71,49,.06)" />
+                      <XAxis dataKey="bulan" stroke="#9aa39c" fontSize={11} tickLine={false} axisLine={false} />
+                      <YAxis stroke="#9aa39c" fontSize={11} tickFormatter={fmtRb} tickLine={false} axisLine={false} width={36} />
+                      <Tooltip content={<SimpananTooltip />} cursor={{ fill: 'rgba(26,71,49,.04)' }} />
+                      {avgSimpanan > 0 && <ReferenceLine y={avgSimpanan} stroke="#c9963a" strokeDasharray="4 2" strokeOpacity={0.5} label={{ value: 'avg', position: 'right', fontSize: 9, fill: '#c9963a' }} />}
                       <Bar dataKey="total" radius={[5, 5, 0, 0]} isAnimationActive>
-                        {simpananVisible.map((entry, i) => (
-                          <Cell key={i}
-                            fill={entry.total >= avgSimpanan ? '#b45309' : '#d6a87a'}
-                          />
-                        ))}
+                        {simpananVisible.map((entry, i) => <Cell key={i} fill={entry.total >= avgSimpanan ? '#1a4731' : '#7aad8a'} />)}
                       </Bar>
                     </BarChart>
                   ) : (
                     <AreaChart data={simpananVisible}>
                       <defs>
                         <linearGradient id="simpGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#b45309" stopOpacity={0.18} />
-                          <stop offset="95%" stopColor="#b45309" stopOpacity={0.01} />
+                          <stop offset="5%" stopColor="#1a4731" stopOpacity={0.18} />
+                          <stop offset="95%" stopColor="#1a4731" stopOpacity={0.01} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#f5f5f4" />
-                      <XAxis dataKey="bulan" stroke="#a8a29e" fontSize={11} tickLine={false} axisLine={false} />
-                      <YAxis stroke="#a8a29e" fontSize={11} tickFormatter={fmtRb} tickLine={false} axisLine={false} width={36} />
+                      <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="rgba(26,71,49,.06)" />
+                      <XAxis dataKey="bulan" stroke="#9aa39c" fontSize={11} tickLine={false} axisLine={false} />
+                      <YAxis stroke="#9aa39c" fontSize={11} tickFormatter={fmtRb} tickLine={false} axisLine={false} width={36} />
                       <Tooltip content={<SimpananTooltip />} />
-                      {avgSimpanan > 0 && (
-                        <ReferenceLine y={avgSimpanan} stroke="#b45309" strokeDasharray="4 2" strokeOpacity={0.5}
-                          label={{ value: 'avg', position: 'right', fontSize: 9, fill: '#b45309' }} />
-                      )}
-                      <Area dataKey="total" stroke="#b45309" strokeWidth={2.5} fill="url(#simpGrad)"
-                        dot={{ r: 4, fill: '#b45309', stroke: '#fff', strokeWidth: 2 }}
-                        activeDot={{ r: 6, fill: '#b45309', stroke: '#fff', strokeWidth: 2 }}
-                        isAnimationActive />
+                      {avgSimpanan > 0 && <ReferenceLine y={avgSimpanan} stroke="#c9963a" strokeDasharray="4 2" strokeOpacity={0.5} label={{ value: 'avg', position: 'right', fontSize: 9, fill: '#c9963a' }} />}
+                      <Area dataKey="total" stroke="#1a4731" strokeWidth={2.5} fill="url(#simpGrad)" dot={{ r: 4, fill: '#1a4731', stroke: '#fff', strokeWidth: 2 }} activeDot={{ r: 6, fill: '#1a4731', stroke: '#fff', strokeWidth: 2 }} isAnimationActive />
                     </AreaChart>
                   )}
                 </ResponsiveContainer>
@@ -505,70 +452,58 @@ export default function LensPage() {
             )}
 
             {modul.simpanPinjam && angsuranVisible.some(a => a.tepat + a.terlambat > 0) && (
-              <div className="bg-white border border-stone-200 rounded-xl shadow-sm p-4">
-                <p className="text-stone-700 text-sm font-medium mb-1">Ketepatan Angsuran</p>
-                <p className="text-stone-400 text-xs mb-3">{periode} bulan terakhir</p>
+              <div style={{ ...glass, borderRadius: 18, padding: '16px 18px' }}>
+                <p style={{ fontSize: 14, fontWeight: 700, color: '#0f2a1d', marginBottom: 4 }}>Ketepatan Angsuran</p>
+                <p style={{ fontSize: 12, color: '#9aa39c', marginBottom: 12 }}>{periode} bulan terakhir</p>
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={angsuranVisible} barSize={angsuranVisible.length <= 4 ? 32 : 20}>
-                    <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#f5f5f4" />
-                    <XAxis dataKey="bulan" stroke="#a8a29e" fontSize={11} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#a8a29e" fontSize={11} allowDecimals={false} tickLine={false} axisLine={false} width={24} />
-                    <Tooltip content={<AngsuranTooltip />} cursor={{ fill: '#f5f5f4' }} />
-                    <Legend iconType="circle" iconSize={8}
-                      formatter={(v) => <span className="text-stone-600 text-xs">{v === 'tepat' ? 'Tepat Waktu' : 'Terlambat'}</span>} />
-                    <Bar dataKey="tepat" name="tepat" stackId="a" fill="#22c55e" radius={[0, 0, 0, 0]} isAnimationActive />
-                    <Bar dataKey="terlambat" name="terlambat" stackId="a" fill="#ef4444" radius={[4, 4, 0, 0]} isAnimationActive />
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="rgba(26,71,49,.06)" />
+                    <XAxis dataKey="bulan" stroke="#9aa39c" fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#9aa39c" fontSize={11} allowDecimals={false} tickLine={false} axisLine={false} width={24} />
+                    <Tooltip content={<AngsuranTooltip />} cursor={{ fill: 'rgba(26,71,49,.04)' }} />
+                    <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ fontSize: 12, color: '#46544b' }}>{v === 'tepat' ? 'Tepat Waktu' : 'Terlambat'}</span>} />
+                    <Bar dataKey="tepat" name="tepat" stackId="a" fill="#22c55e" radius={[0,0,0,0]} isAnimationActive />
+                    <Bar dataKey="terlambat" name="terlambat" stackId="a" fill="#ef4444" radius={[4,4,0,0]} isAnimationActive />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             )}
 
             {modul.ternak && data.ternak.length > 0 && (
-              <div className="bg-white border border-stone-200 rounded-xl shadow-sm p-4">
-                <p className="text-stone-700 text-sm font-medium mb-1">Komposisi Ternak</p>
-                <p className="text-stone-400 text-xs mb-1">Hover atau klik untuk detail</p>
+              <div style={{ ...glass, borderRadius: 18, padding: '16px 18px' }}>
+                <p style={{ fontSize: 14, fontWeight: 700, color: '#0f2a1d', marginBottom: 4 }}>Komposisi Ternak</p>
+                <p style={{ fontSize: 12, color: '#9aa39c', marginBottom: 4 }}>Hover atau klik untuk detail</p>
                 <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
-
                     <Pie {...{
-                      data: data.ternak,
-                      dataKey: 'value',
-                      nameKey: 'name',
-                      innerRadius: 52,
-                      outerRadius: 80,
-                      paddingAngle: 3,
-                      activeIndex: activeTernakIdx,
-                      activeShape: (props: any) => <ActivePieShape {...props} />,
+                      data: data.ternak, dataKey: 'value', nameKey: 'name',
+                      innerRadius: 52, outerRadius: 80, paddingAngle: 3,
+                      activeIndex: activeTernakIdx, activeShape: (props: any) => <ActivePieShape {...props} />,
                       onMouseEnter: (_: any, i: number) => setActiveTernakIdx(i),
                       onClick: (_: any, i: number) => setActiveTernakIdx(i),
                       isAnimationActive: true,
                     } as any}>
-                      {data.ternak.map((e) => (
-                        <Cell key={e.name} fill={WARNA_TERNAK[e.name] ?? '#a8a29e'}
-                          stroke="white" strokeWidth={2} style={{ cursor: 'pointer' }} />
-                      ))}
+                      {data.ternak.map(e => <Cell key={e.name} fill={WARNA_TERNAK[e.name] ?? '#9aa39c'} stroke="white" strokeWidth={2} style={{ cursor: 'pointer' }} />)}
                     </Pie>
-                    <Legend iconType="circle" iconSize={9}
-                      formatter={(v) => <span className="text-stone-600 text-xs capitalize">{v}</span>} />
+                    <Legend iconType="circle" iconSize={9} formatter={(v) => <span style={{ fontSize: 12, color: '#46544b', textTransform: 'capitalize' }}>{v}</span>} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
             )}
 
             {modul.pakan && data.pakan.length > 0 && (
-              <div className="bg-white border border-stone-200 rounded-xl shadow-sm p-4">
-                <p className="text-stone-700 text-sm font-medium mb-1">Stok Pakan</p>
-                <p className="text-stone-400 text-xs mb-3">Stok vs batas minimum</p>
+              <div style={{ ...glass, borderRadius: 18, padding: '16px 18px' }}>
+                <p style={{ fontSize: 14, fontWeight: 700, color: '#0f2a1d', marginBottom: 4 }}>Stok Pakan</p>
+                <p style={{ fontSize: 12, color: '#9aa39c', marginBottom: 12 }}>Stok vs batas minimum</p>
                 <ResponsiveContainer width="100%" height={Math.max(160, data.pakan.length * 48)}>
                   <BarChart data={data.pakan} layout="vertical" barSize={12}>
-                    <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="#f5f5f4" />
-                    <XAxis type="number" stroke="#a8a29e" fontSize={11} tickLine={false} axisLine={false} tickFormatter={v => String(v)} />
-                    <YAxis type="category" dataKey="nama" width={72} stroke="#78716c" fontSize={11} tickLine={false} axisLine={false} />
-                    <Tooltip content={<PakanTooltip />} cursor={{ fill: '#f5f5f4' }} />
-                    <Legend iconType="circle" iconSize={8}
-                      formatter={(v) => <span className="text-stone-600 text-xs">{v === 'stok' ? 'Stok' : 'Minimum'}</span>} />
-                    <Bar dataKey="minimum" name="minimum" fill="#d6d3d1" radius={[0, 4, 4, 0]} isAnimationActive />
-                    <Bar dataKey="stok" name="stok" radius={[0, 4, 4, 0]} isAnimationActive>
+                    <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="rgba(26,71,49,.06)" />
+                    <XAxis type="number" stroke="#9aa39c" fontSize={11} tickLine={false} axisLine={false} tickFormatter={v => String(v)} />
+                    <YAxis type="category" dataKey="nama" width={72} stroke="#46544b" fontSize={11} tickLine={false} axisLine={false} />
+                    <Tooltip content={<PakanTooltip />} cursor={{ fill: 'rgba(26,71,49,.04)' }} />
+                    <Legend iconType="circle" iconSize={8} formatter={(v) => <span style={{ fontSize: 12, color: '#46544b' }}>{v === 'stok' ? 'Stok' : 'Minimum'}</span>} />
+                    <Bar dataKey="minimum" name="minimum" fill="#d6d3d1" radius={[0,4,4,0]} isAnimationActive />
+                    <Bar dataKey="stok" name="stok" radius={[0,4,4,0]} isAnimationActive>
                       {data.pakan.map((entry, i) => {
                         const isCrit = entry.minimum > 0 && entry.stok <= entry.minimum
                         const isWarn = !isCrit && entry.minimum > 0 && entry.stok <= entry.minimum * 1.5
@@ -579,38 +514,36 @@ export default function LensPage() {
                 </ResponsiveContainer>
               </div>
             )}
-
           </div>
         </div>
       )}
 
       {mode === 'rinci' && adaModul && (
-        <div className="space-y-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {rinciLoading ? (
-            <div className="flex items-center justify-center gap-3 py-12 bg-white border border-stone-200 rounded-xl">
-              <div className="w-5 h-5 border-2 border-amber-700 border-t-transparent rounded-full animate-spin" />
-              <p className="text-stone-400 text-sm">Memuat data rinci...</p>
+            <div style={{ ...glass, borderRadius: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '48px 0' }}>
+              <div style={{ width: 22, height: 22, borderRadius: '50%', border: '3px solid rgba(26,71,49,.15)', borderTopColor: '#1a4731', animation: 'lmbSpin 0.8s linear infinite' }} />
+              <p style={{ fontSize: 13.5, color: '#9aa39c' }}>Memuat data rinci...</p>
             </div>
           ) : rinciData ? (
             <>
               {modul.simpanPinjam && (
                 <>
-
-                  <div className="bg-white border border-stone-200 rounded-xl shadow-sm overflow-hidden">
-                    <div className="px-4 py-3 border-b border-stone-100 flex items-start justify-between gap-2">
+                  <div style={{ ...glass, borderRadius: 20, overflow: 'hidden' }}>
+                    <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(26,71,49,.08)', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
                       <div>
-                        <p className="text-stone-900 text-sm font-semibold">Setoran Bulan Ini</p>
-                        <p className="text-stone-400 text-xs mt-0.5">{rinciData.simpananBulanIni.length} transaksi terkonfirmasi</p>
+                        <p style={{ fontSize: 14.5, fontWeight: 800, color: '#0f2a1d' }}>Setoran Bulan Ini</p>
+                        <p style={{ fontSize: 12, color: '#9aa39c', marginTop: 2 }}>{rinciData.simpananBulanIni.length} transaksi terkonfirmasi</p>
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-amber-700 font-bold text-sm">
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <p style={{ fontSize: 14, fontWeight: 800, color: '#1a4731' }}>
                           {rp(rinciData.simpananBulanIni.reduce((s, x) => s + x.jumlah, 0))}
                         </p>
                         {rinciData.simpananBulanLalu > 0 && (() => {
                           const selisih = rinciData.simpananBulanIni.reduce((s, x) => s + x.jumlah, 0) - rinciData.simpananBulanLalu
                           const pct = Math.round(Math.abs(selisih) / rinciData.simpananBulanLalu * 100)
                           return (
-                            <p className={`text-xs flex items-center justify-end gap-0.5 mt-0.5 ${selisih >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                            <p style={{ fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3, marginTop: 3, color: selisih >= 0 ? '#1d7a4d' : '#c0392b' }}>
                               {selisih > 0 ? <ArrowUp size={11} /> : selisih < 0 ? <ArrowDown size={11} /> : <Minus size={11} />}
                               {pct}% vs bulan lalu
                             </p>
@@ -618,213 +551,208 @@ export default function LensPage() {
                         })()}
                       </div>
                     </div>
-                    <div className="px-4 py-2 flex items-center gap-2 border-b border-stone-100 bg-stone-50">
-                      <span className="text-stone-400 text-xs">Urut:</span>
+                    <div style={{ padding: '8px 20px', borderBottom: '1px solid rgba(26,71,49,.05)', background: 'rgba(247,244,236,.3)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 12, color: '#9aa39c' }}>Urut:</span>
                       {(['tanggal', 'jumlah'] as const).map(s => (
-                        <button key={s} onClick={() => setSimpananSort(s)}
-                          className={`text-xs px-2.5 py-1 rounded-full border transition-colors
-                            ${simpananSort === s ? 'bg-amber-700 text-white border-amber-700' : 'text-stone-600 border-stone-300 hover:border-stone-400 bg-white'}`}>
+                        <button key={s} onClick={() => setSimpananSort(s)} style={filterPill(simpananSort === s)}>
                           {s === 'tanggal' ? 'Terbaru' : 'Terbesar'}
                         </button>
                       ))}
                     </div>
                     {rinciData.simpananBulanIni.length === 0 ? (
-                      <p className="text-stone-400 text-sm text-center py-8">Belum ada setoran bulan ini</p>
+                      <p style={{ fontSize: 13.5, color: '#9aa39c', textAlign: 'center', padding: '32px 0' }}>Belum ada setoran bulan ini</p>
                     ) : (
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="bg-stone-50 text-stone-500 text-xs border-b border-stone-100">
-                            <th className="px-4 py-2.5 text-left font-medium">Anggota</th>
-                            <th className="px-4 py-2.5 text-left font-medium">Tanggal</th>
-                            <th className="px-4 py-2.5 text-right font-medium">Jumlah</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-stone-100">
-                          {sortedSimpanan.map(s => (
-                            <tr key={s.id} className="hover:bg-stone-50 transition-colors">
-                              <td className="px-4 py-2.5 text-stone-900 font-medium">{s.anggota?.nama ?? '—'}</td>
-                              <td className="px-4 py-2.5 text-stone-500 text-xs">
-                                {new Date(s.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                              </td>
-                              <td className="px-4 py-2.5 text-right text-stone-900 font-semibold">{rp(s.jumlah)}</td>
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid rgba(26,71,49,.08)' }}>
+                              <th style={thStyle}>Anggota</th>
+                              <th style={thStyle}>Tanggal</th>
+                              <th style={{ ...thStyle, textAlign: 'right' }}>Jumlah</th>
                             </tr>
-                          ))}
-                        </tbody>
-                        <tfoot>
-                          <tr className="border-t-2 border-amber-200 bg-amber-50">
-                            <td colSpan={2} className="px-4 py-2.5 text-amber-800 font-semibold text-sm">Total</td>
-                            <td className="px-4 py-2.5 text-right text-amber-800 font-bold">
-                              {rp(rinciData.simpananBulanIni.reduce((s, x) => s + x.jumlah, 0))}
-                            </td>
-                          </tr>
-                        </tfoot>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {sortedSimpanan.map(s => (
+                              <tr key={s.id} style={{ borderBottom: '1px solid rgba(26,71,49,.05)' }}
+                                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(26,71,49,.03)' }}
+                                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
+                                <td style={{ padding: '11px 20px', fontWeight: 700, color: '#0f2a1d' }}>{s.anggota?.nama ?? '—'}</td>
+                                <td style={{ padding: '11px 20px', color: '#9aa39c', fontSize: 12 }}>
+                                  {new Date(s.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                </td>
+                                <td style={{ padding: '11px 20px', textAlign: 'right', fontWeight: 700, color: '#0f2a1d' }}>{rp(s.jumlah)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot>
+                            <tr style={{ borderTop: '2px solid rgba(201,150,58,.3)', background: 'rgba(201,150,58,.07)' }}>
+                              <td colSpan={2} style={{ padding: '11px 20px', fontWeight: 800, color: '#8a6420', fontSize: 14 }}>Total</td>
+                              <td style={{ padding: '11px 20px', textAlign: 'right', fontWeight: 800, color: '#8a6420', fontSize: 14 }}>
+                                {rp(rinciData.simpananBulanIni.reduce((s, x) => s + x.jumlah, 0))}
+                              </td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
                     )}
                   </div>
 
-                  <div className="bg-white border border-stone-200 rounded-xl shadow-sm overflow-hidden">
-                    <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between flex-wrap gap-2">
+                  <div style={{ ...glass, borderRadius: 20, overflow: 'hidden' }}>
+                    <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(26,71,49,.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
                       <div>
-                        <p className="text-stone-900 text-sm font-semibold">Status Angsuran</p>
-                        <p className="text-stone-400 text-xs mt-0.5">{filteredAngsuran.length} dari {rinciData.angsuranAll.length} entri</p>
+                        <p style={{ fontSize: 14.5, fontWeight: 800, color: '#0f2a1d' }}>Status Angsuran</p>
+                        <p style={{ fontSize: 12, color: '#9aa39c', marginTop: 2 }}>{filteredAngsuran.length} dari {rinciData.angsuranAll.length} entri</p>
                       </div>
-                      <div className="flex gap-1 flex-wrap">
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                         {[
                           { key: 'semua', label: 'Semua' },
                           { key: 'lunas', label: 'Lunas' },
                           { key: 'terlambat', label: 'Terlambat' },
                           { key: 'belum_lunas', label: 'Belum Lunas' },
                         ].map(f => (
-                          <button key={f.key} onClick={() => setAngsuranFilter(f.key)}
-                            className={`text-xs px-2.5 py-1 rounded-full border transition-colors
-                              ${angsuranFilter === f.key ? 'bg-amber-700 text-white border-amber-700' : 'text-stone-600 border-stone-300 hover:border-stone-400 bg-white'}`}>
+                          <button key={f.key} onClick={() => setAngsuranFilter(f.key)} style={filterPill(angsuranFilter === f.key)}>
                             {f.label}
-                            {f.key !== 'semua' && (
-                              <span className="ml-1 opacity-70">({rinciData.angsuranAll.filter(a => a.status === f.key).length})</span>
-                            )}
+                            {f.key !== 'semua' && <span style={{ marginLeft: 4, opacity: 0.7 }}>({rinciData.angsuranAll.filter(a => a.status === f.key).length})</span>}
                           </button>
                         ))}
                       </div>
                     </div>
                     {filteredAngsuran.length === 0 ? (
-                      <p className="text-stone-400 text-sm text-center py-8">Tidak ada data angsuran</p>
+                      <p style={{ fontSize: 13.5, color: '#9aa39c', textAlign: 'center', padding: '32px 0' }}>Tidak ada data angsuran</p>
                     ) : (
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="bg-stone-50 text-stone-500 text-xs border-b border-stone-100">
-                            <th className="px-4 py-2.5 text-left font-medium">Anggota</th>
-                            <th className="px-4 py-2.5 text-left font-medium">Jatuh Tempo</th>
-                            <th className="px-4 py-2.5 text-center font-medium">Status</th>
-                            <th className="px-4 py-2.5 text-right font-medium">Dibayar</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-stone-100">
-                          {filteredAngsuran.map(a => (
-                            <tr key={a.id} className="hover:bg-stone-50 transition-colors">
-                              <td className="px-4 py-2.5 text-stone-900 font-medium">
-                                {(a.pinjaman?.anggota as any)?.nama ?? '—'}
-                              </td>
-                              <td className="px-4 py-2.5 text-stone-500 text-xs">
-                                {a.tanggal_jatuh_tempo ? new Date(a.tanggal_jatuh_tempo).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
-                              </td>
-                              <td className="px-4 py-2.5 text-center">
-                                <span className={`text-xs border px-2 py-0.5 rounded-full font-medium ${STATUS_ANGSURAN[a.status] ?? 'bg-stone-100 text-stone-600 border-stone-200'}`}>
-                                  {a.status}
-                                </span>
-                              </td>
-                              <td className="px-4 py-2.5 text-right text-stone-700">
-                                {a.jumlah_bayar ? rp(a.jumlah_bayar) : <span className="text-stone-300">—</span>}
-                              </td>
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid rgba(26,71,49,.08)' }}>
+                              <th style={thStyle}>Anggota</th>
+                              <th style={thStyle}>Jatuh Tempo</th>
+                              <th style={{ ...thStyle, textAlign: 'center' }}>Status</th>
+                              <th style={{ ...thStyle, textAlign: 'right' }}>Dibayar</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {filteredAngsuran.map(a => (
+                              <tr key={a.id} style={{ borderBottom: '1px solid rgba(26,71,49,.05)' }}
+                                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(26,71,49,.03)' }}
+                                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
+                                <td style={{ padding: '11px 20px', fontWeight: 700, color: '#0f2a1d' }}>
+                                  {(a.pinjaman?.anggota as any)?.nama ?? '—'}
+                                </td>
+                                <td style={{ padding: '11px 20px', color: '#9aa39c', fontSize: 12 }}>
+                                  {a.tanggal_jatuh_tempo ? new Date(a.tanggal_jatuh_tempo).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+                                </td>
+                                <td style={{ padding: '11px 20px', textAlign: 'center' }}>
+                                  <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999, display: 'inline-block', ...(STATUS_ANGSURAN[a.status] ?? { background: 'rgba(26,71,49,.07)', color: '#46544b', border: '1px solid rgba(26,71,49,.12)' }) }}>
+                                    {a.status}
+                                  </span>
+                                </td>
+                                <td style={{ padding: '11px 20px', textAlign: 'right', color: '#46544b' }}>
+                                  {a.jumlah_bayar ? rp(a.jumlah_bayar) : <span style={{ color: '#c4ccc6' }}>—</span>}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     )}
                   </div>
                 </>
               )}
 
               {modul.ternak && (
-                <div className="bg-white border border-stone-200 rounded-xl shadow-sm overflow-hidden">
-                  <div className="px-4 py-3 border-b border-stone-100 flex items-center justify-between flex-wrap gap-2">
+                <div style={{ ...glass, borderRadius: 20, overflow: 'hidden' }}>
+                  <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(26,71,49,.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
                     <div>
-                      <p className="text-stone-900 text-sm font-semibold">Daftar Ternak</p>
-                      <p className="text-stone-400 text-xs mt-0.5">{filteredTernak.length} dari {rinciData.ternakAll.length} ekor</p>
+                      <p style={{ fontSize: 14.5, fontWeight: 800, color: '#0f2a1d' }}>Daftar Ternak</p>
+                      <p style={{ fontSize: 12, color: '#9aa39c', marginTop: 2 }}>{filteredTernak.length} dari {rinciData.ternakAll.length} ekor</p>
                     </div>
-                    <div className="flex gap-1 flex-wrap">
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                       {['semua', 'sehat', 'pantau', 'sakit', 'mati'].map(f => (
-                        <button key={f} onClick={() => setTernakFilter(f)}
-                          className={`text-xs px-2.5 py-1 rounded-full border transition-colors capitalize
-                            ${ternakFilter === f ? 'bg-amber-700 text-white border-amber-700' : 'text-stone-600 border-stone-300 hover:border-stone-400 bg-white'}`}>
-                          {f}
-                          {f !== 'semua' && (
-                            <span className="ml-1 opacity-70">({rinciData.ternakAll.filter(t => t.status === f).length})</span>
-                          )}
+                        <button key={f} onClick={() => setTernakFilter(f)} style={filterPill(ternakFilter === f)}>
+                          {f} {f !== 'semua' && <span style={{ marginLeft: 3, opacity: 0.7 }}>({rinciData.ternakAll.filter(t => t.status === f).length})</span>}
                         </button>
                       ))}
                     </div>
                   </div>
                   {filteredTernak.length === 0 ? (
-                    <p className="text-stone-400 text-sm text-center py-8">Tidak ada ternak dengan filter ini</p>
+                    <p style={{ fontSize: 13.5, color: '#9aa39c', textAlign: 'center', padding: '32px 0' }}>Tidak ada ternak dengan filter ini</p>
                   ) : (
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-stone-50 text-stone-500 text-xs border-b border-stone-100">
-                          <th className="px-4 py-2.5 text-left font-medium">Kode</th>
-                          <th className="px-4 py-2.5 text-left font-medium">Jenis</th>
-                          <th className="px-4 py-2.5 text-center font-medium">Status</th>
-                          <th className="px-4 py-2.5 text-right font-medium">Umur</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-stone-100">
-                        {filteredTernak.map(t => (
-                          <tr key={t.id} className="hover:bg-stone-50 transition-colors">
-                            <td className="px-4 py-2.5 text-stone-900 font-mono font-medium text-xs">{t.kode}</td>
-                            <td className="px-4 py-2.5 text-stone-700 capitalize">{t.jenis}</td>
-                            <td className="px-4 py-2.5 text-center">
-                              <span className={`text-xs border px-2 py-0.5 rounded-full font-medium capitalize ${STATUS_TERNAK[t.status] ?? 'bg-stone-100 text-stone-600 border-stone-200'}`}>
-                                {t.status}
-                              </span>
-                            </td>
-                            <td className="px-4 py-2.5 text-right text-stone-500 text-xs">
-                              {t.umur_bulan != null ? `${t.umur_bulan} bln` : '—'}
-                            </td>
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13.5 }}>
+                        <thead>
+                          <tr style={{ borderBottom: '1px solid rgba(26,71,49,.08)' }}>
+                            <th style={thStyle}>Kode</th>
+                            <th style={thStyle}>Jenis</th>
+                            <th style={{ ...thStyle, textAlign: 'center' }}>Status</th>
+                            <th style={{ ...thStyle, textAlign: 'right' }}>Umur</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {filteredTernak.map(t => (
+                            <tr key={t.id} style={{ borderBottom: '1px solid rgba(26,71,49,.05)' }}
+                              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(26,71,49,.03)' }}
+                              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}>
+                              <td style={{ padding: '11px 20px', fontFamily: 'monospace', fontSize: 12, fontWeight: 600, color: '#0f2a1d' }}>{t.kode}</td>
+                              <td style={{ padding: '11px 20px', color: '#46544b', textTransform: 'capitalize' }}>{t.jenis}</td>
+                              <td style={{ padding: '11px 20px', textAlign: 'center' }}>
+                                <span style={{ fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 999, display: 'inline-block', textTransform: 'capitalize', ...(STATUS_TERNAK[t.status] ?? { background: 'rgba(26,71,49,.07)', color: '#46544b', border: '1px solid rgba(26,71,49,.12)' }) }}>
+                                  {t.status}
+                                </span>
+                              </td>
+                              <td style={{ padding: '11px 20px', textAlign: 'right', color: '#9aa39c', fontSize: 12 }}>
+                                {t.umur_bulan != null ? `${t.umur_bulan} bln` : '—'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   )}
                 </div>
               )}
 
               {modul.pakan && (
-                <div className="bg-white border border-stone-200 rounded-xl shadow-sm overflow-hidden">
-                  <div className="px-4 py-3 border-b border-stone-100">
-                    <p className="text-stone-900 text-sm font-semibold">Stok Pakan</p>
-                    <p className="text-stone-400 text-xs mt-0.5">{rinciData.pakanAll.length} jenis</p>
+                <div style={{ ...glass, borderRadius: 20, overflow: 'hidden' }}>
+                  <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(26,71,49,.08)' }}>
+                    <p style={{ fontSize: 14.5, fontWeight: 800, color: '#0f2a1d' }}>Stok Pakan</p>
+                    <p style={{ fontSize: 12, color: '#9aa39c', marginTop: 2 }}>{rinciData.pakanAll.length} jenis</p>
                   </div>
-                  <div className="divide-y divide-stone-100">
-                    {rinciData.pakanAll.map(p => {
-                      const isCritical = p.batas_minimum > 0 && p.stok <= p.batas_minimum
-                      const isWarning = !isCritical && p.batas_minimum > 0 && p.stok <= p.batas_minimum * 1.5
-                      const maxRef = Math.max(p.batas_minimum * 3, p.stok, 1)
-                      const pct = Math.min(100, (p.stok / maxRef) * 100)
-                      const minPct = Math.min(100, (p.batas_minimum / maxRef) * 100)
-                      return (
-                        <div key={p.id} className={`px-4 py-3.5 ${isCritical ? 'bg-red-50' : isWarning ? 'bg-amber-50' : ''}`}>
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              {isCritical && <AlertTriangle size={13} className="text-red-500 shrink-0" />}
-                              <span className="text-stone-900 text-sm font-medium">{p.nama}</span>
-                            </div>
-                            <div className="text-right">
-                              <span className={`text-sm font-bold ${isCritical ? 'text-red-600' : isWarning ? 'text-amber-700' : 'text-stone-900'}`}>
-                                {p.stok} {p.satuan}
-                              </span>
-                              {isCritical && <span className="ml-2 text-xs bg-red-100 text-red-600 border border-red-200 px-1.5 py-0.5 rounded-full font-medium">Kritis</span>}
-                              {isWarning && <span className="ml-2 text-xs bg-amber-100 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full font-medium">Menipis</span>}
-                            </div>
+                  {rinciData.pakanAll.map(p => {
+                    const isCritical = p.batas_minimum > 0 && p.stok <= p.batas_minimum
+                    const isWarning = !isCritical && p.batas_minimum > 0 && p.stok <= p.batas_minimum * 1.5
+                    const maxRef = Math.max(p.batas_minimum * 3, p.stok, 1)
+                    const pct = Math.min(100, (p.stok / maxRef) * 100)
+                    const minPct = Math.min(100, (p.batas_minimum / maxRef) * 100)
+                    return (
+                      <div key={p.id} style={{ padding: '14px 20px', borderBottom: '1px solid rgba(26,71,49,.05)', background: isCritical ? 'rgba(214,87,69,.05)' : isWarning ? 'rgba(201,150,58,.05)' : 'transparent' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            {isCritical && <AlertTriangle size={13} style={{ color: '#d65745', flexShrink: 0 }} />}
+                            <span style={{ fontSize: 14, fontWeight: 700, color: '#0f2a1d' }}>{p.nama}</span>
                           </div>
-                          <div className="relative h-2.5 bg-stone-200 rounded-full overflow-hidden">
-                            <div className={`h-full rounded-full transition-all ${isCritical ? 'bg-red-500' : isWarning ? 'bg-amber-400' : 'bg-green-500'}`}
-                              style={{ width: `${pct}%` }} />
-                            {p.batas_minimum > 0 && (
-                              <div className="absolute top-0 bottom-0 w-0.5 bg-stone-500 opacity-40"
-                                style={{ left: `${minPct}%` }} />
-                            )}
+                          <div style={{ textAlign: 'right' }}>
+                            <span style={{ fontSize: 15, fontWeight: 800, color: isCritical ? '#c0392b' : isWarning ? '#8a6420' : '#0f2a1d' }}>{p.stok} {p.satuan}</span>
+                            {isCritical && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#c0392b', background: 'rgba(214,87,69,.12)', border: '1px solid rgba(214,87,69,.25)', padding: '2px 8px', borderRadius: 999 }}>Kritis</span>}
+                            {isWarning && <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: '#8a6420', background: 'rgba(201,150,58,.12)', border: '1px solid rgba(201,150,58,.3)', padding: '2px 8px', borderRadius: 999 }}>Menipis</span>}
                           </div>
+                        </div>
+                        <div style={{ position: 'relative', height: 9, background: 'rgba(26,71,49,.1)', borderRadius: 999, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', borderRadius: 999, transition: 'width .4s', background: isCritical ? '#d65745' : isWarning ? '#c9963a' : '#2f9e63', width: `${pct}%` }} />
                           {p.batas_minimum > 0 && (
-                            <p className="text-stone-400 text-xs mt-1.5">
-                              Minimum: {p.batas_minimum} {p.satuan} ·{' '}
-                              <span className={isCritical ? 'text-red-500 font-medium' : isWarning ? 'text-amber-600' : 'text-stone-400'}>
-                                {isCritical ? `defisit ${p.batas_minimum - p.stok} ${p.satuan}` : `sisa buffer ${p.stok - p.batas_minimum} ${p.satuan}`}
-                              </span>
-                            </p>
+                            <div style={{ position: 'absolute', top: 0, bottom: 0, width: 2, background: 'rgba(26,71,49,.4)', left: `${minPct}%` }} />
                           )}
                         </div>
-                      )
-                    })}
-                  </div>
+                        {p.batas_minimum > 0 && (
+                          <p style={{ fontSize: 12, color: '#9aa39c', marginTop: 6 }}>
+                            Minimum: {p.batas_minimum} {p.satuan} ·{' '}
+                            <span style={{ color: isCritical ? '#c0392b' : isWarning ? '#8a6420' : '#9aa39c', fontWeight: isCritical || isWarning ? 600 : 400 }}>
+                              {isCritical ? `defisit ${p.batas_minimum - p.stok} ${p.satuan}` : `sisa buffer ${p.stok - p.batas_minimum} ${p.satuan}`}
+                            </span>
+                          </p>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </>
