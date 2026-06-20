@@ -1,0 +1,777 @@
+LUMBUNG — BUILD PIPELINE LENGKAP (Babak Final TechnoScape 9.0)
+==============================================================
+Tanda: [ ] belum | [x] selesai | [~] sebagian. Silang saat selesai.
+Tim FraudHunter: Dhafin (BINUS) + Farhan (UNPAD)
+Onsite Build 12-13 Jun | Demo 14 Jun
+Rubrik: Architecture 25% | Fitur 30% | Bug&Accuracy 25% | Implementasi 20%
+
+
+##################################################
+BAGIAN A — PETA BESAR: APA ITU LUMBUNG & BUAT APA
+##################################################
+
+KONTEKS FINAL: Pemerintah kabupaten ingin sistem dari Koperasi Padiwangi
+direplikasi ke 4 koperasi desa lain yang berbeda karakter. Masalah lama:
+(1) data bercampur antar-koperasi, (2) pengurus tak paham laporan,
+(3) bingung berbagi data ke mitra pembiayaan.
+
+STUDY CASE FINAL — 5 SKENARIO YANG HARUS DIJAWAB:
+  A. Anggota (Pak Hendra) lintas koperasi ajukan pembiayaan
+  B. 3 koperasi pengadaan pupuk bersama
+  C. Penerimaan panen di gudang cold storage (dijawab di slide)
+  D. Anomali transaksi kasir after-hours
+  E. Pengawas eksternal audit perubahan data pinjaman
+
+SOLUSI: LUMBUNG = "sistem operasi koperasi" — satu platform, banyak
+koperasi, masing-masing terisolasi tapi bisa berkolaborasi dengan
+kontrol dan audit penuh.
+
+SISTEM — 8 LAYER:
+
+1. LUMBUNG CORE (multi-tenant)
+   APA  : satu platform untuk banyak koperasi; data tiap koperasi terpisah.
+   BUAT : data Koperasi A tidak bocor ke Koperasi B.
+   CARA : setiap baris data diberi koperasi_id; RLS di database memastikan
+          user hanya bisa akses data koperasinya sendiri.
+
+2. LUMBUNG SYNC (offline-first)
+   APA  : aplikasi tetap jalan walau tidak ada internet.
+   BUAT : Harapan Baru lokasi terpencil, sinyal susah; pengurus tetap bisa
+          mencatat, data terkirim otomatis saat sinyal kembali.
+   CARA : simpan ke Dexie (IndexedDB) dulu + antrian outbox -> kirim ke
+          server saat event 'online'.
+
+3. LUMBUNG PASS (paspor data) — HERO FITUR — jawab Case A
+   APA  : cara aman berbagi data ke pemodal/mitra tanpa kirim buku besar.
+   BUAT : jawab "bingung kirim data apa" + "Pak Hendra lintas koperasi".
+          Pemodal verifikasi tanpa akses DB koperasi langsung.
+   CARA : pilih data agregat -> consent per kategori -> hash SHA-256 ->
+          link/QR time-limited -> audit log siapa buka kapan.
+
+4. LUMBUNG LENS (laporan adaptif)
+   APA  : dashboard + laporan mudah dipahami pengurus desa.
+   BUAT : jawab "pengurus tak paham laporan". Angka jadi grafik + narasi.
+   CARA : Recharts (bar/donut/garis) + kalimat otomatis (template/Haiku).
+
+5. LUMBUNG INSIGHT (AI pendukung)
+   APA  : kecerdasan yang mengubah data jadi sinyal terpercaya.
+   BUAT : verifikasi ternak dari foto (anti fiktif) + skor kredit transparan.
+   CARA : COCO-SSD on-device (hitung sapi) + scoring formula eksplisit.
+   CATATAN: AI hanya MEMBANTU; keputusan tetap pengurus (aturan lomba).
+
+6. LUMBUNG ATLAS (pemerintah kabupaten)
+   APA  : dashboard ringkasan semua koperasi untuk pemkab.
+   BUAT : pemkab mengawasi tanpa melanggar privasi anggota.
+   CARA : tampilkan angka AGREGAT saja (VIEW database), bukan data mentah.
+
+7. LUMBUNG GUARD (integritas & audit) — jawab Case D + E
+   APA  : sistem deteksi anomali + audit trail untuk investigasi.
+   BUAT : deteksi kasir curang (D), fasilitasi pengawas eksternal (E).
+   CARA : trigger audit_log setiap INSERT/UPDATE/DELETE + query pola anomali
+          + role pengawas (baca log saja, tidak akses PII anggota lain).
+
+8. LUMBUNG PASAR (pengadaan bersama) — jawab Case B
+   APA  : modul untuk koperasi berkolaborasi beli barang bersama.
+   BUAT : 3 koperasi gabungkan kebutuhan pupuk/pakan -> harga lebih baik.
+   CARA : tabel pengadaan + alokasi per koperasi + status rekening terhubung.
+
+CASE C (Gudang cold storage): dijawab di PPT — arsitektur inventory +
+jadwal offtaker ada di roadmap Q2. Konsep quality tracking ternak
+sudah ada di modul Core (status sehat/pantau/sakit).
+
+ALUR DEMO KILLER (3 menit):
+  1. Catat ternak OFFLINE -> online SINKRON
+  2. FOTO sapi -> AI hitung -> terverifikasi
+  3. Terbitkan Lumbung Pass ke pemodal (Pak Hendra flow, Case A)
+  4. Pemodal buka link -> Terverifikasi -> Setujui Pembiayaan
+  5. Guard: tampilkan anomali kasir terdeteksi (Case D)
+
+
+##################################################
+BAGIAN B — GLOSARIUM TEKNOLOGI
+##################################################
+
+Next.js        : framework web (React) + PWA. Deploy gratis ke Vercel.
+TypeScript     : JavaScript + tipe data -> lebih sedikit bug.
+Tailwind/shadcn: styling & komponen UI siap pakai -> UI rapi cepat.
+PWA            : web yang bisa diinstall seperti app & jalan offline.
+                 Target HP Android murah, tanpa app store.
+Supabase       : backend instan = PostgreSQL + Auth + API + Storage.
+                 Hemat waktu besar untuk tim 2 orang.
+RLS            : Row-Level Security — tiap user hanya akses data
+                 koperasinya. Fondasi multi-tenant.
+Dexie.js       : simpan data di browser (IndexedDB). Dasar offline-first.
+Outbox         : antrian perubahan offline; dikirim otomatis saat online.
+COCO-SSD       : model AI siap pakai, kenali objek "cow" di foto.
+                 Jalan di browser, tanpa training ulang.
+TensorFlow.js  : jalankan AI on-device di browser/HP.
+SHA-256        : sidik jari digital data. Kalau data diubah 1 angka,
+                 sidiknya berubah -> bukti data tidak dipalsukan (Pass).
+audit_log      : tabel catat semua perubahan data: tabel apa, siapa,
+                 kapan, nilai lama vs baru. Dasar Guard (Case D+E).
+Recharts       : grafik bar/donut/garis untuk Lens.
+Vercel         : hosting frontend gratis -> link publik untuk demo.
+Claude Haiku   : LLM untuk narasi laporan otomatis. Opsional + fallback.
+
+
+##################################################
+BAGIAN C — PHASE BUILD
+##################################################
+
+==================================================
+PHASE 0 — PERSIAPAN
+==================================================
+Buat apa: semua akun & tools siap sebelum mulai build, supaya tidak
+buang waktu urusan teknis di hari onsite.
+
+[x] 0.1  Konfirmasi lolos final
+         -> Buat apa: pastikan kita di babak yang benar sebelum invest waktu.
+[x] 0.2  Repo GitHub: github.com/dpunnn/lumbung
+         -> Buat apa: tempat simpan kode + link yang dikumpul ke panitia.
+[x] 0.3  Scaffold Next.js + shadcn selesai
+         -> Buat apa: kerangka aplikasi sudah ada, tinggal isi fitur.
+[ ] 0.4  Finalisasi Figma -> share link "anyone can view"
+         -> Buat apa: wajib dikumpulkan ke panitia sebagai prototype desain.
+[ ] 0.5  Buat akun Supabase + Vercel. Simpan URL/key di .env.local
+         (JANGAN commit ke GitHub).
+         -> Buat apa: tanpa ini database dan deploy tidak jalan.
+[ ] 0.6  SPIKE COCO-SSD: foto sapi di browser -> berhasil hitung?
+         SPIKE Dexie: tulis offline -> sync saat online -> data masuk?
+         -> Buat apa: validasi 2 risiko teknis terbesar SEBELUM build penuh.
+         Kalau gagal di sini, ada waktu ganti strategi.
+
+==================================================
+PHASE 1 — SCAFFOLD & INFRASTRUKTUR
+==================================================
+Buat apa: kerangka aplikasi berdiri + bisa di-deploy + semua library
+terpasang. Tanpa ini, fitur tidak punya "tempat".
+
+[x] 1.1  Next.js + TS + Tailwind + shadcn
+         (komponen: card, button, badge, input, switch, table)
+         -> Buat apa: struktur halaman + komponen UI dasar siap pakai.
+         Hemat waktu besar dibanding bikin dari nol.
+[ ] 1.2  PWA: next-pwa + public/manifest.json + ikon app
+         -> Buat apa: aplikasi bisa "diinstall" di HP Android seperti app
+         biasa tanpa app store. Juga aktifkan cache offline.
+[ ] 1.3  lib/supabase.ts -> client Supabase (URL + anon key dari .env)
+         -> Buat apa: jembatan antara kode Next.js dan database Supabase.
+         Semua query data melewati file ini.
+[ ] 1.4  Deploy "hello world" ke Vercel + set environment variables
+         -> Buat apa: pastikan jalur deploy lancar SEJAK AWAL. Lebih baik
+         tahu masalah deploy sekarang daripada panik di hari demo.
+         Hasil: dapat link publik https://lumbung.vercel.app
+
+==================================================
+PHASE 2 — AUTH & MULTI-TENANT (Lumbung Core)
+==================================================
+Buat apa: orang bisa login sesuai perannya, dan data tiap koperasi
+TERPISAH aman. Ini fondasi utama — harus benar sebelum lanjut ke fitur.
+
+[x] 2.1  Tulis & jalankan supabase/schema.sql (lihat DATA MODEL di bawah)
+         -> Buat apa: buat semua tabel tempat data disimpan. Tanpa ini
+         tidak ada tempat menyimpan apapun.
+[x] 2.2  Aktifkan RLS + tulis policy tiap tabel:
+         - tabel tenant  : koperasi_id = koperasi_id user yang login
+         - audit_log     : pengawas baca log koperasinya saja, bukan PII
+         - pass/[token]  : publik baca via token tanpa login
+         - pengadaan     : koperasi peserta bisa lihat baris mereka sendiri
+         -> Buat apa: INI yang mencegah data Koperasi A bocor ke B.
+         RLS rawan salah konfigurasi, uji sejak awal.
+[x] 2.3  Login email/password (Supabase Auth) + tabel profiles(role)
+         Role: pengurus | kasir | pemodal | pemkab | pengawas
+         Setelah login -> redirect ke halaman sesuai peran.
+         -> Buat apa: tiap peran lihat tampilan & data yang relevan.
+         Pemodal tidak perlu lihat menu ternak; pemkab tidak perlu lihat
+         detail anggota.
+[x] 2.4  UJI multi-tenant (DoD Fondasi):
+         Login 2 akun beda koperasi -> data TIDAK saling terlihat.
+         -> Buat apa: RLS rawan bug halus. Validasi ini dulu sebelum
+         bangun fitur apapun di atas fondasi yang belum terbukti aman.
+
+==================================================
+PHASE 3 — MODUL INTI: TERNAK / PAKAN / SIMPAN-PINJAM
+==================================================
+Buat apa: pencatatan operasional harian koperasi. Ini sumber data untuk
+semua fitur lain (Pass, Lens, Insight, Guard). Tanpa data ini, tidak ada
+yang bisa ditampilkan, dianalisis, atau dibagikan.
+
+[x] 3.1  CRUD Ternak
+         kolom: kode, jenis, umur_bulan, status, vaksin_terakhir,
+                nilai_estimasi, foto_url, terverifikasi, tanggal_mati
+         status: sehat | pantau | sakit | mati
+         UI: daftar ternak + badge status warna + form tambah/edit
+         -> Buat apa: catatan aset ternak = dasar agunan ke pemodal.
+         Status "mati" penting: otomatis kurangi nilai aset, invalidasi
+         Pass yang outstanding, dan trigger alert ke pengurus.
+
+[x] 3.2  Handle ternak mati:
+         Saat status diubah ke "mati" -> sistem otomatis:
+         (a) catat tanggal_mati + dicatat_oleh di audit_log
+         (b) cek apakah ternak ini tercantum di Pass aktif ->
+             jika ya: flag Pass "aset berubah, perlu diperbarui"
+         (c) update skor kredit otomatis (nilai aset turun)
+         (d) kalau mortalitas > 10% bulan ini -> badge peringatan beranda
+         -> Buat apa: agunan berubah harus langsung terpantau. Pemodal
+         yang sudah pegang Pass harus tahu data sudah tidak valid.
+
+[x] 3.3  CRUD Pakan + alert stok
+         kolom: nama, stok, satuan, batas_minimum
+         UI: badge merah kalau stok < batas_minimum
+         -> Buat apa: pengurus tahu kapan harus restok sebelum pakan habis.
+         Stok pakan yang menipis juga masuk narasi Lens otomatis.
+
+[x] 3.4  CRUD Simpan-Pinjam
+         Tabel pinjaman:
+           anggota_id, jumlah_pokok, tenor_bulan, tanggal_mulai,
+           angsuran_per_bulan (auto-calc = pokok/tenor), status
+           status: aktif | lunas | macet
+         Tabel angsuran (di-generate otomatis saat pinjaman dibuat):
+           pinjaman_id, bulan_ke, tanggal_jatuh_tempo,
+           tanggal_bayar, jumlah_bayar, status
+           status: pending | lunas | terlambat
+         UI: daftar pinjaman + progress bar bayar + form catat angsuran
+         -> Buat apa: rekam jejak pembayaran = bahan skor kredit di Pass.
+         Anggota yang bayar rutin dapat limit lebih tinggi saat ajukan
+         pinjaman berikutnya.
+         DEMO: seed data sudah "berjalan 5 bulan" -> demo input angsuran
+         bulan ke-6 live. Tidak perlu tunggu bulan beneran.
+
+[x] 3.5  Profil Awal (first-time borrower — pengganti slip gaji)
+         Untuk anggota yang belum punya riwayat pinjaman:
+         kolom tambahan di anggota: ktp_hash (bukan foto), foto_aset_url,
+           nilai_aset_manual, nama_penjamin, status_penjamin, durasi_anggota
+         UI: form "Profil Awal" -> isi KTP hash + upload foto aset +
+             pilih 1-2 anggota lain sebagai penjamin
+         -> Buat apa: di desa tidak semua orang punya slip gaji.
+         Ganti dengan: aset nyata (ternak terverifikasi COCO-SSD + foto
+         lahan/alat) + penjamin komunitas (1-2 anggota yang vouch).
+         Lebih susah dipalsukan dari slip gaji, lebih relevan konteks desa.
+         Limit awal konservatif (Rp1-3jt) -> naik setelah ada track record.
+
+[x] 3.6  Beranda pengurus: ringkasan satu layar
+         - jumlah ternak per status (sehat/pantau/sakit)
+         - total simpanan anggota bulan ini
+         - pinjaman aktif + berapa yang terlambat
+         - alert stok pakan di bawah minimum
+         - alert mortalitas ternak (kalau > 10%)
+         -> Buat apa: pengurus lihat kondisi koperasi dalam 5 detik
+         tanpa harus buka tiap menu satu per satu.
+
+==================================================
+PHASE 4 — OFFLINE-FIRST (Lumbung Sync) — HERO TEKNIS
+==================================================
+Buat apa: aplikasi tetap jalan walau tidak ada internet. Ini pembeda
+utama dari aplikasi koperasi biasa. Harapan Baru lokasi terpencil,
+sinyal tidak stabil — pengurus tidak boleh terhenti karena sinyal putus.
+
+[x] 4.1  lib/db.ts (Dexie): mirror tabel ternak+pakan+pinjaman di HP
+         + tabel outbox(id, tabel, payload, synced_at, retry_count)
+         -> Buat apa: HP jadi "database lokal" sementara. Semua yang
+         dicatat saat offline tersimpan di sini dulu, tidak hilang.
+
+[x] 4.2  Saat menyimpan data: tulis ke Dexie DULU (UI langsung update),
+         baru masuk outbox. Pakai client-generated UUID sebagai id.
+         -> Buat apa: pengurus tidak perlu tunggu internet untuk lihat
+         data masuk. Terasa instan. UUID mencegah data dobel kalau
+         sync dikirim ulang.
+
+[x] 4.3  lib/sync.ts: flush isi outbox ke Supabase saat event 'online'
+         Kirim satu per satu, tandai synced_at kalau berhasil.
+         -> Buat apa: data offline akhirnya masuk server dengan aman
+         begitu sinyal kembali. Tanpa tindakan manual dari pengurus.
+
+[x] 4.4  Badge status koneksi di navbar:
+         "Offline (3 item pending)" / "Tersinkron"
+         -> Buat apa: pengurus tahu data sudah terkirim atau masih
+         menunggu. Mengurangi kecemasan "apakah catatan saya tersimpan?"
+
+[x] 4.5  UJI (DoD Fitur Offline):
+         Airplane mode -> catat 1 ternak -> badge "Offline (1 pending"
+         -> matikan airplane mode -> badge berubah "Tersinkron"
+         -> buka di browser lain -> ternak muncul.
+
+==================================================
+PHASE 5 — LUMBUNG PASS (paspor data) — HERO FITUR — Case A
+==================================================
+Buat apa: cara aman koperasi berbagi data ke pemodal tanpa kirim
+buku besar mentah. Jawab Case A (Pak Hendra lintas koperasi) dan
+pain utama "tidak tahu harus kirim data apa ke pemberi pinjaman".
+
+[ ] 5.1  lib/pass.ts -> buildFields(): kumpulkan data AGREGAT koperasi
+         Contoh field: rasio_ternak_sehat, pct_cicilan_lancar,
+         total_simpanan, jumlah_anggota_aktif, skor_kredit
+         TANPA data pribadi: tidak ada nama, NIK, nominal per anggota.
+         -> Buat apa: pemodal cukup tahu "koperasi sehat atau tidak",
+         bukan siapa saja anggotanya. Privasi terjaga, pemodal tetap
+         dapat info yang dibutuhkan.
+
+[ ] 5.2  UI terbitkan Pass (/pass):
+         - toggle consent per kategori data (ON/OFF per bagian)
+         - isi tujuan pembiayaan + nama mitra (misal: "BRI Desa")
+         - preview: "Data yang akan dibagikan: ..." sebelum konfirmasi
+         -> Buat apa: pengurus punya kontrol penuh. Tidak ada data
+         yang keluar tanpa persetujuan eksplisit per kategori.
+
+[ ] 5.3  Generate Pass:
+         hash = SHA-256(JSON.stringify(fields + timestamp))
+         simpan ke lumbung_pass + buat token unik (UUID)
+         buat link /pass/[token] + tampilkan QR code
+         berlaku default 30 hari (bisa diatur)
+         -> Buat apa: hash = bukti data asli tidak diubah.
+         Kalau pengurus edit 1 angka setelah Pass diterbitkan,
+         hash tidak cocok -> pemodal tahu data sudah berubah.
+
+[ ] 5.4  Halaman pemodal /pass/[token] (PUBLIC — tanpa perlu login):
+         - tampil ringkasan data + badge "Terverifikasi SHA-256"
+         - tampil skor kredit + breakdown komponen
+         - tombol "Setujui Pembiayaan" -> catat di pass_access_log
+         - kalau expired: "Pass sudah tidak berlaku, hubungi koperasi"
+         - kalau aset berubah (ternak mati): "Data diperbarui, minta Pass baru"
+         -> Buat apa: pemodal bisa verifikasi data tanpa akses ke
+         sistem koperasi langsung. Proses bisa dilakukan dari mana saja.
+
+[ ] 5.5  Flow first-time borrower (Profil Awal di Pass):
+         Anggota baru tanpa track record -> Pass tampilkan:
+         - aset terverifikasi (jumlah ternak dari COCO-SSD)
+         - nilai estimasi aset
+         - nama + status penjamin (anggota koperasi aktif)
+         - durasi jadi anggota koperasi
+         - konsistensi iuran/simpanan
+         - limit awal yang direkomendasikan sistem
+         -> Buat apa: gantikan slip gaji dengan bukti aset nyata +
+         kepercayaan komunitas. Lebih relevan untuk konteks desa.
+
+[ ] 5.6  Flow Case A (Pak Hendra lintas koperasi):
+         Padiwangi generate Pass riwayat cicilan Pak Hendra
+         -> Pak Hendra consent -> kirim link ke Melati Jaya
+         -> Melati Jaya buka Pass -> lihat skor + riwayat cicilan
+         -> sistem tampilkan rekomendasi: "Direkomendasikan: limit Rp5jt"
+         -> petugas Melati Jaya approve / reject (keputusan tetap manusia)
+         -> Buat apa: jawab skenario A study case langsung. Data lintas
+         koperasi bisa diverifikasi tanpa database saling terhubung.
+
+[ ] 5.7  UJI (DoD Pass):
+         Terbitkan Pass -> buka link sbg pemodal -> badge Terverifikasi
+         -> klik Setujui -> log tercatat di pass_access_log.
+
+==================================================
+PHASE 6 — LUMBUNG LENS (laporan adaptif)
+==================================================
+Buat apa: ubah angka jadi laporan yang bisa dipahami pengurus desa
+yang mungkin tidak terbiasa membaca spreadsheet atau laporan keuangan.
+Jawab pain "pengurus tidak paham laporan".
+
+[ ] 6.1  Grafik Recharts (/lens):
+         - bar chart: simpanan 6 bulan terakhir (trend naik/turun)
+         - donut chart: komposisi status ternak (sehat/pantau/sakit/mati)
+         - line chart: stok pakan 30 hari (apakah menipis?)
+         - bar chart: angsuran tepat waktu vs terlambat per bulan
+         -> Buat apa: visual lebih cepat dipahami daripada tabel angka.
+         Pengurus desa bisa ambil keputusan dari grafik dalam hitungan detik.
+
+[ ] 6.2  lib/narasi.ts: satu paragraf kalimat otomatis dari angka
+         Contoh: "Bulan ini simpanan naik Rp4,2jt. Stok pakan
+         tersisa untuk 8 hari — perlu restok segera. 3 ternak
+         butuh vaksin minggu depan."
+         Primary: Claude Haiku API.
+         Fallback (kalau tidak ada key): template string dari kondisi data.
+         -> Buat apa: laporan jadi "ngobrol" bukan tabel menakutkan.
+         Pengurus yang tidak paham angka tetap dapat insight actionable.
+
+[ ] 6.3  Toggle "Ringkas / Rinci" (opsional)
+         -> Buat apa: pengurus desa pilih ringkas; pengawas/pemodal
+         pilih rinci untuk detail lebih lengkap.
+
+==================================================
+PHASE 7 — LUMBUNG INSIGHT (AI + Sistem Jaminan)
+==================================================
+Buat apa: verifikasi aset sebagai pengganti slip gaji (konteks desa),
+skor kredit transparan, dan sistem limit bertahap. AI hanya membantu —
+keputusan tetap di pengurus/pemodal.
+
+[ ] 7.1  lib/vision.ts -> COCO-SSD verifikasi ternak via foto [paling nge-wow]
+         Cara kerja: pengurus buka kamera HP di app (browser camera API)
+         -> foto ternak -> TF.js load COCO-SSD di browser HP itu sendiri
+         -> detect class "cow" -> hitung berapa yang terlihat
+         -> simpan jumlah + flag terverifikasi di data ternak
+         Fallback: input manual kalau model gagal (tetap functional).
+         -> Buat apa: cegah "ternak fiktif" saat jadi agunan ke pemodal.
+         Di desa, orang tidak punya slip gaji tapi punya ternak nyata.
+         COCO-SSD membuktikan ternak itu ada secara objektif — lebih
+         susah dipalsukan dari dokumen kertas. Tidak perlu hardware,
+         cukup kamera HP yang sudah dimiliki pengurus.
+
+[ ] 7.2  lib/scoring.ts -> skor kelayakan kredit TRANSPARAN (2 jalur)
+         JALUR A — anggota dengan track record:
+           skor = 0.4 * rasio_ternak_sehat
+                + 0.4 * (1 - rasio_angsuran_macet)
+                + 0.2 * pertumbuhan_simpanan_3bln
+         JALUR B — first-time borrower (belum pernah pinjam):
+           skor = 0.5 * nilai_aset_terverifikasi / nilai_aset_klaim
+                + 0.3 * (ada_penjamin ? 1 : 0)
+                + 0.2 * (durasi_anggota_bulan / 24)  -- maks 2 tahun
+         UI: tampilkan skor + breakdown per komponen + jalur yang dipakai
+         -> Buat apa: pemodal tahu dari mana angka skor berasal.
+         First-time borrower tetap bisa dapat skor walau tanpa riwayat
+         cicilan — dinilai dari aset nyata + kepercayaan komunitas.
+         Pengurus tahu apa yang perlu diperbaiki untuk naikkan limit.
+
+[ ] 7.3  Peringatan dini mortalitas ternak
+         Kalau ternak status "mati" bulan ini > 10% total
+         -> badge merah di beranda: "2 dari 8 ternak mati bulan ini"
+         -> Buat apa: sinyal dini sebelum kerugian membesar. Juga
+         otomatis flag Pass yang outstanding sebagai "aset berubah".
+
+[ ] 7.4  Sistem jaminan aset lengkap (pengganti slip gaji)
+         Tiga jenis aset yang bisa dijadikan jaminan:
+         (a) TERNAK — diverifikasi COCO-SSD (objektif, susah dipalsukan)
+             kolom: jumlah_klaim, jumlah_terverifikasi_ai, nilai_estimasi
+         (b) LAHAN — foto + input manual (luas, status: milik/garap)
+             kolom: foto_lahan_url, luas_m2, status_lahan, nilai_estimasi
+         (c) ALAT PRODUKSI — foto + input manual (jenis, kondisi)
+             kolom: foto_alat_url, jenis_alat, kondisi, nilai_estimasi
+         UI di form ternak/profil: section "Aset Jaminan" dengan 3 tab
+         Total nilai jaminan = ternak + lahan + alat (ditampilkan di Pass)
+         -> Buat apa: di desa tidak semua orang punya slip gaji tapi
+         hampir semua punya salah satu dari tiga aset ini. Sistem
+         jaminan berbasis aset nyata lebih relevan dan lebih adil.
+
+[ ] 7.5  Sistem limit bertahap (otomatis dari data)
+         Sistem hitung dan tampilkan limit rekomendasi per anggota:
+         Level 1 — Baru, ada aset + penjamin    : Rp 1-3 jt
+         Level 2 — 3+ bulan simpan rutin         : Rp 3-7 jt
+         Level 3 — 1 pinjaman lunas              : Rp 7-20 jt
+         Level 4 — Track record 2+ koperasi      : Rp 20 jt+
+         UI: badge level + angka limit + "Cara naik limit: ..."
+         -> Buat apa: anggota tahu dengan jelas apa yang perlu dilakukan
+         untuk dapat limit lebih tinggi. Tidak ada kesan "sistem pilih
+         kasih" — semua transparan dan bisa diperbaiki.
+         Pemodal lihat level ini di Pass sebagai konteks keputusan.
+
+==================================================
+PHASE 8 — LUMBUNG GUARD (integritas & audit) — Case D + E
+==================================================
+Buat apa: deteksi kasir curang tanpa langsung menuduh (Case D) dan
+fasilitasi pengawas eksternal audit data tanpa lihat PII anggota (Case E).
+Satu tabel audit_log menyelesaikan keduanya sekaligus.
+
+[x] 8.1  Supabase trigger di semua tabel utama (ternak, pakan, pinjaman,
+         angsuran, simpanan):
+         Setiap INSERT/UPDATE/DELETE -> catat ke audit_log:
+           (tabel, row_id, aksi, kolom_diubah, nilai_lama JSONB,
+            nilai_baru JSONB, dilakukan_oleh, dilakukan_pada)
+         -> Buat apa: rekam jejak semua perubahan data secara otomatis.
+         Pengurus tidak bisa "diam-diam" ubah data tanpa tercatat.
+         Ini fondasi untuk Case D dan E sekaligus.
+
+[x] 8.2  lib/anomaly.ts -> deteksi pola anomali kasir (Case D):
+         Query: hitung transaksi void/cancel per user setelah jam 18:00
+         Threshold: > 3 kali dalam 7 hari -> flag "Perlu Tinjauan"
+         Tampil di beranda pengurus: badge merah + nama kasir +
+         jumlah kejadian + tombol "Lihat Detail"
+         PENTING: TANPA tuduhan langsung. Tombol = "Mulai Investigasi",
+         bukan "Kasir Curang". Investigasi tetap dilakukan manusia.
+         -> Buat apa: jawab Case D. Sistem mendeteksi pola yang tidak
+         biasa dan memberikan sinyal ke pengurus untuk ditindaklanjuti.
+         Bukan otomatis menuduh — menghindari fitnah kalau itu kesalahan
+         teknis biasa.
+
+[x] 8.3  Halaman Guard (/guard) — dua tab:
+         Tab "Anomali": tabel per kasir + jumlah flag + waktu kejadian
+           + status investigasi (belum ditinjau / sedang ditinjau / selesai)
+         Tab "Audit Trail": filter tabel + rentang tanggal + nama user
+           -> tampil tabel: waktu | siapa | aksi | kolom | nilai lama -> baru
+         -> Buat apa: pengurus punya satu tempat untuk semua urusan
+         integritas data. Audit trail juga dipakai saat pengawas datang.
+
+[x] 8.4  Role pengawas eksternal (Case E):
+         Login sebagai pengawas (dinas koperasi) -> bisa:
+           SELECT audit_log koperasinya
+         Tidak bisa:
+           SELECT tabel anggota / ternak / pinjaman langsung
+         RLS: audit_log WHERE koperasi_id = pengawas.koperasi_id
+         -> Buat apa: pengawas bisa periksa "ada yang ubah data pinjaman
+         dekat tanggal pencairan" TANPA mengakses data sensitif anggota
+         yang tidak relevan. Privasi terjaga, transparansi tetap ada.
+
+[x] 8.5  UJI Case D: seed data kasir dengan 5 void after-hours
+         -> buka Guard tab Anomali -> kasir muncul dengan badge merah.
+
+[x] 8.6  UJI Case E: login sebagai pengawas -> filter tabel=pinjaman +
+         tanggal pencairan -> lihat siapa ubah apa kapan ->
+         coba buka halaman anggota -> ditolak (403).
+
+==================================================
+PHASE 9 — LUMBUNG PASAR (pengadaan bersama) — Case B
+==================================================
+Buat apa: tiga koperasi ingin beli pupuk/pakan bersama agar dapat harga
+lebih murah. Sistem harus bisa menggabungkan kebutuhan, mencatat alokasi
+per koperasi, dan menangani kasus 1 koperasi belum punya rekening.
+Jawab Case B study case langsung.
+
+[ ] 9.1  Tabel database pengadaan:
+         pengadaan(id, judul, item, satuan, status, dibuat_oleh_koperasi_id)
+         pengadaan_alokasi(id, pengadaan_id, koperasi_id,
+           kebutuhan, alokasi_dapat, status_rekening, catatan)
+         status_rekening: terhubung | belum_terhubung
+         -> Buat apa: simpan kebutuhan tiap koperasi secara terpisah
+         tapi dalam 1 order bersama. Transparansi siapa dapat berapa.
+
+[ ] 9.2  UI halaman Pasar (/pengadaan):
+         - list pengadaan aktif (semua koperasi peserta bisa lihat)
+         - form "Ajukan Kebutuhan": tiap koperasi isi jumlah yang dibutuhkan
+         - tabel rekapitulasi otomatis:
+             Koperasi A: butuh 50kg | Koperasi B: 30kg | C: 20kg | Total: 100kg
+         - kolom status rekening: merah + ikon warning kalau belum terhubung
+         - kolom alokasi dapat: diisi setelah barang tiba
+         -> Buat apa: semua koperasi bisa lihat rekapitulasi secara
+         transparan. Yang belum punya rekening langsung kelihatan — bisa
+         diurus sebelum barang tiba.
+
+[ ] 9.3  UJI Case B:
+         3 koperasi ajukan kebutuhan -> rekapitulasi total muncul ->
+         1 koperasi status rekening merah "belum terhubung" ->
+         alokasi dicatat setelah selesai.
+
+==================================================
+PHASE 10 — LUMBUNG ATLAS (pemerintah kabupaten)
+==================================================
+Buat apa: pemkab ingin pantau kondisi semua koperasi binaan tanpa
+harus minta laporan manual tiap bulan dan tanpa mengakses data
+pribadi anggota. Transparansi untuk pengawasan, privasi tetap terjaga.
+
+[ ] 10.1 Buat VIEW atlas_agregat di Supabase:
+          Per koperasi: nama, jumlah_anggota, total_simpanan,
+          jumlah_ternak, pct_sehat, jumlah_pinjaman_aktif, skor_rata
+          -> Buat apa: VIEW mengagregasi data — tidak ada baris per
+          anggota yang bisa dibaca. Privasi by design dari level database.
+
+[ ] 10.2 Halaman Atlas (/atlas) — role pemkab saja:
+          - tabel komparasi 5 koperasi (sortable per kolom)
+          - bar chart: perbandingan total simpanan antar koperasi
+          - badge kondisi per koperasi (hijau/kuning/merah dari skor)
+          - banner: "Data agregat — identitas anggota terjaga"
+          -> Buat apa: pemkab lihat gambaran besar dalam 1 layar.
+          Bisa identifikasi koperasi mana yang butuh perhatian lebih
+          tanpa perlu audit detail data anggota.
+
+==================================================
+PHASE 11 — INTEGRASI + PERSIAPAN DEMO
+==================================================
+Buat apa: pastikan semua fitur nyambung jadi 1 cerita mulus,
+stabil, dan siap dipresentasikan dalam 3 menit tanpa error.
+
+[ ] 11.1 Seed data realistis (lihat SEED DATA di bawah)
+         -> Buat apa: demo tidak bisa pakai database kosong. Seed
+         data pre-berjalan membuat demo terlihat nyata dan credible.
+
+[ ] 11.2 Rangkai alur demo end-to-end sesuai SCRIPT DEMO
+         -> Buat apa: latihan membuat demo lancar. Tahu urutan klik
+         tepat sehingga tidak grogi di depan juri.
+
+[ ] 11.3 Deploy final ke Vercel + uji di HP Android nyata (mode pesawat)
+         -> Buat apa: demo di HP nyata lebih meyakinkan dari emulator.
+         Mode pesawat membuktikan offline benar-benar jalan.
+
+[ ] 11.4 Bug fix — utamakan KESTABILAN di atas fitur baru
+         -> Buat apa: Bug & Accuracy bobotnya 25%. Demo yang crash
+         menghancurkan kesan lebih dari fitur yang kurang 1.
+
+[ ] 11.5 FREEZE fitur H-1 (13 Jun malam)
+         -> Buat apa: fitur baru last-minute sering bawa bug baru.
+         Setelah freeze, hanya boleh fix bug — tidak tambah fitur.
+
+[ ] 11.6 Latihan demo 3x sampai < 3 menit mulus
+         -> Buat apa: 3 menit sangat singkat. Tanpa latihan, mudah
+         kehabisan waktu atau tersandung urutan klik.
+
+[ ] 11.7 Siapkan slide PPT 7 menit (lihat OUTLINE SLIDE)
+         -> Buat apa: 7 menit presentasi + 3 menit demo = 10 menit total.
+         Slide harus cover semua 5 case + arsitektur + dampak.
+
+[ ] 11.8 Centang semua CHECKLIST PRE-DEMO sebelum naik panggung
+
+
+##################################################
+BAGIAN D — REFERENSI EKSEKUSI
+##################################################
+
+URUTAN PRIORITAS (kalau waktu mepet):
+  WAJIB     : Phase 1 -> 2 -> 3 -> 4 -> 5
+  IMPRESSIVE: 7.1 (vision) + 8 (Guard) + 6 (Lens)
+  PENTING   : 9 (Pasar) + 10 (Atlas)
+  FINISHING : 11
+  Sangat mepet: Fitur 1-5 + Guard (D+E) + 1 chart Lens.
+
+TIMELINE ONSITE (12-13 Jun):
+  12 Jun Pagi  : Phase 2 (schema + RLS + auth)
+  12 Jun Siang : Phase 3 (CRUD ternak/pakan/simpan-pinjam)
+  12 Jun Malam : Phase 4 (offline) + Phase 5 (Pass)
+  13 Jun Pagi  : Phase 6 (Lens) + Phase 7 (Insight/vision)
+  13 Jun Siang : Phase 8 (Guard) + Phase 9 (Pasar)
+  13 Jun Malam : Phase 10 (Atlas) + Phase 11 (seed+deploy+uji)
+  14 Jun       : Demo + presentasi
+
+PEMBAGIAN TUGAS:
+  DHAFIN (lead/full-stack): Phase 1,2,4,5,8,9 + deploy
+  FARHAN (data/AI)        : Phase 3,6,7,10 + seed data + slide
+  Integrasi (Phase 11)    : bersama
+
+DATA MODEL (Supabase) — untuk Phase 2.1:
+
+  -- Multi-tenant base
+  koperasi(id, nama, fokus_usaha, lokasi, created_at)
+  profiles(id->auth.users, koperasi_id, role, nama)
+    role: pengurus | kasir | pemodal | pemkab | pengawas
+
+  -- Core operational
+  anggota(id, koperasi_id, nama, no_hp, bergabung_at)
+  simpanan(id, koperasi_id, anggota_id, jumlah, tanggal)
+  pinjaman(id, koperasi_id, anggota_id, jumlah_pokok, tenor_bulan,
+           tanggal_mulai, angsuran_per_bulan, status)
+    status: aktif | lunas | macet
+  angsuran(id, pinjaman_id, bulan_ke, tanggal_jatuh_tempo,
+           tanggal_bayar, jumlah_bayar, status)
+    status: pending | lunas | terlambat
+  ternak(id, koperasi_id, kode, jenis, umur_bulan, status,
+         vaksin_terakhir, nilai_estimasi, foto_url,
+         terverifikasi, jumlah_terverifikasi, created_at)
+    status: sehat | pantau | sakit
+  pakan(id, koperasi_id, nama, stok, satuan, batas_minimum, updated_at)
+
+  -- Pass
+  lumbung_pass(id, koperasi_id, tujuan, mitra, fields JSONB,
+               hash, consent JSONB, berlaku_sampai, status, created_at)
+  pass_access_log(id, pass_id, mitra, accessed_at, ip)
+
+  -- Guard
+  audit_log(id, koperasi_id, tabel_nama, row_id, aksi,
+            kolom_diubah, nilai_lama JSONB, nilai_baru JSONB,
+            dilakukan_oleh, dilakukan_pada)
+    aksi: INSERT | UPDATE | DELETE | CANCEL
+
+  -- Pasar (pengadaan bersama)
+  pengadaan(id, judul, item, satuan, total_kebutuhan,
+            status, dibuat_oleh_koperasi_id, created_at)
+    status: draft | aktif | selesai
+  pengadaan_alokasi(id, pengadaan_id, koperasi_id,
+                    kebutuhan, alokasi_dapat, status_rekening, catatan)
+    status_rekening: terhubung | belum_terhubung
+
+  -- Atlas (VIEW, bukan tabel)
+  VIEW atlas_agregat: koperasi_id, nama, jumlah_anggota,
+    total_simpanan, jumlah_ternak, pct_sehat, pinjaman_aktif, skor
+
+  RLS RULES:
+    tenant tables    : koperasi_id = (SELECT koperasi_id FROM profiles WHERE id = auth.uid())
+    audit_log        : pengawas SELECT saja, koperasi_id match
+    pass/[token]     : SELECT publik via token (tanpa auth)
+    pengadaan        : koperasi peserta bisa lihat baris yang melibatkan mereka
+    atlas_agregat    : hanya role pemkab
+
+SEED DATA (Phase 11.1):
+  5 koperasi: Padiwangi(beras), Melati Jaya(sayur), Sumber Makmur(pupuk),
+              Tirta Bersama(air), Harapan Baru(ternak)
+  Harapan Baru: 12 anggota, 8 ternak (6 sehat/1 pantau/1 sakit),
+    3 pakan (1 di bawah min), 5 pinjaman aktif (4 lancar/1 macet),
+    2 pinjaman sudah berjalan 5 bulan -> demo input angsuran bulan ke-6
+  Padiwangi: kasir dengan 5 pembatalan setelah jam 18:00 (trigger Case D)
+  Cross-koperasi: Pak Hendra di Padiwangi(lancar) + Tirta Bersama(ada tunggakan)
+  Pengadaan: 1 order aktif pupuk -> Padiwangi+Melati Jaya terhubung,
+             Sumber Makmur belum punya rekening (status merah)
+  2-3 foto sapi jelas untuk uji COCO-SSD
+
+SCRIPT LIVE DEMO (3 menit) — latih 3x:
+  0:00 airplane mode -> catat 1 ternak baru -> badge "Offline"
+  0:20 online -> badge "Tersinkron" -> ternak muncul di list
+  0:40 foto sapi -> Insight hitung "3 sapi terdeteksi" -> flag terverifikasi
+  1:05 Pass: toggle consent, isi mitra "BRI Desa" -> Terbitkan -> dapat link+QR
+  1:35 buka link sbg pemodal Pak Hendra -> "Terverifikasi SHA-256" ->
+       lihat skor kredit + riwayat -> klik "Setujui Pembiayaan"
+  2:00 Guard: buka tab Anomali -> kasir Padiwangi 5x cancel after-hours ->
+       badge merah "Perlu Tinjauan"
+  2:30 Atlas pemkab: 5 koperasi dalam 1 tabel agregat tanpa PII
+  2:50 penutup singkat
+
+PPT OUTLINE (7 menit):
+  1. Masalah (1 mnt): data bercampur, tak paham laporan, bingung berbagi
+  2. 5 Case lapangan yang harus dijawab (30 dtk)
+  3. Solusi LUMBUNG: 8 layer, 1 platform (1.5 mnt)
+  4. Pass sebagai hero + Case A Pak Hendra (1 mnt)
+  5. Guard: Case D+E (30 dtk)
+  6. Pasar: Case B (30 dtk)
+  7. Case C: roadmap Q2 (15 dtk)
+  8. Arsitektur teknis + stack (30 dtk)
+  9. Dampak + angka (30 dtk)
+
+CHECKLIST PRE-DEMO:
+  [ ] 2 akun beda koperasi -> data terisolasi (RLS benar)
+  [ ] offline -> catat -> online -> sync (badge benar)
+  [ ] vision: foto sapi -> terhitung
+  [ ] Pass: terbitkan -> link/QR -> pemodal lihat "Terverifikasi"
+  [ ] Simpan-pinjam: input angsuran -> progress update
+  [ ] Guard: anomali kasir muncul + audit trail pengawas jalan
+  [ ] Pasar: 3 koperasi ada di rekap pengadaan
+  [ ] Lens: 1 chart + narasi
+  [ ] Atlas: agregat 5 koperasi tanpa PII
+  [ ] Deploy Vercel live + diuji di HP Android
+  [ ] Demo dilatih 3x < 3 menit mulus
+  [ ] Slide rapi + repo bersih + Figma link aktif
+  [ ] Hotspot cadangan siap
+
+FILE YANG PERLU DIBUAT:
+  supabase/schema.sql          (Phase 2.1)
+  lib/supabase.ts              (Phase 1.3)
+  lib/db.ts                    (Phase 4.1)
+  lib/sync.ts                  (Phase 4.3)
+  lib/pass.ts                  (Phase 5.1-5.3)
+  lib/vision.ts                (Phase 7.1)
+  lib/scoring.ts               (Phase 7.2)
+  lib/narasi.ts                (Phase 6.2)
+  lib/anomaly.ts               (Phase 8.2)
+  hooks/useOnlineStatus.ts     (Phase 4.4)
+  hooks/useSync.ts             (Phase 4.3)
+  types/index.ts               (shared types)
+  app/(auth)/login/page.tsx    (Phase 2.3)
+  app/(dashboard)/layout.tsx   (sidebar + nav)
+  app/(dashboard)/dashboard/page.tsx   (Phase 3.4)
+  app/(dashboard)/ternak/page.tsx      (Phase 3.1)
+  app/(dashboard)/pakan/page.tsx       (Phase 3.2)
+  app/(dashboard)/simpan-pinjam/page.tsx (Phase 3.3)
+  app/(dashboard)/pass/page.tsx        (Phase 5.2)
+  app/(dashboard)/pass/[token]/page.tsx (Phase 5.4)
+  app/(dashboard)/insight/page.tsx     (Phase 7.1)
+  app/(dashboard)/lens/page.tsx        (Phase 6.1)
+  app/(dashboard)/guard/page.tsx       (Phase 8.3)
+  app/(dashboard)/pengadaan/page.tsx   (Phase 9.2)
+  app/(dashboard)/atlas/page.tsx       (Phase 10.2)
+  public/manifest.json                 (Phase 1.2)
+
+STACK FINAL:
+  Frontend : Next.js 14 + TypeScript + Tailwind + shadcn/ui (PWA)
+  Backend  : Supabase (PostgreSQL + Auth + RLS + Storage + Triggers)
+  Offline  : Dexie.js + outbox pattern
+  Vision   : TensorFlow.js + COCO-SSD (on-device, no training)
+  Hash     : Web Crypto API (SHA-256) + QR code library
+  Charts   : Recharts
+  Narasi   : Claude Haiku API (opsional, ada fallback template)
+  Deploy   : Vercel
+
+  Roadmap (sebut jujur di demo):
+    - CRDT penuh (sekarang: outbox sederhana)
+    - Federated Atlas (privasi diferensial)
+    - Case C: gudang cold storage + jadwal offtaker
+    - Embedded financing channel nyata (integrasi AD-INS)
+
+RISIKO & MITIGASI:
+  COCO-SSD lambat/meleset   -> preload model di background; foto uji pasti kena
+  Offline buggy             -> outbox + UUID idempotent; jangan CRDT penuh
+  RLS salah konfigurasi     -> uji 2 akun sejak Phase 2.4 sebelum lanjut
+  Guard trigger lambat      -> trigger Supabase async; tampil hasil setelah refresh
+  Wifi venue jelek          -> demo offline = nilai plus; siapkan hotspot
+  Scope creep               -> FREEZE H-1; prioritas Phase 1-5+8 wajib dulu
+
+CATATAN INTEGRITAS:
+  AI suportif + explainable (aturan lomba: dilarang 100% AI).
+  Yang belum sempat = ROADMAP, sebut jujur di presentasi.
+  Commit author: dpunnn (dpinnn46@gmail.com).
